@@ -1,0 +1,16 @@
+/* Only applies when the ColophonView is active */
+.colophon-workspace .cm-editor {
+    /* Give the editor a 'page' look */
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: var(--background-primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 40px;
+    min-height: 100%;
+}
+
+.colophon-workspace .cm-scroller {
+    /* Center the page in the gray void */
+    padding: 20px;
+    background-color: var(--background-secondary);
+}
