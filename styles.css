@@ -1,16 +1,36 @@
-/* Only applies when the ColophonView is active */
-.colophon-workspace .cm-editor {
-    /* Give the editor a 'page' look */
-    max-width: 800px;
-    margin: 0 auto;
-    background-color: var(--background-primary);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    padding: 40px;
-    min-height: 100%;
+/* Create the gray "void" background and provide scrolling space */
+.colophon-workspace .cm-scroller {
+    padding-top: 5vh;
+    padding-bottom: 5vh;
+    background-color: var(--background-secondary);
 }
 
-.colophon-workspace .cm-scroller {
-    /* Center the page in the gray void */
-    padding: 20px;
-    background-color: var(--background-secondary);
+/* Define the "page" container */
+.colophon-workspace .cm-editor {
+    /* A4-ish proportions. Max-width is key. */
+    max-width: 8.5in; 
+    min-height: 11in;
+    
+    /* Center the page horizontally */
+    margin: 0 auto;
+    
+    /* Page color and shadow */
+    background-color: var(--background-primary);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+
+    /* This is important: allows cm-content to be padded correctly */
+    display: flex;
+    flex-direction: column;
+}
+
+/* This is the content *inside* the page. We pad this for the margins. */
+.colophon-workspace .cm-content {
+    padding: 1.5in 1in; /* Vertical and horizontal "margins" */
+    width: 100%; /* Ensure it takes full width of the editor */
+    box-sizing: border-box; /* Include padding in the width calculation */
+}
+
+/* Ensure lines of text behave correctly with the new padding */
+.colophon-workspace .cm-line {
+    width: 100%;
 }

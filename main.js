@@ -1,4 +1,4 @@
-const { Plugin, MarkdownView, WorkspaceLeaf } = require('obsidian');
+const { Plugin, MarkdownView, WorkspaceLeaf, TFolder, TFile, Notice } = require('obsidian');
 
 const VIEW_TYPE_COLOPHON = 'colophon-view';
 
@@ -7,6 +7,7 @@ const VIEW_TYPE_COLOPHON = 'colophon-view';
 class ColophonView extends MarkdownView {
     constructor(leaf) {
         super(leaf);
+        this.observer = null;
     }
 
     getViewType() {
@@ -14,7 +15,7 @@ class ColophonView extends MarkdownView {
     }
 
     getDisplayText() {
-        return 'Colophon Manuscript';
+        return this.file ? this.file.basename : 'No File';
     }
 
     getIcon() {
@@ -29,33 +30,108 @@ class ColophonView extends MarkdownView {
         // We will use this class in styles.css to create the "Paper" look.
         this.containerEl.classList.add('colophon-workspace');
         
+        // Find the source-view and suppress properties display
+        const sourceView = this.containerEl.querySelector('.markdown-source-view.mod-cm6');
+        if (sourceView) {
+            this.suppressProperties(sourceView);
+        }
+
         // FUTURE: This is where we will register CodeMirror extensions 
         // specifically for this view instance.
         // this.registerEditorExtension([...]);
+    }
+
+    suppressProperties(sourceView) {
+        // Remove the class initially
+        sourceView.classList.remove('show-properties');
+        
+        // Create a MutationObserver to watch for when Obsidian tries to add it back
+        this.observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (sourceView.classList.contains('show-properties')) {
+                        sourceView.classList.remove('show-properties');
+                    }
+                }
+            });
+        });
+        
+        // Start observing the sourceView element for class changes
+        this.observer.observe(sourceView, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
+
+    async onClose() {
+        // Clean up the observer when the view closes
+        if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+        await super.onClose();
     }
 }
 
 // 2. Define the Plugin Logic
 module.exports = class ColophonPlugin extends Plugin {
     async onload() {
-        console.log('Loading Colophon Plugin');
-
         // Register the custom view
         this.registerView(
             VIEW_TYPE_COLOPHON,
             (leaf) => new ColophonView(leaf)
         );
 
-        // EVENT LISTENER: The "Kanban" Interceptor
-        // This listens for any file opening.
+        // EVENT LISTENER: Handle file opening (initial opens)
         this.registerEvent(
             this.app.workspace.on('file-open', this.handleFileOpen.bind(this))
         );
 
+        // EVENT LISTENER: Handle switching between tabs
+        this.registerEvent(
+            this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange.bind(this))
+        );
+
         // RIBBON ICON: Create new Manuscript
-        this.addRibbonIcon('feather', 'New Colophon Manuscript', async () => {
+        this.addRibbonIcon('feather', 'New manuscript', async () => {
             await this.createNewManuscript();
         });
+
+        // FILE MENU: Add "New Manuscript" to context menu
+        this.registerEvent(
+            this.app.workspace.on('file-menu', (menu, file) => {
+                const isFolder = file instanceof TFolder;
+                const path = isFolder ? file.path : file.parent.path;
+
+                menu.addItem((item) => {
+                    item
+                        .setTitle("New manuscript")
+                        .setIcon("feather")
+                        .onClick(async () => {
+                            await this.createNewManuscript(path);
+                        });
+                });
+            })
+        );
+        
+        // COMMAND: Add "New mauscript" to command list
+        this.addCommand({
+            id: 'create-new-colophon-manuscript',
+            name: 'New manuscript',
+            callback: () => this.createNewManuscript()
+        });
+    }
+
+    async handleActiveLeafChange(leaf) {
+        // Safety check
+        if (!leaf) return;
+
+        // Get the file in the active leaf
+        const file = leaf.view.file;
+        if (!file) return;
+
+        // Check the view type and frontmatter
+        await this.ensureCorrectView(leaf, file);
     }
 
     async handleFileOpen(file) {
@@ -66,6 +142,10 @@ module.exports = class ColophonPlugin extends Plugin {
         const leaf = this.app.workspace.activeLeaf;
         if (!leaf) return;
 
+        await this.ensureCorrectView(leaf, file);
+    }
+
+    async ensureCorrectView(leaf, file) {
         // Check the file's frontmatter cache
         const cache = this.app.metadataCache.getFileCache(file);
         
@@ -97,9 +177,20 @@ module.exports = class ColophonPlugin extends Plugin {
         }
     }
 
-    async createNewManuscript() {
-        const root = this.app.vault.getRoot().path;
-        const filename = `Manuscript ${Date.now()}.md`;
+    async getUniqueFileName(folderPath, baseName) {
+        let fileName = `${baseName}.md`;
+        let i = 1;
+        while (await this.app.vault.adapter.exists(`${folderPath}/${fileName}`)) {
+            fileName = `${baseName} ${i}.md`;
+            i++;
+        }
+        return fileName;
+    }
+
+    async createNewManuscript(folderPath) {
+        const destFolder = folderPath || this.app.vault.getRoot().path;
+        const fileName = await this.getUniqueFileName(destFolder, 'Untitled');
+        const filePath = `${destFolder}/${fileName}`;
         
         // Define the initial content with the required frontmatter
         const initialContent = `---
@@ -107,16 +198,18 @@ colophon-plugin: manuscript
 created: ${new Date().toISOString()}
 ---
 
-# New Manuscript
-
-Start writing here...
 `;
         
         // Create the file
         try {
-            const file = await this.app.vault.create(filename, initialContent);
+            const file = await this.app.vault.create(filePath, initialContent);
             // Open the file (The interceptor above will catch this and set the view correctly)
             await this.app.workspace.getLeaf(true).openFile(file);
+            if (this.app.workspace.getLeavesOfType(VIEW_TYPE).length === 0) {
+                await this.app.workspace.getRightLeaf(false).setViewState({
+                    type: VIEW_TYPE
+                });
+            }
         } catch (error) {
             console.error("Error creating manuscript:", error);
             new Notice("Could not create manuscript.");
