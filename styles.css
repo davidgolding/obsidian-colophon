@@ -1,36 +1,68 @@
-/* Create the gray "void" background and provide scrolling space */
+/* 1. LAYOUT: The "Page" Effect */
+/* Hide the line number gutter and fold markers for a clean page look */
+.colophon-workspace .cm-gutters {
+    display: none !important;
+}
+
+/* Center the content and constrain width */
 .colophon-workspace .cm-scroller {
-    padding-top: 5vh;
-    padding-bottom: 5vh;
-    background-color: var(--background-secondary);
+    padding: 50px 0 !important; /* Vertical breathing room */
 }
 
-/* Define the "page" container */
-.colophon-workspace .cm-editor {
-    /* A4-ish proportions. Max-width is key. */
-    max-width: 8.5in; 
-    min-height: 11in;
-    
-    /* Center the page horizontally */
-    margin: 0 auto;
-    
-    /* Page color and shadow */
-    background-color: var(--background-primary);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-
-    /* This is important: allows cm-content to be padded correctly */
-    display: flex;
-    flex-direction: column;
-}
-
-/* This is the content *inside* the page. We pad this for the margins. */
+.colophon-workspace .cm-sizer,
 .colophon-workspace .cm-content {
-    padding: 1.5in 1in; /* Vertical and horizontal "margins" */
-    width: 100%; /* Ensure it takes full width of the editor */
-    box-sizing: border-box; /* Include padding in the width calculation */
+    max-width: 700px;   /* The "Golden Standard" reading width */
+    margin: 0 auto !important;
 }
 
-/* Ensure lines of text behave correctly with the new padding */
-.colophon-workspace .cm-line {
-    width: 100%;
+/* Remove the active line highlight (distracting for prose) */
+.colophon-workspace .cm-active {
+    background: transparent !important;
+}
+
+/* 2. TYPOGRAPHY: The "Editorial" Feel */
+.colophon-workspace .cm-content {
+    /* Substack/Medium rely heavily on high-quality Serifs */
+    font-family: "Charter", "Iowan Old Style", "Sitka Text", Palatino, serif !important; 
+    font-size: 20px !important; /* Larger than standard editor text */
+    line-height: 1.6 !important;
+    color: var(--text-normal);
+}
+
+/* 3. HEADINGS: Distinct and Structural */
+.colophon-workspace .cm-header {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+    font-weight: 700 !important;
+    line-height: 1.3 !important;
+    margin-top: 1.5em !important;
+    margin-bottom: 0.5em !important;
+    color: var(--text-title);
+}
+
+.colophon-workspace .cm-header-1 { font-size: 2.4em !important; letter-spacing: -0.02em; }
+.colophon-workspace .cm-header-2 { font-size: 1.8em !important; }
+.colophon-workspace .cm-header-3 { font-size: 1.4em !important; }
+
+/* 4. QUOTES: The "Pull Quote" Look */
+.colophon-workspace .cm-quote {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 3px solid var(--interactive-accent);
+    padding-left: 20px !important;
+    margin-left: 0 !important;
+    font-size: 1.1em;
+}
+
+/* 5. CURSOR: iOS/Modern Style */
+.colophon-workspace .cm-cursor {
+    border-left-width: 2px !important;
+    border-left-color: var(--interactive-accent) !important;
+    height: 1.2em !important; /* Taller cursor feels more modern */
+}
+
+/* 6. METADATA: Hide Markdown syntax if using Live Preview */
+/* This is a visual trick to dim syntax characters like # or * */
+.colophon-workspace span.cm-formatting {
+    color: var(--text-faint);
+    font-weight: normal;
 }

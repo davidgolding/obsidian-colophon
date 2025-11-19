@@ -1,0 +1,16 @@
+{
+  "name": "obsidian-colophon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:@codemirror/view --external:@codemirror/state --platform=node"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.19.0",
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}
