@@ -1,6 +1,6 @@
-const { Plugin, MarkdownView, WorkspaceLeaf, TFolder, TFile, Notice } = require('obsidian');
+const { Plugin, MarkdownView, WorkspaceLeaf, TFolder, TFile, Notice, normalizePath } = require('obsidian');
 
-const VIEW_TYPE_COLOPHON = 'colophon-view';
+const VIEW_TYPE = 'colophon-view';
 
 // 1. Define the Custom View
 // We extend MarkdownView so we inherit the standard editor, search, and hotkeys.
@@ -11,7 +11,7 @@ class ColophonView extends MarkdownView {
     }
 
     getViewType() {
-        return VIEW_TYPE_COLOPHON;
+        return VIEW_TYPE;
     }
 
     getDisplayText() {
@@ -78,7 +78,7 @@ module.exports = class ColophonPlugin extends Plugin {
     async onload() {
         // Register the custom view
         this.registerView(
-            VIEW_TYPE_COLOPHON,
+            VIEW_TYPE,
             (leaf) => new ColophonView(leaf)
         );
 
@@ -159,7 +159,7 @@ module.exports = class ColophonPlugin extends Plugin {
             // We preserve the state (scroll position, cursor) when swapping
             const state = leaf.view.getState();
             await leaf.setViewState({
-                type: VIEW_TYPE_COLOPHON,
+                type: VIEW_TYPE,
                 state: state,
                 active: true // Make it the active tab
             });
@@ -167,7 +167,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
         // SCENARIO 2: It's a regular file, but stuck in Colophon View.
         // ACTION: Swap back to default Markdown View.
-        else if (!isColophon && currentViewType === VIEW_TYPE_COLOPHON) {
+        else if (!isColophon && currentViewType === VIEW_TYPE) {
             const state = leaf.view.getState();
             await leaf.setViewState({
                 type: 'markdown',
@@ -177,42 +177,71 @@ module.exports = class ColophonPlugin extends Plugin {
         }
     }
 
-    async getUniqueFileName(folderPath, baseName) {
-        let fileName = `${baseName}.md`;
-        let i = 1;
-        while (await this.app.vault.adapter.exists(`${folderPath}/${fileName}`)) {
-            fileName = `${baseName} ${i}.md`;
-            i++;
-        }
-        return fileName;
-    }
-
-    async createNewManuscript(folderPath) {
-        const destFolder = folderPath || this.app.vault.getRoot().path;
-        const fileName = await this.getUniqueFileName(destFolder, 'Untitled');
-        const filePath = `${destFolder}/${fileName}`;
+    async createNewManuscript(folder) {
+        // Determine target folder: use provided folder or default location
+        let target;
         
-        // Define the initial content with the required frontmatter
-        const initialContent = `---
-colophon-plugin: manuscript
-created: ${new Date().toISOString()}
----
-
-`;
-        
-        // Create the file
-        try {
-            const file = await this.app.vault.create(filePath, initialContent);
-            // Open the file (The interceptor above will catch this and set the view correctly)
-            await this.app.workspace.getLeaf(true).openFile(file);
-            if (this.app.workspace.getLeavesOfType(VIEW_TYPE).length === 0) {
-                await this.app.workspace.getRightLeaf(false).setViewState({
-                    type: VIEW_TYPE
-                });
+        if (folder) {
+            // If folder is a string path, get the TFolder object
+            if (typeof folder === 'string') {
+                target = this.app.vault.getAbstractFileByPath(folder);
+            } else {
+                target = folder;
             }
-        } catch (error) {
-            console.error("Error creating manuscript:", error);
-            new Notice("Could not create manuscript.");
+        } else {
+            target = this.app.fileManager.getNewFileParent(
+                this.app.workspace.getActiveFile()?.path || ''
+            );
+        }
+        
+        // Ensure we have a valid folder
+        if (!target || !target.path) {
+            new Notice('Invalid folder location');
+            return;
+        }
+        
+        // Define the initial content with required frontmatter
+        const initialContent = "---\ncolophon-plugin: manuscript\n---\n\n";
+        
+        // Find an available filename
+        const finalPath = await this.getUniqueFilePath(target);
+        
+        try {
+            // Create the new file
+            const newFile = await this.app.vault.create(finalPath, initialContent);
+            
+            // Open the custom view if not already open
+            await this.ensureViewOpen();
+            
+            // Optional: Open the newly created file
+            await this.app.workspace.getLeaf(false).openFile(newFile);
+            
+        } catch (e) {
+            new Notice(`Failed to create manuscript: ${e.toString()}`);
+        }
+    }
+    
+    async getUniqueFilePath(folder) {
+        let counter = 0;
+        
+        while (true) {
+            const suffix = counter === 0 ? '' : ` ${counter}`;
+            const fileName = `Untitled${suffix}.md`;
+            const filePath = normalizePath(`${folder.path}/${fileName}`);
+            
+            if (!await this.app.vault.exists(filePath)) {
+                return filePath;
+            }
+            
+            counter++;
+        }
+    }
+    
+    async ensureViewOpen() {
+        if (this.app.workspace.getLeavesOfType(VIEW_TYPE).length === 0) {
+            await this.app.workspace.getRightLeaf(false).setViewState({
+                type: VIEW_TYPE
+            });
         }
     }
 
