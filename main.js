@@ -32,21 +32,26 @@ var import_state = require("@codemirror/state");
 var import_state2 = require("@codemirror/state");
 var SIDECAR_REGEX = /^%%colophon:data\n([\s\S]*?)\n%%$/m;
 var FOOTNOTE_REFERENCE_REGEX = /\[\^([a-zA-Z0-9-]+?)\]/g;
-var FOOTNOTE_DEFINITION_BLOCK_REGEX = /\n+(?:\[\^([a-zA-Z0-9-]+?)\]: .*?\n*)+$/;
+var FOOTNOTE_DEFINITION_BLOCK_REGEX = /\n+(?:\[\^([a-zA-Z0-9\-]+?)\]: .*?\n*)+$/;
 function getSidecarData(state) {
+  console.log("getSidecarData called. Doc length:", state.doc.length);
   const doc = state.doc.toString();
   const match = doc.match(SIDECAR_REGEX);
   if (match && match[1]) {
     try {
-      return JSON.parse(match[1]);
+      const data = JSON.parse(match[1]);
+      console.log("Sidecar data found:", data);
+      return data;
     } catch (e) {
       console.error("Colophon: Error parsing sidecar JSON:", e);
       return null;
     }
   }
+  console.log("No sidecar data found.");
   return null;
 }
 function setSidecarData(view, data) {
+  console.log("setSidecarData called with data:", data);
   const currentDoc = view.state.doc.toString();
   const serializedData = JSON.stringify(data, null, 2);
   const newSidecarBlock = `%%colophon:data
@@ -55,12 +60,14 @@ ${serializedData}
   const match = currentDoc.match(SIDECAR_REGEX);
   let transaction;
   if (match) {
+    console.log("Replacing existing sidecar block.");
     const start = match.index;
     const end = match.index + match[0].length;
     transaction = view.state.update({
       changes: { from: start, to: end, insert: newSidecarBlock }
     });
   } else {
+    console.log("Appending new sidecar block.");
     transaction = view.state.update({
       changes: { from: currentDoc.length, insert: `
 
@@ -98,6 +105,7 @@ var footnotePlugin = import_view.EditorView.updateListener.of((update) => {
     }
   }
   if (update.docChanged) {
+    console.log("footnotePlugin update triggered. docChanged:", update.docChanged);
     const view = update.view;
     const state = update.state;
     const doc = state.doc.toString();
@@ -114,6 +122,7 @@ var footnotePlugin = import_view.EditorView.updateListener.of((update) => {
         originalText: match[0]
       });
     }
+    console.log("Footnote references in doc:", footnoteReferencesInDoc);
     const footnoteMap = /* @__PURE__ */ new Map();
     footnotesInSidecar.forEach((fn) => footnoteMap.set(fn.id, fn));
     const usedFootnoteIds = /* @__PURE__ */ new Set();
@@ -135,6 +144,7 @@ var footnotePlugin = import_view.EditorView.updateListener.of((update) => {
         }
       }
     }
+    console.log("New footnote definitions:", newFootnoteDefinitions);
     let newDefinitionBlock = "";
     if (newFootnoteDefinitions.length > 0) {
       newDefinitionBlock += "\n\n";
@@ -156,23 +166,28 @@ var footnotePlugin = import_view.EditorView.updateListener.of((update) => {
       changes.push({ from: doc.length, insert: newDefinitionBlock });
     }
     if (changes.length > 0) {
+      console.log("Dispatching document changes:", changes);
       const tr = state.update({ changes: import_state2.ChangeSet.of(changes, state.doc.length) });
       view.dispatch(tr);
     }
   }
 });
 var footnoteTransactionFilter = import_state.EditorState.transactionFilter.of((tr) => {
+  console.log("footnoteTransactionFilter triggered. tr.docChanged:", tr.docChanged);
   if (!tr.docChanged) return tr;
   let collectedDocChanges = [];
   let sidecarUpdate = null;
   tr.changes.iterChanges((fromA, toA, fromB, toB, insertedText) => {
+    console.log("Inserted Text:", insertedText);
     if (insertedText.match(/\[\^\]$/) || insertedText.match(/\[\^(\w+)\]$/)) {
+      console.log("Footnote insertion detected!");
       const currentSidecar = getSidecarData(tr.startState);
       const footnotes = currentSidecar?.footnotes || [];
       const newId = generateFootnoteId();
       const newFootnote = { id: newId, content: "" };
       footnotes.push(newFootnote);
       sidecarUpdate = { ...currentSidecar, footnotes };
+      console.log("Sidecar update prepared:", sidecarUpdate);
       const textToInsert = `[^${newId}]`;
       collectedDocChanges.push({ from: fromB, to: toB, insert: textToInsert });
     }
@@ -204,6 +219,22 @@ var ColophonView = class extends import_obsidian.MarkdownView {
   getIcon() {
     return "feather";
   }
+  // Override the editorExtensions getter to provide our CodeMirror extensions
+  get editorExtensions() {
+    const extensions = [
+      footnotePlugin,
+      footnoteTransactionFilter,
+      // editorViewField should be initialized to null initially.
+      // The EditorView instance will be set via effect once it's available.
+      editorViewField.init(() => null),
+      import_view2.EditorView.domEventHandlers({
+        // Add any global event handlers here if needed
+      }),
+      import_view2.EditorView.updateListener.of((update) => {
+      })
+    ];
+    return extensions;
+  }
   async onOpen() {
     await super.onOpen();
     this.containerEl.classList.add("colophon-workspace");
@@ -211,24 +242,15 @@ var ColophonView = class extends import_obsidian.MarkdownView {
     if (sourceView) {
       this.suppressProperties(sourceView);
     }
-    const editorView = this.editor.cm;
-    editorView.dispatch({
-      effects: setEditorView.of(editorView)
-    });
-    const extensionsToAdd = [
-      footnotePlugin,
-      footnoteTransactionFilter,
-      editorViewField.init(() => editorView),
-      // Initialize with the current EditorView
-      import_view2.EditorView.domEventHandlers({
-        // Add any global event handlers here if needed
-      }),
-      import_view2.EditorView.updateListener.of((update) => {
-      })
-    ];
-    editorView.dispatch({
-      effects: import_state3.StateEffect.reconfigure.of(extensionsToAdd)
-    });
+    if (this.editor && this.editor.cm) {
+      const editorView = this.editor.cm;
+      console.log("ColophonView.onOpen: Dispatching setEditorView effect.");
+      editorView.dispatch({
+        effects: setEditorView.of(editorView)
+      });
+    } else {
+      console.error("ColophonView.onOpen: this.editor.cm is not available after super.onOpen().");
+    }
   }
   suppressProperties(sourceView) {
     sourceView.classList.remove("show-properties");

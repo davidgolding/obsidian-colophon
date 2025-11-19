@@ -9,7 +9,7 @@ const FOOTNOTE_INSERTION_REGEX = /\[\^(\w*?)\]/g;
 // Regex to find existing footnote references in the document, capturing the ID
 const FOOTNOTE_REFERENCE_REGEX = /\[\^([a-zA-Z0-9-]+?)\]/g;
 // Regex to find existing footnote definition blocks at the end of the document
-const FOOTNOTE_DEFINITION_BLOCK_REGEX = /\n+(?:\[\^([a-zA-Z0-9-]+?)\]: .*?\n*)+$/;
+const FOOTNOTE_DEFINITION_BLOCK_REGEX = /\n+(?:\[\^([a-zA-Z0-9\-]+?)\]: .*?\n*)+$/;
 
 
 /**
@@ -18,17 +18,21 @@ const FOOTNOTE_DEFINITION_BLOCK_REGEX = /\n+(?:\[\^([a-zA-Z0-9-]+?)\]: .*?\n*)+$
  * @returns {object | null} - The parsed JSON data or null if not found.
  */
 export function getSidecarData(state) {
+    console.log("getSidecarData called. Doc length:", state.doc.length);
     const doc = state.doc.toString();
     const match = doc.match(SIDECAR_REGEX);
 
     if (match && match[1]) {
         try {
-            return JSON.parse(match[1]);
+            const data = JSON.parse(match[1]);
+            console.log("Sidecar data found:", data);
+            return data;
         } catch (e) {
             console.error("Colophon: Error parsing sidecar JSON:", e);
             return null;
         }
     }
+    console.log("No sidecar data found.");
     return null;
 }
 
@@ -38,6 +42,7 @@ export function getSidecarData(state) {
  * @param {object} data - The data to write.
  */
 export function setSidecarData(view, data) {
+    console.log("setSidecarData called with data:", data);
     const currentDoc = view.state.doc.toString();
     const serializedData = JSON.stringify(data, null, 2);
     const newSidecarBlock = `%%colophon:data\n${serializedData}\n%%`;
@@ -46,6 +51,7 @@ export function setSidecarData(view, data) {
     let transaction;
 
     if (match) {
+        console.log("Replacing existing sidecar block.");
         // Replace existing block
         const start = match.index;
         const end = match.index + match[0].length;
@@ -53,6 +59,7 @@ export function setSidecarData(view, data) {
             changes: { from: start, to: end, insert: newSidecarBlock }
         });
     } else {
+        console.log("Appending new sidecar block.");
         // Append new block to the end
         transaction = view.state.update({
             changes: { from: currentDoc.length, insert: `\n\n${newSidecarBlock}` }
@@ -106,6 +113,7 @@ export const footnotePlugin = EditorView.updateListener.of((update) => {
     }
 
     if (update.docChanged) {
+        console.log("footnotePlugin update triggered. docChanged:", update.docChanged);
         const view = update.view;
         const state = update.state;
         const doc = state.doc.toString();
@@ -125,6 +133,7 @@ export const footnotePlugin = EditorView.updateListener.of((update) => {
                 originalText: match[0]
             });
         }
+        console.log("Footnote references in doc:", footnoteReferencesInDoc);
 
         // Create a map from ID to footnote content for easy lookup
         const footnoteMap = new Map();
@@ -154,6 +163,7 @@ export const footnotePlugin = EditorView.updateListener.of((update) => {
                 }
             }
         }
+        console.log("New footnote definitions:", newFootnoteDefinitions);
 
         // Construct the new footnote definition block
         let newDefinitionBlock = '';
@@ -181,6 +191,7 @@ export const footnotePlugin = EditorView.updateListener.of((update) => {
 
         // Dispatch changes if any
         if (changes.length > 0) {
+            console.log("Dispatching document changes:", changes);
             const tr = state.update({ changes: ChangeSet.of(changes, state.doc.length) });
             view.dispatch(tr);
         }
@@ -191,14 +202,17 @@ export const footnotePlugin = EditorView.updateListener.of((update) => {
  * A transaction filter to intercept and manage footnote creation.
  */
 export const footnoteTransactionFilter = EditorState.transactionFilter.of((tr) => {
+    console.log("footnoteTransactionFilter triggered. tr.docChanged:", tr.docChanged);
     if (!tr.docChanged) return tr;
 
     let collectedDocChanges = [];
     let sidecarUpdate = null;
 
     tr.changes.iterChanges((fromA, toA, fromB, toB, insertedText) => {
+        console.log("Inserted Text:", insertedText);
         // Check if the inserted text looks like a new footnote reference, e.g. `[^]`
         if (insertedText.match(/\[\^\]$/) || insertedText.match(/\[\^(\w+)\]$/)) {
+            console.log("Footnote insertion detected!");
             const currentSidecar = getSidecarData(tr.startState);
             const footnotes = currentSidecar?.footnotes || [];
 
@@ -207,6 +221,7 @@ export const footnoteTransactionFilter = EditorState.transactionFilter.of((tr) =
 
             footnotes.push(newFootnote);
             sidecarUpdate = { ...currentSidecar, footnotes: footnotes };
+            console.log("Sidecar update prepared:", sidecarUpdate);
 
             // Replace the original `[^]` or `[^existing_id]` with our new generated ID
             const textToInsert = `[^${newId}]`;

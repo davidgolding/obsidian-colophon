@@ -25,6 +25,26 @@ class ColophonView extends MarkdownView {
         return 'feather'; // Icon for the tab header
     }
 
+    // Override the editorExtensions getter to provide our CodeMirror extensions
+    get editorExtensions() {
+        const extensions = [
+            footnotePlugin,
+            footnoteTransactionFilter,
+            // editorViewField should be initialized to null initially.
+            // The EditorView instance will be set via effect once it's available.
+            editorViewField.init(() => null), 
+            EditorView.domEventHandlers({
+                // Add any global event handlers here if needed
+            }),
+            EditorView.updateListener.of((update) => {
+                // if (update.docChanged) {
+                //     console.log('Doc changed in ColophonView', update);
+                // }
+            })
+        ];
+        return extensions;
+    }
+
     async onOpen() {
         // Run the standard MarkdownView load logic first
         await super.onOpen();
@@ -39,34 +59,16 @@ class ColophonView extends MarkdownView {
             this.suppressProperties(sourceView);
         }
 
-        // We also pass the EditorView to our StateField for access in transaction filters.
-        const editorView = this.editor.cm;
-        
-        // This dispatch is needed to pass the EditorView to our StateField
-        // before any transactions (like those from initial document load) are processed.
-        editorView.dispatch({
-            effects: setEditorView.of(editorView)
-        });
-
-        // Collect all extensions to be added
-        const extensionsToAdd = [
-            footnotePlugin,
-            footnoteTransactionFilter,
-            editorViewField.init(() => editorView), // Initialize with the current EditorView
-            EditorView.domEventHandlers({
-                // Add any global event handlers here if needed
-            }),
-            EditorView.updateListener.of((update) => {
-                // if (update.docChanged) {
-                //     console.log('Doc changed in ColophonView', update);
-                // }
-            })
-        ];
-
-        // Dispatch a reconfigure effect to add our extensions to the existing EditorView
-        editorView.dispatch({
-            effects: StateEffect.reconfigure.of(extensionsToAdd)
-        });
+        // After super.onOpen(), this.editor.cm should be available
+        if (this.editor && this.editor.cm) {
+            const editorView = this.editor.cm;
+            console.log("ColophonView.onOpen: Dispatching setEditorView effect.");
+            editorView.dispatch({
+                effects: setEditorView.of(editorView)
+            });
+        } else {
+            console.error("ColophonView.onOpen: this.editor.cm is not available after super.onOpen().");
+        }
     }
 
     suppressProperties(sourceView) {
