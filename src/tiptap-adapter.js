@@ -1,5 +1,5 @@
 const { Editor } = require('@tiptap/core');
-const StarterKit = require('@tiptap/starter-kit');
+const { StarterKit } = require('@tiptap/starter-kit');
 
 class TiptapAdapter {
     constructor(containerEl, onUpdate) {

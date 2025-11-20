@@ -10,6 +10,7 @@ class ColophonView extends FileView {
         this.adapter = null;
         this.data = null; // Sidecar data
         this.markdownBody = ''; // Markdown body
+        this.frontmatter = ''; // YAML Frontmatter
 
         // Debounce the save function to avoid excessive writes
         this.save = debounce(this.save.bind(this), 1000, true);
@@ -48,10 +49,11 @@ class ColophonView extends FileView {
     async onLoadFile(file) {
         // FileView handles setting this.file
         const content = await this.app.vault.read(file);
-        const { markdown, data } = parseFile(content);
+        const { markdown, data, frontmatter } = parseFile(content);
 
         this.markdownBody = markdown;
         this.data = data;
+        this.frontmatter = frontmatter;
 
         if (this.adapter) {
             this.adapter.load(markdown, data);
@@ -70,7 +72,7 @@ class ColophonView extends FileView {
 
         // For now, we are NOT updating the markdown body based on Tiptap content.
         // We only save the sidecar data.
-        const newContent = serializeFile(this.markdownBody, this.data);
+        const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
     }
 }

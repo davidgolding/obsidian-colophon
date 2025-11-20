@@ -129,7 +129,10 @@ module.exports = class ColophonPlugin extends Plugin {
         }
 
         // Define the initial content with required frontmatter
-        const initialContent = "---\ncolophon-plugin: manuscript\n---\n\nStart writing here...";
+        const initialContent = `---
+colophon-plugin: manuscript
+---
+`;
 
         // Find an available filename
         const finalPath = await this.getUniqueFilePath(target);

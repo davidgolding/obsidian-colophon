@@ -24846,7 +24846,7 @@ var require_dist30 = __commonJS({
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
     var { Editor } = require_dist9();
-    var StarterKit = require_dist30();
+    var { StarterKit } = require_dist30();
     var TiptapAdapter = class {
       constructor(containerEl, onUpdate) {
         this.containerEl = containerEl;
@@ -24902,28 +24902,36 @@ var require_tiptap_adapter = __commonJS({
 var require_io = __commonJS({
   "src/io.js"(exports2, module2) {
     function parseFile(content) {
+      let markdown2 = content;
+      let frontmatter = "";
+      let data = null;
+      const fmRegex = /^---\n[\s\S]*?\n---\n/;
+      const fmMatch = content.match(fmRegex);
+      if (fmMatch) {
+        frontmatter = fmMatch[0];
+        markdown2 = markdown2.substring(frontmatter.length);
+      }
       const sidecarRegex = /%% colophon:data\s*(\{[\s\S]*?\})\s*%%$/;
-      const match = content.match(sidecarRegex);
-      if (match) {
+      const scMatch = markdown2.match(sidecarRegex);
+      if (scMatch) {
         try {
-          const data = JSON.parse(match[1]);
-          const markdown2 = content.replace(sidecarRegex, "").trimEnd();
-          return { markdown: markdown2, data };
+          data = JSON.parse(scMatch[1]);
+          markdown2 = markdown2.replace(sidecarRegex, "").trimEnd();
         } catch (e) {
           console.error("Colophon: Failed to parse sidecar data", e);
-          return { markdown: content, data: null };
         }
       }
-      return { markdown: content, data: null };
+      return { markdown: markdown2, data, frontmatter };
     }
-    function serializeFile(markdown2, data) {
-      if (!data) {
-        return markdown2;
-      }
-      const json = JSON.stringify(data, null, 2);
-      return `${markdown2.trimEnd()}
+    function serializeFile(markdown2, data, frontmatter = "") {
+      let content = frontmatter + markdown2;
+      if (data) {
+        const json = JSON.stringify(data, null, 2);
+        content = `${content.trimEnd()}
 
 %% colophon:data ${json} %%`;
+      }
+      return content;
     }
     module2.exports = {
       parseFile,
@@ -24945,6 +24953,7 @@ var require_view2 = __commonJS({
         this.adapter = null;
         this.data = null;
         this.markdownBody = "";
+        this.frontmatter = "";
         this.save = debounce(this.save.bind(this), 1e3, true);
       }
       getViewType() {
@@ -24971,9 +24980,10 @@ var require_view2 = __commonJS({
       }
       async onLoadFile(file) {
         const content = await this.app.vault.read(file);
-        const { markdown: markdown2, data } = parseFile(content);
+        const { markdown: markdown2, data, frontmatter } = parseFile(content);
         this.markdownBody = markdown2;
         this.data = data;
+        this.frontmatter = frontmatter;
         if (this.adapter) {
           this.adapter.load(markdown2, data);
         }
@@ -24984,7 +24994,7 @@ var require_view2 = __commonJS({
       }
       async save() {
         if (!this.file || !this.data) return;
-        const newContent = serializeFile(this.markdownBody, this.data);
+        const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
       }
     };
@@ -25080,7 +25090,10 @@ module.exports = class ColophonPlugin extends Plugin {
       new Notice("Invalid folder location");
       return;
     }
-    const initialContent = "---\ncolophon-plugin: manuscript\n---\n\nStart writing here...";
+    const initialContent = `---
+colophon-plugin: manuscript
+---
+`;
     const finalPath = await this.getUniqueFilePath(target);
     try {
       const newFile = await this.app.vault.create(finalPath, initialContent);
