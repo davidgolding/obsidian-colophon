@@ -24954,6 +24954,7 @@ var require_view2 = __commonJS({
         this.data = null;
         this.markdownBody = "";
         this.frontmatter = "";
+        this.canvasTheme = "light";
         this.save = debounce(this.save.bind(this), 1e3, true);
       }
       getViewType() {
@@ -24968,10 +24969,22 @@ var require_view2 = __commonJS({
       async onOpen() {
         this.contentEl.empty();
         this.contentEl.addClass("colophon-workspace");
+        this.updateThemeClass();
+        this.addAction("sun", "Toggle Canvas Theme", () => {
+          this.toggleTheme();
+        });
         this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
           this.data = newData;
           this.save();
         });
+      }
+      toggleTheme() {
+        this.canvasTheme = this.canvasTheme === "light" ? "dark" : "light";
+        this.updateThemeClass();
+      }
+      updateThemeClass() {
+        this.contentEl.removeClass("colophon-theme-light", "colophon-theme-dark");
+        this.contentEl.addClass(`colophon-theme-${this.canvasTheme}`);
       }
       async onClose() {
         if (this.adapter) {
