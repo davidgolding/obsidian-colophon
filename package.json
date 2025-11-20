@@ -12,5 +12,12 @@
   "packageManager": "pnpm@10.19.0",
   "devDependencies": {
     "esbuild": "^0.27.0"
+  },
+  "dependencies": {
+    "@tiptap/core": "^3.11.0",
+    "@tiptap/extension-document": "^3.11.0",
+    "@tiptap/extension-paragraph": "^3.11.0",
+    "@tiptap/extension-text": "^3.11.0",
+    "@tiptap/starter-kit": "^3.11.0"
   }
 }
