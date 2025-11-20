@@ -44,13 +44,31 @@
 
 /* 2. THE PAGE */
 .colophon-workspace .ProseMirror {
-    background-color: var(--page-bg);
+    /* Page Simulation Variables */
+    --page-height: 11in;
+    --page-gap: 30px;
+
+    /* Visual Pagination Gradient */
+    background-image: repeating-linear-gradient(to bottom,
+            var(--page-bg) 0,
+            var(--page-bg) var(--page-height),
+            transparent var(--page-height),
+            transparent calc(var(--page-height) + var(--page-gap)));
+    background-color: transparent;
+    /* Ensure gradient is visible */
+
     color: var(--page-text);
     width: 8.5in;
-    min-height: 11in;
+    min-height: var(--page-height);
+    /* At least one page */
     padding: 1in;
     /* 1 inch margins */
-    box-shadow: var(--page-shadow);
+
+    /* Use filter for shadow to follow the gradient shape (the pages) */
+    filter: drop-shadow(var(--page-shadow));
+    box-shadow: none;
+    /* Remove box-shadow */
+
     margin: 0 auto;
     outline: none;
     /* Remove focus outline */
