@@ -3,15 +3,16 @@
    Targeting Tiptap Editor within .colophon-workspace
 */
 
-/* 1. WORKSPACE CONTAINER & THEME COLORS */
+/* 1. WORKSPACE CONTAINER */
 .colophon-workspace {
     width: 100%;
     height: 100%;
     overflow-y: auto;
     display: flex;
     justify-content: center;
-    padding: 50px 0;
     background-color: var(--background-primary);
+    
+    /* Typography Variables */
     --colophon-default-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
     --colophon-h1-font: var(--colophon-default-font);
     --colophon-h2-font: var(--colophon-default-font);
@@ -21,156 +22,115 @@
     --colophon-body-font: var(--colophon-default-font);
     --colophon-supertitle-font: var(--colophon-default-font);
     --colophon-body-first-font: var(--colophon-default-font);
-    /* Default fallback */
 }
 
-/* Light Theme */
-.colophon-workspace.colophon-theme-light {
-    background-color: #e0e0e0;
-    /* Light gray desk background */
-    --page-bg: #ffffff;
-    --page-text: #000000;
-    --page-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-}
-
-/* Dark Theme */
-.colophon-workspace.colophon-theme-dark {
-    background-color: #1e1e1e;
-    /* Dark desk background */
-    --page-bg: #2d2d2d;
-    --page-text: #e0e0e0;
-    --page-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-}
-
-/* 2. THE PAGE */
+/* 2. THE EDITOR CANVAS */
 .colophon-workspace .ProseMirror {
-    /* Page Simulation Variables */
-    --page-height: 11in;
-    --page-gap: 30px;
-
-    /* Visual Pagination Gradient */
-    background-image: repeating-linear-gradient(to bottom,
-            var(--page-bg) 0,
-            var(--page-bg) var(--page-height),
-            transparent var(--page-height),
-            transparent calc(var(--page-height) + var(--page-gap)));
-    background-color: transparent;
-    /* Ensure gradient is visible */
-
-    color: var(--page-text);
-    width: 8.5in;
-    min-height: var(--page-height);
-    /* At least one page */
-    padding: 1in;
-    /* 1 inch margins */
-
-    /* Use filter for shadow to follow the gradient shape (the pages) */
-    filter: drop-shadow(var(--page-shadow));
-    box-shadow: none;
-    /* Remove box-shadow */
-
+    /* Layout */
+    width: 100%;
+    max-width: 700px; /* Sweet spot for readability (~65-75 chars) */
+    min-height: 100%;
     margin: 0 auto;
+    padding: 4rem 2rem; /* Comfortable padding */
+    
+    /* Appearance */
+    background-color: transparent;
+    box-shadow: none;
     outline: none;
-    /* Remove focus outline */
-
+    
     /* Typography Base */
+    color: var(--text-normal);
     font-family: var(--colophon-default-font);
     font-variant: normal;
-    caret-color: var(--page-text);
+    caret-color: var(--text-accent);
 }
 
+/* Selection Styling */
 .colophon-workspace .ProseMirror ::selection {
-    background-color: rgba(0, 0, 0, 0.15);
-    /* Subtle dark selection for light mode */
+    background-color: var(--text-selection);
 }
 
-.colophon-theme-dark .colophon-workspace .ProseMirror ::selection {
-    background-color: rgba(255, 255, 255, 0.15);
-    /* Subtle light selection for dark mode */
-}
-
-/* 3. TYPOGRAPHY (Based on pages-styles.yaml) */
+/* 3. TYPOGRAPHY */
 
 /* Body (Default Paragraph) */
 .colophon-workspace .ProseMirror p {
-    font-size: 11.5pt;
-    line-height: 14pt;
+    font-size: 1.2rem; /* Slightly larger for elegance */
+    line-height: 1.6;
     text-align: left;
     margin-top: 0;
     margin-bottom: 0;
-    text-indent: 0.3in;
+    text-indent: 1.5em; /* Classic paragraph indent */
     font-family: var(--colophon-body-font);
-    /* First line indent */
 }
 
 /* Body First (No indent, e.g. after heading) */
-/* Note: Tiptap doesn't inherently know "Body First" without custom nodes or classes.
-   For now, we'll use a CSS trick: p immediately after h1/h2/h3 has no indent. */
-.colophon-workspace .ProseMirror h1+p,
-.colophon-workspace .ProseMirror h2+p,
-.colophon-workspace .ProseMirror h3+p {
+.colophon-workspace .ProseMirror h1 + p,
+.colophon-workspace .ProseMirror h2 + p,
+.colophon-workspace .ProseMirror h3 + p {
     text-indent: 0;
 }
 
 /* Heading 1 */
 .colophon-workspace .ProseMirror h1 {
-    font-size: 11.5pt;
+    font-size: 1.8rem;
     font-style: italic;
     font-weight: normal;
     text-align: left;
-    line-height: 28pt;
-    margin-top: 28pt;
-    margin-bottom: 14pt;
+    line-height: 1.3;
+    margin-top: 2.5em;
+    margin-bottom: 1em;
     page-break-after: avoid;
     font-family: var(--colophon-h1-font);
-    color: var(--page-text);
-    /* keep-with-next */
+    color: var(--text-normal);
 }
 
 /* Heading 2 */
 .colophon-workspace .ProseMirror h2 {
-    font-size: 11.5pt;
+    font-size: 1.4rem;
     font-variant: small-caps;
     font-weight: normal;
-    letter-spacing: 0.02em;
-    /* 2% */
+    letter-spacing: 0.05em;
     text-align: left;
-    line-height: 28pt;
-    margin-top: 28pt;
-    margin-bottom: 14pt;
+    line-height: 1.3;
+    margin-top: 2em;
+    margin-bottom: 1em;
     page-break-after: avoid;
     font-family: var(--colophon-h2-font);
-    color: var(--page-text);
+    color: var(--text-normal);
 }
 
 /* Heading 3 */
 .colophon-workspace .ProseMirror h3 {
-    font-size: 11.5pt;
+    font-size: 1.2rem;
     font-weight: normal;
     text-align: center;
-    line-height: 28pt;
-    margin-top: 28pt;
-    margin-bottom: 14pt;
+    font-style: italic;
+    line-height: 1.3;
+    margin-top: 2em;
+    margin-bottom: 1em;
     page-break-after: avoid;
     font-family: var(--colophon-h3-font);
-    color: var(--page-text);
+    color: var(--text-normal);
 }
 
+/* Title */
 .colophon-workspace .ProseMirror h1.title {
-    font-size: 18pt;
+    font-size: 2.5rem;
     text-align: center;
-    line-height: 1;
+    line-height: 1.2;
     margin-top: 0;
-    margin-bottom: 36pt;
+    margin-bottom: 2em;
     font-family: var(--colophon-title-font);
 }
 
 /* Footnotes */
-/* Tiptap footnotes usually render as <sup> links or similar. 
-   We need to style the footnote section if it exists in the doc. */
 .colophon-workspace .ProseMirror .footnote-list {
-    font-size: 10pt;
-    line-height: 13pt;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    margin-top: 4rem;
+    border-top: 1px solid var(--background-modifier-border);
+    padding-top: 1rem;
 }
 
 /* Hide Tiptap's default focus outline */
