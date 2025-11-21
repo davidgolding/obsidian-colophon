@@ -1,13 +1,25 @@
-const { Plugin, TFolder, Notice, normalizePath } = require('obsidian');
+const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
 const { ColophonView, VIEW_TYPE } = require('./view');
+
+const DEFAULT_SETTINGS = {
+    textColumnWidth: 1080
+};
 
 module.exports = class ColophonPlugin extends Plugin {
     async onload() {
+        await this.loadSettings();
+
         // Register the custom view
         this.registerView(
             VIEW_TYPE,
-            (leaf) => new ColophonView(leaf)
+            (leaf) => new ColophonView(leaf, this.settings)
         );
+
+        // Add Settings Tab
+        this.addSettingTab(new ColophonSettingTab(this.app, this));
+
+        // PATCH: Intercept WorkspaceLeaf.openFile to prevent FOUC (Flash of Unstyled Content)
+        this.patchOpenFile();
 
         // EVENT LISTENER: Handle file opening (initial opens)
         this.registerEvent(
@@ -49,53 +61,82 @@ module.exports = class ColophonPlugin extends Plugin {
         });
     }
 
-    async handleActiveLeafChange(leaf) {
-        // Safety check
-        if (!leaf) return;
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
 
-        // Get the file in the active leaf
+    async saveSettings() {
+        await this.saveData(this.settings);
+        // Trigger update in active views
+        this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
+            if (leaf.view instanceof ColophonView) {
+                leaf.view.updateSettings(this.settings);
+            }
+        });
+    }
+
+    patchOpenFile() {
+        const plugin = this;
+        const originalOpenFile = WorkspaceLeaf.prototype.openFile;
+
+        WorkspaceLeaf.prototype.openFile = async function (file, openState) {
+            const app = this.app || plugin.app;
+            const cache = app.metadataCache.getFileCache(file);
+
+            if (cache?.frontmatter && cache.frontmatter['colophon-plugin'] === 'manuscript') {
+                const currentViewType = this.view.getViewType();
+
+                if (currentViewType !== VIEW_TYPE) {
+                    await this.setViewState({
+                        type: VIEW_TYPE,
+                        state: openState,
+                        active: true
+                    });
+                }
+
+                if (this.view instanceof ColophonView) {
+                    await this.view.loadFile(file);
+                    if (openState && openState.eState) {
+                        this.view.setEphemeralState(openState.eState);
+                    }
+                    return;
+                }
+            }
+            return originalOpenFile.call(this, file, openState);
+        };
+
+        this.register(() => {
+            WorkspaceLeaf.prototype.openFile = originalOpenFile;
+        });
+    }
+
+    async handleActiveLeafChange(leaf) {
+        if (!leaf) return;
         const file = leaf.view.file;
         if (!file) return;
-
-        // Check the view type and frontmatter
         await this.ensureCorrectView(leaf, file);
     }
 
     async handleFileOpen(file) {
-        // Safety check: make sure a file is actually loaded
         if (!file) return;
-
-        // Get the active leaf (tab)
         const leaf = this.app.workspace.activeLeaf;
         if (!leaf) return;
-
         await this.ensureCorrectView(leaf, file);
     }
 
     async ensureCorrectView(leaf, file) {
-        // Check the file's frontmatter cache
         const cache = this.app.metadataCache.getFileCache(file);
-
-        // Check if frontmatter exists and has our key
         const isColophon = cache?.frontmatter && cache.frontmatter['colophon-plugin'] === 'manuscript';
         const currentViewType = leaf.view.getViewType();
 
-        // SCENARIO 1: It's a manuscript, but currently in default markdown mode.
-        // ACTION: Swap to Colophon View.
         if (isColophon && currentViewType === 'markdown') {
-            // We preserve the state (scroll position, cursor) when swapping
-            // Note: Tiptap might not respect MarkdownView state 1:1, but we pass it anyway.
             const state = leaf.view.getState();
             await leaf.setViewState({
                 type: VIEW_TYPE,
                 state: state,
-                active: true // Make it the active tab
+                active: true
             });
-        }
-
-        // SCENARIO 2: It's a regular file, but stuck in Colophon View.
-        // ACTION: Swap back to default Markdown View.
-        else if (!isColophon && currentViewType === VIEW_TYPE) {
+        } else if (!isColophon && currentViewType === VIEW_TYPE) {
             const state = leaf.view.getState();
             await leaf.setViewState({
                 type: 'markdown',
@@ -106,46 +147,29 @@ module.exports = class ColophonPlugin extends Plugin {
     }
 
     async createNewManuscript(folder) {
-        // Determine target folder: use provided folder or default location
         let target;
-
         if (folder) {
-            // If folder is a string path, get the TFolder object
-            if (typeof folder === 'string') {
-                target = this.app.vault.getAbstractFileByPath(folder);
-            } else {
-                target = folder;
-            }
+            target = typeof folder === 'string' ? this.app.vault.getAbstractFileByPath(folder) : folder;
         } else {
             target = this.app.fileManager.getNewFileParent(
                 this.app.workspace.getActiveFile()?.path || ''
             );
         }
 
-        // Ensure we have a valid folder
         if (!target || !target.path) {
             new Notice('Invalid folder location');
             return;
         }
 
-        // Define the initial content with required frontmatter
         const initialContent = `---
 colophon-plugin: manuscript
 ---
 `;
-
-        // Find an available filename
         const finalPath = await this.getUniqueFilePath(target);
 
         try {
-            // Create the new file
             const newFile = await this.app.vault.create(finalPath, initialContent);
-
-            // Open the newly created file
-            // Obsidian will trigger 'file-open', which will trigger our handleFileOpen,
-            // which will swap the view to ColophonView.
             await this.app.workspace.getLeaf(false).openFile(newFile);
-
         } catch (e) {
             new Notice(`Failed to create manuscript: ${e.toString()}`);
         }
@@ -153,21 +177,43 @@ colophon-plugin: manuscript
 
     async getUniqueFilePath(folder) {
         let counter = 0;
-
         while (true) {
             const suffix = counter === 0 ? '' : ` ${counter}`;
             const fileName = `Untitled${suffix}.md`;
             const filePath = normalizePath(`${folder.path}/${fileName}`);
-
             if (!await this.app.vault.exists(filePath)) {
                 return filePath;
             }
-
             counter++;
         }
     }
 
     onunload() {
-        // Clean up acts are handled automatically by registerView/registerEvent usually
     }
 };
+
+class ColophonSettingTab extends PluginSettingTab {
+    constructor(app, plugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    display() {
+        const { containerEl } = this;
+        containerEl.empty();
+
+        containerEl.createEl('h2', { text: 'Colophon Settings' });
+
+        new Setting(containerEl)
+            .setName('Text Column Width')
+            .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
+            .addSlider(slider => slider
+                .setLimits(500, 1240, 10)
+                .setValue(this.plugin.settings.textColumnWidth)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.textColumnWidth = value;
+                    await this.plugin.saveSettings();
+                }));
+    }
+}

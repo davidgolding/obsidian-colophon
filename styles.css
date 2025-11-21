@@ -11,6 +11,8 @@
     display: flex;
     justify-content: center;
     background-color: var(--background-primary);
+    position: relative;
+    /* For absolute positioning of loader if needed */
 
     /* Typography Variables */
     --colophon-default-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
@@ -31,11 +33,9 @@
     --text-normal: #2e3338;
     --text-muted: #888888;
     --text-accent: #705dcf;
-    /* Fallback accent if system var fails, but usually we want system accent. Let's try to keep system accent or define a neutral one. */
     --text-selection: rgba(0, 0, 0, 0.15);
     --background-modifier-border: #e0e0e0;
 
-    /* Re-apply background because we changed the variable */
     background-color: var(--background-primary);
 }
 
@@ -48,7 +48,6 @@
     --text-selection: rgba(255, 255, 255, 0.15);
     --background-modifier-border: #333333;
 
-    /* Re-apply background because we changed the variable */
     background-color: var(--background-primary);
 }
 
@@ -57,12 +56,11 @@
 .colophon-workspace .ProseMirror {
     /* Layout */
     width: 100%;
-    max-width: 700px;
-    /* Sweet spot for readability (~65-75 chars) */
+    /* Use the variable set by JS, or fallback to 1080px (new default) */
+    max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
     padding: 4rem 2rem;
-    /* Comfortable padding */
 
     /* Appearance */
     background-color: transparent;
@@ -74,6 +72,20 @@
     font-family: var(--colophon-default-font);
     font-variant: normal;
     caret-color: var(--text-accent);
+
+    /* Fade in animation */
+    opacity: 0;
+    animation: fadeIn 0.3s ease-in forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* Selection Styling */
@@ -82,17 +94,16 @@
 }
 
 /* 3. TYPOGRAPHY */
+/* ... (Typography styles remain unchanged) ... */
 
 /* Body (Default Paragraph) */
 .colophon-workspace .ProseMirror p {
     font-size: 1.2rem;
-    /* Slightly larger for elegance */
     line-height: 1.6;
     text-align: left;
     margin-top: 0;
     margin-bottom: 0;
     text-indent: 1.5em;
-    /* Classic paragraph indent */
     font-family: var(--colophon-body-font);
 }
 
@@ -169,4 +180,34 @@
 /* Hide Tiptap's default focus outline */
 .colophon-workspace .ProseMirror-focused {
     outline: none;
+}
+
+/* 4. LOADING INDICATOR */
+.colophon-loader {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-muted);
+    font-family: var(--font-interface);
+    font-size: 0.9rem;
+}
+
+.colophon-loader-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--text-muted);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

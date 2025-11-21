@@ -24943,18 +24943,20 @@ var require_io = __commonJS({
 // src/view.js
 var require_view2 = __commonJS({
   "src/view.js"(exports2, module2) {
-    var { FileView, WorkspaceLeaf, Notice: Notice2, debounce } = require("obsidian");
+    var { FileView, WorkspaceLeaf: WorkspaceLeaf2, Notice: Notice2, debounce } = require("obsidian");
     var TiptapAdapter = require_tiptap_adapter();
     var { parseFile, serializeFile } = require_io();
     var VIEW_TYPE2 = "colophon-view";
     var ColophonView2 = class extends FileView {
-      constructor(leaf) {
+      constructor(leaf, settings) {
         super(leaf);
+        this.settings = settings || { textColumnWidth: 1080 };
         this.adapter = null;
         this.data = null;
         this.markdownBody = "";
         this.frontmatter = "";
         this.themeOverride = null;
+        this.loaderEl = null;
         this.save = debounce(this.save.bind(this), 1e3, true);
       }
       getViewType() {
@@ -24970,13 +24972,27 @@ var require_view2 = __commonJS({
         this.contentEl.empty();
         this.contentEl.addClass("colophon-workspace");
         this.updateThemeClass();
+        this.applySettings();
         this.addAction("sun", "Toggle Canvas Theme", () => {
           this.toggleTheme();
         });
+        this.showLoader();
         this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
           this.data = newData;
           this.save();
         });
+      }
+      showLoader() {
+        if (this.loaderEl) return;
+        this.loaderEl = this.contentEl.createDiv("colophon-loader");
+        this.loaderEl.createDiv("colophon-loader-spinner");
+        this.loaderEl.createSpan({ text: "Loading Manuscript..." });
+      }
+      hideLoader() {
+        if (this.loaderEl) {
+          this.loaderEl.remove();
+          this.loaderEl = null;
+        }
       }
       toggleTheme() {
         if (this.themeOverride === null) {
@@ -24993,12 +25009,24 @@ var require_view2 = __commonJS({
           this.contentEl.addClass(`colophon-theme-${this.themeOverride}`);
         }
       }
+      updateSettings(newSettings) {
+        this.settings = newSettings;
+        this.applySettings();
+      }
+      applySettings() {
+        if (this.contentEl) {
+          this.contentEl.style.setProperty("--colophon-editor-width", `${this.settings.textColumnWidth}px`);
+        }
+      }
       async onClose() {
         if (this.adapter) {
           this.adapter.destroy();
         }
       }
       async onLoadFile(file) {
+        if (!this.loaderEl && !this.adapter?.isLoaded) {
+          this.showLoader();
+        }
         const content = await this.app.vault.read(file);
         const { markdown: markdown2, data, frontmatter } = parseFile(content);
         this.markdownBody = markdown2;
@@ -25006,6 +25034,7 @@ var require_view2 = __commonJS({
         this.frontmatter = frontmatter;
         if (this.adapter) {
           this.adapter.load(markdown2, data);
+          this.hideLoader();
         }
       }
       async onUnloadFile(file) {
@@ -25026,14 +25055,20 @@ var require_view2 = __commonJS({
 });
 
 // src/main.js
-var { Plugin, TFolder, Notice, normalizePath } = require("obsidian");
+var { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require("obsidian");
 var { ColophonView, VIEW_TYPE } = require_view2();
+var DEFAULT_SETTINGS = {
+  textColumnWidth: 1080
+};
 module.exports = class ColophonPlugin extends Plugin {
   async onload() {
+    await this.loadSettings();
     this.registerView(
       VIEW_TYPE,
-      (leaf) => new ColophonView(leaf)
+      (leaf) => new ColophonView(leaf, this.settings)
     );
+    this.addSettingTab(new ColophonSettingTab(this.app, this));
+    this.patchOpenFile();
     this.registerEvent(
       this.app.workspace.on("file-open", this.handleFileOpen.bind(this))
     );
@@ -25060,6 +25095,46 @@ module.exports = class ColophonPlugin extends Plugin {
       callback: () => this.createNewManuscript()
     });
   }
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+  async saveSettings() {
+    await this.saveData(this.settings);
+    this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((leaf) => {
+      if (leaf.view instanceof ColophonView) {
+        leaf.view.updateSettings(this.settings);
+      }
+    });
+  }
+  patchOpenFile() {
+    const plugin = this;
+    const originalOpenFile = WorkspaceLeaf.prototype.openFile;
+    WorkspaceLeaf.prototype.openFile = async function(file, openState) {
+      const app = this.app || plugin.app;
+      const cache = app.metadataCache.getFileCache(file);
+      if (cache?.frontmatter && cache.frontmatter["colophon-plugin"] === "manuscript") {
+        const currentViewType = this.view.getViewType();
+        if (currentViewType !== VIEW_TYPE) {
+          await this.setViewState({
+            type: VIEW_TYPE,
+            state: openState,
+            active: true
+          });
+        }
+        if (this.view instanceof ColophonView) {
+          await this.view.loadFile(file);
+          if (openState && openState.eState) {
+            this.view.setEphemeralState(openState.eState);
+          }
+          return;
+        }
+      }
+      return originalOpenFile.call(this, file, openState);
+    };
+    this.register(() => {
+      WorkspaceLeaf.prototype.openFile = originalOpenFile;
+    });
+  }
   async handleActiveLeafChange(leaf) {
     if (!leaf) return;
     const file = leaf.view.file;
@@ -25082,7 +25157,6 @@ module.exports = class ColophonPlugin extends Plugin {
         type: VIEW_TYPE,
         state,
         active: true
-        // Make it the active tab
       });
     } else if (!isColophon && currentViewType === VIEW_TYPE) {
       const state = leaf.view.getState();
@@ -25096,11 +25170,7 @@ module.exports = class ColophonPlugin extends Plugin {
   async createNewManuscript(folder) {
     let target;
     if (folder) {
-      if (typeof folder === "string") {
-        target = this.app.vault.getAbstractFileByPath(folder);
-      } else {
-        target = folder;
-      }
+      target = typeof folder === "string" ? this.app.vault.getAbstractFileByPath(folder) : folder;
     } else {
       target = this.app.fileManager.getNewFileParent(
         this.app.workspace.getActiveFile()?.path || ""
@@ -25135,5 +25205,20 @@ colophon-plugin: manuscript
     }
   }
   onunload() {
+  }
+};
+var ColophonSettingTab = class extends PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Colophon Settings" });
+    new Setting(containerEl).setName("Text Column Width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
+      this.plugin.settings.textColumnWidth = value;
+      await this.plugin.saveSettings();
+    }));
   }
 };

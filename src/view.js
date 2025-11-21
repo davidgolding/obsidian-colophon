@@ -5,13 +5,15 @@ const { parseFile, serializeFile } = require('./io');
 const VIEW_TYPE = 'colophon-view';
 
 class ColophonView extends FileView {
-    constructor(leaf) {
+    constructor(leaf, settings) {
         super(leaf);
+        this.settings = settings || { textColumnWidth: 1080 }; // Fallback
         this.adapter = null;
         this.data = null; // Sidecar data
         this.markdownBody = ''; // Markdown body
         this.frontmatter = ''; // YAML Frontmatter
         this.themeOverride = null; // null (auto), 'light', 'dark'
+        this.loaderEl = null;
 
         // Debounce the save function to avoid excessive writes
         this.save = debounce(this.save.bind(this), 1000, true);
@@ -34,17 +36,37 @@ class ColophonView extends FileView {
         this.contentEl.empty();
         this.contentEl.addClass('colophon-workspace');
         this.updateThemeClass();
+        this.applySettings();
 
         // Add Theme Toggle Action
         this.addAction('sun', 'Toggle Canvas Theme', () => {
             this.toggleTheme();
         });
 
+        // Show Loader
+        this.showLoader();
+
         // Initialize Tiptap Adapter
+        // We pass a callback for updates
         this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
             this.data = newData;
             this.save();
         });
+    }
+
+    showLoader() {
+        if (this.loaderEl) return;
+
+        this.loaderEl = this.contentEl.createDiv('colophon-loader');
+        this.loaderEl.createDiv('colophon-loader-spinner');
+        this.loaderEl.createSpan({ text: 'Loading Manuscript...' });
+    }
+
+    hideLoader() {
+        if (this.loaderEl) {
+            this.loaderEl.remove();
+            this.loaderEl = null;
+        }
     }
 
     toggleTheme() {
@@ -67,6 +89,17 @@ class ColophonView extends FileView {
         }
     }
 
+    updateSettings(newSettings) {
+        this.settings = newSettings;
+        this.applySettings();
+    }
+
+    applySettings() {
+        if (this.contentEl) {
+            this.contentEl.style.setProperty('--colophon-editor-width', `${this.settings.textColumnWidth}px`);
+        }
+    }
+
     async onClose() {
         if (this.adapter) {
             this.adapter.destroy();
@@ -75,6 +108,11 @@ class ColophonView extends FileView {
 
     async onLoadFile(file) {
         // FileView handles setting this.file
+        // Ensure loader is visible if it takes time
+        if (!this.loaderEl && !this.adapter?.isLoaded) {
+            this.showLoader();
+        }
+
         const content = await this.app.vault.read(file);
         const { markdown, data, frontmatter } = parseFile(content);
 
@@ -84,6 +122,9 @@ class ColophonView extends FileView {
 
         if (this.adapter) {
             this.adapter.load(markdown, data);
+
+            // Hide loader once loaded
+            this.hideLoader();
         }
     }
 
