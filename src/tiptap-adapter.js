@@ -30,8 +30,9 @@ const SmallCaps = Mark.create({
 });
 
 class TiptapAdapter {
-    constructor(containerEl, onUpdate) {
+    constructor(containerEl, isSpellcheckEnabled, onUpdate) {
         this.containerEl = containerEl;
+        this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.onUpdate = onUpdate; // Callback when editor content changes
         this.editor = null;
         this.isLoaded = false;
@@ -64,6 +65,11 @@ class TiptapAdapter {
                 TextStyle,
                 SmallCaps
             ],
+            editorProps: {
+                attributes: {
+                    spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
+                },
+            },
             content: content,
             onUpdate: ({ editor }) => {
                 if (this.onUpdate) {

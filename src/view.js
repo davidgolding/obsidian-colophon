@@ -46,9 +46,12 @@ class ColophonView extends FileView {
         // Show Loader
         this.showLoader();
 
+        // Get Spellcheck Setting
+        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
+
         // Initialize Tiptap Adapter
         // We pass a callback for updates
-        this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
+        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, (newData) => {
             this.data = newData;
             this.save();
         });

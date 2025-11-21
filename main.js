@@ -25494,8 +25494,9 @@ var require_tiptap_adapter = __commonJS({
       }
     });
     var TiptapAdapter = class {
-      constructor(containerEl, onUpdate) {
+      constructor(containerEl, isSpellcheckEnabled, onUpdate) {
         this.containerEl = containerEl;
+        this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.onUpdate = onUpdate;
         this.editor = null;
         this.isLoaded = false;
@@ -25525,6 +25526,11 @@ var require_tiptap_adapter = __commonJS({
             TextStyle,
             SmallCaps
           ],
+          editorProps: {
+            attributes: {
+              spellcheck: this.isSpellcheckEnabled ? "true" : "false"
+            }
+          },
           content,
           onUpdate: ({ editor }) => {
             if (this.onUpdate) {
@@ -25643,7 +25649,8 @@ var require_view2 = __commonJS({
           this.toggleTheme();
         });
         this.showLoader();
-        this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
+        const isSpellcheckEnabled = this.app.vault.getConfig("spellcheck");
+        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, (newData) => {
           this.data = newData;
           this.save();
         });
