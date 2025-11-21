@@ -60,7 +60,8 @@
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 4rem 2rem;
+    padding: 0 2rem 4rem 2rem;
+    /* Top padding 0, Bottom 4rem, Sides 2rem */
 
     /* Appearance */
     background-color: transparent;
@@ -88,13 +89,17 @@
     }
 }
 
+/* Ensure first element is flush with top */
+.colophon-workspace .ProseMirror>*:first-child {
+    margin-top: 0 !important;
+}
+
 /* Selection Styling */
 .colophon-workspace .ProseMirror ::selection {
     background-color: var(--text-selection);
 }
 
 /* 3. TYPOGRAPHY */
-/* ... (Typography styles remain unchanged) ... */
 
 /* Body (Default Paragraph) */
 .colophon-workspace .ProseMirror p {
@@ -163,6 +168,7 @@
     text-align: center;
     line-height: 1.2;
     margin-top: 0;
+    /* Will be handled by first-child anyway, but good to be explicit */
     margin-bottom: 2em;
     font-family: var(--colophon-title-font);
 }
@@ -210,4 +216,125 @@
     to {
         transform: rotate(360deg);
     }
+}
+
+/* 5. POPOVER MENU */
+.colophon-popover {
+    position: absolute;
+    z-index: 1000;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+
+    /* Backdrop Blur for Apple-like feel */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(var(--background-primary-rgb), 0.8);
+    /* Needs RGB var or fallback */
+}
+
+/* Fallback for background if RGB var not available */
+.theme-light .colophon-popover {
+    background-color: rgba(255, 255, 255, 0.85);
+}
+
+.theme-dark .colophon-popover {
+    background-color: rgba(30, 30, 30, 0.85);
+}
+
+.colophon-popover.is-visible {
+    display: flex;
+    animation: popoverFadeIn 0.15s ease-out forwards;
+}
+
+@keyframes popoverFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.colophon-popover-section {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.colophon-popover-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    flex-direction: row;
+    /* Horizontal for icons */
+    flex-wrap: wrap;
+    justify-content: space-between;
+    padding-top: 4px;
+}
+
+/* Horizontal layout for the middle formatting section too */
+.colophon-popover-section:nth-child(2) {
+    flex-direction: row;
+    justify-content: space-between;
+    padding-top: 4px;
+}
+
+.colophon-popover-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s;
+}
+
+.colophon-popover-item:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.colophon-popover-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+/* Icon Buttons (Bold, Italic, etc.) */
+.colophon-popover-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.colophon-popover-icon-btn:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.colophon-popover-icon-btn svg {
+    width: 16px;
+    height: 16px;
 }

@@ -1,5 +1,33 @@
-const { Editor } = require('@tiptap/core');
+const { Editor, Mark, mergeAttributes } = require('@tiptap/core');
 const { StarterKit } = require('@tiptap/starter-kit');
+const Underline = require('@tiptap/extension-underline');
+const Subscript = require('@tiptap/extension-subscript');
+const Superscript = require('@tiptap/extension-superscript');
+const TextStyle = require('@tiptap/extension-text-style');
+const PopoverMenu = require('./popover-menu');
+
+// Custom Small Caps Extension
+const SmallCaps = Mark.create({
+    name: 'smallCaps',
+    parseHTML() {
+        return [
+            {
+                style: 'font-variant',
+                getAttrs: value => (value === 'small-caps' ? {} : false),
+            },
+        ]
+    },
+    renderHTML({ HTMLAttributes }) {
+        return ['span', mergeAttributes(HTMLAttributes, { style: 'font-variant: small-caps' }), 0]
+    },
+    addCommands() {
+        return {
+            toggleSmallCaps: () => ({ commands }) => {
+                return commands.toggleMark(this.name)
+            },
+        }
+    },
+});
 
 class TiptapAdapter {
     constructor(containerEl, onUpdate) {
@@ -7,6 +35,7 @@ class TiptapAdapter {
         this.onUpdate = onUpdate; // Callback when editor content changes
         this.editor = null;
         this.isLoaded = false;
+        this.popover = null;
     }
 
     load(markdown, data) {
@@ -14,17 +43,8 @@ class TiptapAdapter {
             this.editor.destroy();
         }
 
-        // If we have JSON data (sidecar), use it. Otherwise, fall back to markdown content.
-        // Note: StarterKit handles markdown-like behavior but Tiptap is fundamentally JSON/HTML based.
-        // For initial load without sidecar, we might want to use a markdown parser or just let Tiptap handle it if we add a markdown extension.
-        // BUT, for now, let's assume if there's no data, we treat it as plain text or initial content.
-        // Ideally we should use a markdown serializer/parser for Tiptap, but let's start simple:
-        // If data exists, load it. If not, create a paragraph with the markdown text (not ideal but works for "New Manuscript").
-
         let content = data;
         if (!content) {
-            // Fallback: simple object with the markdown text
-            // In a real scenario we'd parse the markdown to Tiptap JSON
             content = {
                 type: 'doc',
                 content: markdown.split('\n\n').map(text => ({
@@ -38,6 +58,11 @@ class TiptapAdapter {
             element: this.containerEl,
             extensions: [
                 StarterKit,
+                Underline,
+                Subscript,
+                Superscript,
+                TextStyle,
+                SmallCaps
             ],
             content: content,
             onUpdate: ({ editor }) => {
@@ -47,10 +72,36 @@ class TiptapAdapter {
             },
         });
 
+        // Initialize Popover
+        this.popover = new PopoverMenu(this.editor, this.containerEl);
+
+        // Add Context Menu Listener
+        this.editor.view.dom.addEventListener('contextmenu', (e) => {
+            // Check if there is a selection
+            const { from, to } = this.editor.state.selection;
+            if (from !== to) {
+                e.preventDefault();
+                // Calculate relative position to container if needed, or use page coordinates
+                // Since popover is appended to containerEl, we might need relative coordinates if container is relative.
+                // But usually fixed/absolute positioning relative to viewport or offset parent is easier.
+                // Let's try using page coordinates and setting popover to fixed or absolute.
+                // If containerEl is relative, we need offset.
+
+                const rect = this.containerEl.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                this.popover.show(x, y);
+            }
+        });
+
         this.isLoaded = true;
     }
 
     destroy() {
+        if (this.popover) {
+            this.popover.destroy();
+        }
         if (this.editor) {
             this.editor.destroy();
             this.editor = null;

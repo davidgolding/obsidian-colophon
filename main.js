@@ -24842,17 +24842,664 @@ var require_dist30 = __commonJS({
   }
 });
 
+// node_modules/.pnpm/@tiptap+extension-subscript@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0__@tiptap+pm@3.11.0/node_modules/@tiptap/extension-subscript/dist/index.cjs
+var require_dist31 = __commonJS({
+  "node_modules/.pnpm/@tiptap+extension-subscript@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0__@tiptap+pm@3.11.0/node_modules/@tiptap/extension-subscript/dist/index.cjs"(exports2, module2) {
+    "use strict";
+    var __defProp = Object.defineProperty;
+    var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp = Object.prototype.hasOwnProperty;
+    var __export = (target, all) => {
+      for (var name in all)
+        __defProp(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp.call(to, key) && key !== except)
+            __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+    var index_exports = {};
+    __export(index_exports, {
+      Subscript: () => Subscript,
+      default: () => index_default
+    });
+    module2.exports = __toCommonJS(index_exports);
+    var import_core = require_dist9();
+    var Subscript = import_core.Mark.create({
+      name: "subscript",
+      addOptions() {
+        return {
+          HTMLAttributes: {}
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: "sub"
+          },
+          {
+            style: "vertical-align",
+            getAttrs(value) {
+              if (value !== "sub") {
+                return false;
+              }
+              return null;
+            }
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["sub", (0, import_core.mergeAttributes)(this.options.HTMLAttributes, HTMLAttributes), 0];
+      },
+      addCommands() {
+        return {
+          setSubscript: () => ({ commands: commands2 }) => {
+            return commands2.setMark(this.name);
+          },
+          toggleSubscript: () => ({ commands: commands2 }) => {
+            return commands2.toggleMark(this.name);
+          },
+          unsetSubscript: () => ({ commands: commands2 }) => {
+            return commands2.unsetMark(this.name);
+          }
+        };
+      },
+      addKeyboardShortcuts() {
+        return {
+          "Mod-,": () => this.editor.commands.toggleSubscript()
+        };
+      }
+    });
+    var index_default = Subscript;
+  }
+});
+
+// node_modules/.pnpm/@tiptap+extension-superscript@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0__@tiptap+pm@3.11.0/node_modules/@tiptap/extension-superscript/dist/index.cjs
+var require_dist32 = __commonJS({
+  "node_modules/.pnpm/@tiptap+extension-superscript@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0__@tiptap+pm@3.11.0/node_modules/@tiptap/extension-superscript/dist/index.cjs"(exports2, module2) {
+    "use strict";
+    var __defProp = Object.defineProperty;
+    var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp = Object.prototype.hasOwnProperty;
+    var __export = (target, all) => {
+      for (var name in all)
+        __defProp(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp.call(to, key) && key !== except)
+            __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+    var index_exports = {};
+    __export(index_exports, {
+      Superscript: () => Superscript,
+      default: () => index_default
+    });
+    module2.exports = __toCommonJS(index_exports);
+    var import_core = require_dist9();
+    var Superscript = import_core.Mark.create({
+      name: "superscript",
+      addOptions() {
+        return {
+          HTMLAttributes: {}
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: "sup"
+          },
+          {
+            style: "vertical-align",
+            getAttrs(value) {
+              if (value !== "super") {
+                return false;
+              }
+              return null;
+            }
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["sup", (0, import_core.mergeAttributes)(this.options.HTMLAttributes, HTMLAttributes), 0];
+      },
+      addCommands() {
+        return {
+          setSuperscript: () => ({ commands: commands2 }) => {
+            return commands2.setMark(this.name);
+          },
+          toggleSuperscript: () => ({ commands: commands2 }) => {
+            return commands2.toggleMark(this.name);
+          },
+          unsetSuperscript: () => ({ commands: commands2 }) => {
+            return commands2.unsetMark(this.name);
+          }
+        };
+      },
+      addKeyboardShortcuts() {
+        return {
+          "Mod-.": () => this.editor.commands.toggleSuperscript()
+        };
+      }
+    });
+    var index_default = Superscript;
+  }
+});
+
+// node_modules/.pnpm/@tiptap+extension-text-style@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0_/node_modules/@tiptap/extension-text-style/dist/index.cjs
+var require_dist33 = __commonJS({
+  "node_modules/.pnpm/@tiptap+extension-text-style@3.11.0_@tiptap+core@3.11.0_@tiptap+pm@3.11.0_/node_modules/@tiptap/extension-text-style/dist/index.cjs"(exports2, module2) {
+    "use strict";
+    var __defProp = Object.defineProperty;
+    var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __hasOwnProp = Object.prototype.hasOwnProperty;
+    var __export = (target, all) => {
+      for (var name in all)
+        __defProp(target, name, { get: all[name], enumerable: true });
+    };
+    var __copyProps = (to, from, except, desc) => {
+      if (from && typeof from === "object" || typeof from === "function") {
+        for (let key of __getOwnPropNames2(from))
+          if (!__hasOwnProp.call(to, key) && key !== except)
+            __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+      }
+      return to;
+    };
+    var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+    var index_exports = {};
+    __export(index_exports, {
+      BackgroundColor: () => BackgroundColor,
+      Color: () => Color,
+      FontFamily: () => FontFamily,
+      FontSize: () => FontSize,
+      LineHeight: () => LineHeight,
+      TextStyle: () => TextStyle,
+      TextStyleKit: () => TextStyleKit
+    });
+    module2.exports = __toCommonJS(index_exports);
+    var import_core = require_dist9();
+    var MAX_FIND_CHILD_SPAN_DEPTH = 20;
+    var findChildSpans = (element, depth = 0) => {
+      const childSpans = [];
+      if (!element.children.length || depth > MAX_FIND_CHILD_SPAN_DEPTH) {
+        return childSpans;
+      }
+      Array.from(element.children).forEach((child) => {
+        if (child.tagName === "SPAN") {
+          childSpans.push(child);
+        } else if (child.children.length) {
+          childSpans.push(...findChildSpans(child, depth + 1));
+        }
+      });
+      return childSpans;
+    };
+    var mergeNestedSpanStyles = (element) => {
+      if (!element.children.length) {
+        return;
+      }
+      const childSpans = findChildSpans(element);
+      if (!childSpans) {
+        return;
+      }
+      childSpans.forEach((childSpan) => {
+        var _a, _b;
+        const childStyle = childSpan.getAttribute("style");
+        const closestParentSpanStyleOfChild = (_b = (_a = childSpan.parentElement) == null ? void 0 : _a.closest("span")) == null ? void 0 : _b.getAttribute("style");
+        childSpan.setAttribute("style", `${closestParentSpanStyleOfChild};${childStyle}`);
+      });
+    };
+    var TextStyle = import_core.Mark.create({
+      name: "textStyle",
+      priority: 101,
+      addOptions() {
+        return {
+          HTMLAttributes: {},
+          mergeNestedSpanStyles: true
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: "span",
+            consuming: false,
+            getAttrs: (element) => {
+              const hasStyles = element.hasAttribute("style");
+              if (!hasStyles) {
+                return false;
+              }
+              if (this.options.mergeNestedSpanStyles) {
+                mergeNestedSpanStyles(element);
+              }
+              return {};
+            }
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["span", (0, import_core.mergeAttributes)(this.options.HTMLAttributes, HTMLAttributes), 0];
+      },
+      addCommands() {
+        return {
+          toggleTextStyle: (attributes) => ({ commands: commands2 }) => {
+            return commands2.toggleMark(this.name, attributes);
+          },
+          removeEmptyTextStyle: () => ({ tr }) => {
+            const { selection } = tr;
+            tr.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+              if (node.isTextblock) {
+                return true;
+              }
+              if (!node.marks.filter((mark) => mark.type === this.type).some((mark) => Object.values(mark.attrs).some((value) => !!value))) {
+                tr.removeMark(pos, pos + node.nodeSize, this.type);
+              }
+            });
+            return true;
+          }
+        };
+      }
+    });
+    var import_core2 = require_dist9();
+    var BackgroundColor = import_core2.Extension.create({
+      name: "backgroundColor",
+      addOptions() {
+        return {
+          types: ["textStyle"]
+        };
+      },
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              backgroundColor: {
+                default: null,
+                parseHTML: (element) => {
+                  var _a;
+                  const styleAttr = element.getAttribute("style");
+                  if (styleAttr) {
+                    const decls = styleAttr.split(";").map((s) => s.trim()).filter(Boolean);
+                    for (let i = decls.length - 1; i >= 0; i -= 1) {
+                      const parts = decls[i].split(":");
+                      if (parts.length >= 2) {
+                        const prop = parts[0].trim().toLowerCase();
+                        const val = parts.slice(1).join(":").trim();
+                        if (prop === "background-color") {
+                          return val.replace(/['"]+/g, "");
+                        }
+                      }
+                    }
+                  }
+                  return (_a = element.style.backgroundColor) == null ? void 0 : _a.replace(/['"]+/g, "");
+                },
+                renderHTML: (attributes) => {
+                  if (!attributes.backgroundColor) {
+                    return {};
+                  }
+                  return {
+                    style: `background-color: ${attributes.backgroundColor}`
+                  };
+                }
+              }
+            }
+          }
+        ];
+      },
+      addCommands() {
+        return {
+          setBackgroundColor: (backgroundColor) => ({ chain }) => {
+            return chain().setMark("textStyle", { backgroundColor }).run();
+          },
+          unsetBackgroundColor: () => ({ chain }) => {
+            return chain().setMark("textStyle", { backgroundColor: null }).removeEmptyTextStyle().run();
+          }
+        };
+      }
+    });
+    var import_core3 = require_dist9();
+    var Color = import_core3.Extension.create({
+      name: "color",
+      addOptions() {
+        return {
+          types: ["textStyle"]
+        };
+      },
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              color: {
+                default: null,
+                parseHTML: (element) => {
+                  var _a;
+                  const styleAttr = element.getAttribute("style");
+                  if (styleAttr) {
+                    const decls = styleAttr.split(";").map((s) => s.trim()).filter(Boolean);
+                    for (let i = decls.length - 1; i >= 0; i -= 1) {
+                      const parts = decls[i].split(":");
+                      if (parts.length >= 2) {
+                        const prop = parts[0].trim().toLowerCase();
+                        const val = parts.slice(1).join(":").trim();
+                        if (prop === "color") {
+                          return val.replace(/['"]+/g, "");
+                        }
+                      }
+                    }
+                  }
+                  return (_a = element.style.color) == null ? void 0 : _a.replace(/['"]+/g, "");
+                },
+                renderHTML: (attributes) => {
+                  if (!attributes.color) {
+                    return {};
+                  }
+                  return {
+                    style: `color: ${attributes.color}`
+                  };
+                }
+              }
+            }
+          }
+        ];
+      },
+      addCommands() {
+        return {
+          setColor: (color) => ({ chain }) => {
+            return chain().setMark("textStyle", { color }).run();
+          },
+          unsetColor: () => ({ chain }) => {
+            return chain().setMark("textStyle", { color: null }).removeEmptyTextStyle().run();
+          }
+        };
+      }
+    });
+    var import_core4 = require_dist9();
+    var FontFamily = import_core4.Extension.create({
+      name: "fontFamily",
+      addOptions() {
+        return {
+          types: ["textStyle"]
+        };
+      },
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              fontFamily: {
+                default: null,
+                parseHTML: (element) => element.style.fontFamily,
+                renderHTML: (attributes) => {
+                  if (!attributes.fontFamily) {
+                    return {};
+                  }
+                  return {
+                    style: `font-family: ${attributes.fontFamily}`
+                  };
+                }
+              }
+            }
+          }
+        ];
+      },
+      addCommands() {
+        return {
+          setFontFamily: (fontFamily) => ({ chain }) => {
+            return chain().setMark("textStyle", { fontFamily }).run();
+          },
+          unsetFontFamily: () => ({ chain }) => {
+            return chain().setMark("textStyle", { fontFamily: null }).removeEmptyTextStyle().run();
+          }
+        };
+      }
+    });
+    var import_core5 = require_dist9();
+    var FontSize = import_core5.Extension.create({
+      name: "fontSize",
+      addOptions() {
+        return {
+          types: ["textStyle"]
+        };
+      },
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              fontSize: {
+                default: null,
+                parseHTML: (element) => element.style.fontSize,
+                renderHTML: (attributes) => {
+                  if (!attributes.fontSize) {
+                    return {};
+                  }
+                  return {
+                    style: `font-size: ${attributes.fontSize}`
+                  };
+                }
+              }
+            }
+          }
+        ];
+      },
+      addCommands() {
+        return {
+          setFontSize: (fontSize) => ({ chain }) => {
+            return chain().setMark("textStyle", { fontSize }).run();
+          },
+          unsetFontSize: () => ({ chain }) => {
+            return chain().setMark("textStyle", { fontSize: null }).removeEmptyTextStyle().run();
+          }
+        };
+      }
+    });
+    var import_core6 = require_dist9();
+    var LineHeight = import_core6.Extension.create({
+      name: "lineHeight",
+      addOptions() {
+        return {
+          types: ["textStyle"]
+        };
+      },
+      addGlobalAttributes() {
+        return [
+          {
+            types: this.options.types,
+            attributes: {
+              lineHeight: {
+                default: null,
+                parseHTML: (element) => element.style.lineHeight,
+                renderHTML: (attributes) => {
+                  if (!attributes.lineHeight) {
+                    return {};
+                  }
+                  return {
+                    style: `line-height: ${attributes.lineHeight}`
+                  };
+                }
+              }
+            }
+          }
+        ];
+      },
+      addCommands() {
+        return {
+          setLineHeight: (lineHeight) => ({ chain }) => {
+            return chain().setMark("textStyle", { lineHeight }).run();
+          },
+          unsetLineHeight: () => ({ chain }) => {
+            return chain().setMark("textStyle", { lineHeight: null }).removeEmptyTextStyle().run();
+          }
+        };
+      }
+    });
+    var import_core7 = require_dist9();
+    var TextStyleKit = import_core7.Extension.create({
+      name: "textStyleKit",
+      addExtensions() {
+        const extensions2 = [];
+        if (this.options.backgroundColor !== false) {
+          extensions2.push(BackgroundColor.configure(this.options.backgroundColor));
+        }
+        if (this.options.color !== false) {
+          extensions2.push(Color.configure(this.options.color));
+        }
+        if (this.options.fontFamily !== false) {
+          extensions2.push(FontFamily.configure(this.options.fontFamily));
+        }
+        if (this.options.fontSize !== false) {
+          extensions2.push(FontSize.configure(this.options.fontSize));
+        }
+        if (this.options.lineHeight !== false) {
+          extensions2.push(LineHeight.configure(this.options.lineHeight));
+        }
+        if (this.options.textStyle !== false) {
+          extensions2.push(TextStyle.configure(this.options.textStyle));
+        }
+        return extensions2;
+      }
+    });
+  }
+});
+
+// src/popover-menu.js
+var require_popover_menu = __commonJS({
+  "src/popover-menu.js"(exports2, module2) {
+    var { setIcon } = require("obsidian");
+    var PopoverMenu = class {
+      constructor(editor, containerEl) {
+        this.editor = editor;
+        this.containerEl = containerEl;
+        this.el = null;
+        this.isVisible = false;
+        this.handleClickOutside = this.handleClickOutside.bind(this);
+      }
+      create() {
+        this.el = document.createElement("div");
+        this.el.addClass("colophon-popover");
+        this.containerEl.appendChild(this.el);
+        const styleSection = this.el.createDiv("colophon-popover-section");
+        this.createButton(styleSection, "Heading 1", "h1", () => this.editor.chain().focus().toggleHeading({ level: 1 }).run());
+        this.createButton(styleSection, "Heading 2", "h2", () => this.editor.chain().focus().toggleHeading({ level: 2 }).run());
+        this.createButton(styleSection, "Heading 3", "h3", () => this.editor.chain().focus().toggleHeading({ level: 3 }).run());
+        this.createButton(styleSection, "Body", "pilcrow", () => this.editor.chain().focus().setParagraph().run());
+        const formatSection = this.el.createDiv("colophon-popover-section");
+        this.createIconButton(formatSection, "bold", () => this.editor.chain().focus().toggleBold().run(), "isActive", "bold");
+        this.createIconButton(formatSection, "italic", () => this.editor.chain().focus().toggleItalic().run(), "isActive", "italic");
+        this.createIconButton(formatSection, "underline", () => this.editor.chain().focus().toggleUnderline().run(), "isActive", "underline");
+        this.createIconButton(formatSection, "strikethrough", () => this.editor.chain().focus().toggleStrike().run(), "isActive", "strike");
+        const advancedSection = this.el.createDiv("colophon-popover-section");
+        this.createIconButton(advancedSection, "superscript", () => this.editor.chain().focus().toggleSuperscript().run(), "isActive", "superscript");
+        this.createIconButton(advancedSection, "subscript", () => this.editor.chain().focus().toggleSubscript().run(), "isActive", "subscript");
+        const smallCapsBtn = this.createIconButton(advancedSection, "type", () => this.editor.chain().focus().toggleSmallCaps().run(), "isActive", "smallCaps");
+        smallCapsBtn.setAttribute("aria-label", "Small Caps");
+      }
+      createButton(parent, text, icon, action) {
+        const btn = parent.createEl("button", { cls: "colophon-popover-item" });
+        if (icon) {
+          const iconSpan = btn.createSpan("colophon-popover-icon");
+          setIcon(iconSpan, icon);
+        }
+        btn.createSpan({ text });
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          action();
+          this.hide();
+        });
+        return btn;
+      }
+      createIconButton(parent, icon, action, checkMethod, checkArg) {
+        const btn = parent.createEl("button", { cls: "colophon-popover-icon-btn" });
+        const iconSpan = btn.createSpan();
+        setIcon(iconSpan, icon);
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          action();
+          this.hide();
+        });
+        return btn;
+      }
+      show(x, y) {
+        if (!this.el) this.create();
+        this.el.style.left = `${x}px`;
+        this.el.style.top = `${y}px`;
+        this.el.addClass("is-visible");
+        this.isVisible = true;
+        document.addEventListener("click", this.handleClickOutside);
+      }
+      hide() {
+        if (this.el) {
+          this.el.removeClass("is-visible");
+          this.isVisible = false;
+          document.removeEventListener("click", this.handleClickOutside);
+        }
+      }
+      handleClickOutside(e) {
+        if (this.el && !this.el.contains(e.target)) {
+          this.hide();
+        }
+      }
+      destroy() {
+        if (this.el) {
+          this.el.remove();
+        }
+        document.removeEventListener("click", this.handleClickOutside);
+      }
+    };
+    module2.exports = PopoverMenu;
+  }
+});
+
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
-    var { Editor } = require_dist9();
+    var { Editor, Mark, mergeAttributes } = require_dist9();
     var { StarterKit } = require_dist30();
+    var Underline = require_dist24();
+    var Subscript = require_dist31();
+    var Superscript = require_dist32();
+    var TextStyle = require_dist33();
+    var PopoverMenu = require_popover_menu();
+    var SmallCaps = Mark.create({
+      name: "smallCaps",
+      parseHTML() {
+        return [
+          {
+            style: "font-variant",
+            getAttrs: (value) => value === "small-caps" ? {} : false
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["span", mergeAttributes(HTMLAttributes, { style: "font-variant: small-caps" }), 0];
+      },
+      addCommands() {
+        return {
+          toggleSmallCaps: () => ({ commands: commands2 }) => {
+            return commands2.toggleMark(this.name);
+          }
+        };
+      }
+    });
     var TiptapAdapter = class {
       constructor(containerEl, onUpdate) {
         this.containerEl = containerEl;
         this.onUpdate = onUpdate;
         this.editor = null;
         this.isLoaded = false;
+        this.popover = null;
       }
       load(markdown2, data) {
         if (this.editor) {
@@ -24871,7 +25518,12 @@ var require_tiptap_adapter = __commonJS({
         this.editor = new Editor({
           element: this.containerEl,
           extensions: [
-            StarterKit
+            StarterKit,
+            Underline,
+            Subscript,
+            Superscript,
+            TextStyle,
+            SmallCaps
           ],
           content,
           onUpdate: ({ editor }) => {
@@ -24880,9 +25532,23 @@ var require_tiptap_adapter = __commonJS({
             }
           }
         });
+        this.popover = new PopoverMenu(this.editor, this.containerEl);
+        this.editor.view.dom.addEventListener("contextmenu", (e) => {
+          const { from, to } = this.editor.state.selection;
+          if (from !== to) {
+            e.preventDefault();
+            const rect = this.containerEl.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            this.popover.show(x, y);
+          }
+        });
         this.isLoaded = true;
       }
       destroy() {
+        if (this.popover) {
+          this.popover.destroy();
+        }
         if (this.editor) {
           this.editor.destroy();
           this.editor = null;
