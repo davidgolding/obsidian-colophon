@@ -11,6 +11,7 @@ class ColophonView extends FileView {
         this.data = null; // Sidecar data
         this.markdownBody = ''; // Markdown body
         this.frontmatter = ''; // YAML Frontmatter
+        this.themeOverride = null; // null (auto), 'light', 'dark'
 
         // Debounce the save function to avoid excessive writes
         this.save = debounce(this.save.bind(this), 1000, true);
@@ -32,12 +33,38 @@ class ColophonView extends FileView {
         // Create the container for Tiptap
         this.contentEl.empty();
         this.contentEl.addClass('colophon-workspace');
+        this.updateThemeClass();
+
+        // Add Theme Toggle Action
+        this.addAction('sun', 'Toggle Canvas Theme', () => {
+            this.toggleTheme();
+        });
 
         // Initialize Tiptap Adapter
         this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
             this.data = newData;
             this.save();
         });
+    }
+
+    toggleTheme() {
+        if (this.themeOverride === null) {
+            // Currently Auto. Switch to the opposite of the system theme.
+            const isSystemDark = document.body.classList.contains('theme-dark');
+            this.themeOverride = isSystemDark ? 'light' : 'dark';
+        } else {
+            // Currently manual. Flip it.
+            this.themeOverride = this.themeOverride === 'light' ? 'dark' : 'light';
+        }
+        this.updateThemeClass();
+    }
+
+    updateThemeClass() {
+        this.contentEl.removeClass('colophon-theme-light', 'colophon-theme-dark');
+
+        if (this.themeOverride) {
+            this.contentEl.addClass(`colophon-theme-${this.themeOverride}`);
+        }
     }
 
     async onClose() {

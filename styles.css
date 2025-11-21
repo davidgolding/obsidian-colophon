@@ -11,7 +11,7 @@
     display: flex;
     justify-content: center;
     background-color: var(--background-primary);
-    
+
     /* Typography Variables */
     --colophon-default-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
     --colophon-h1-font: var(--colophon-default-font);
@@ -24,20 +24,51 @@
     --colophon-body-first-font: var(--colophon-default-font);
 }
 
+/* THEME OVERRIDES */
+/* Light Theme Override */
+.colophon-workspace.colophon-theme-light {
+    --background-primary: #ffffff;
+    --text-normal: #2e3338;
+    --text-muted: #888888;
+    --text-accent: #705dcf;
+    /* Fallback accent if system var fails, but usually we want system accent. Let's try to keep system accent or define a neutral one. */
+    --text-selection: rgba(0, 0, 0, 0.15);
+    --background-modifier-border: #e0e0e0;
+
+    /* Re-apply background because we changed the variable */
+    background-color: var(--background-primary);
+}
+
+/* Dark Theme Override */
+.colophon-workspace.colophon-theme-dark {
+    --background-primary: #202020;
+    --text-normal: #dcddde;
+    --text-muted: #999999;
+    --text-accent: #7d6fe3;
+    --text-selection: rgba(255, 255, 255, 0.15);
+    --background-modifier-border: #333333;
+
+    /* Re-apply background because we changed the variable */
+    background-color: var(--background-primary);
+}
+
+
 /* 2. THE EDITOR CANVAS */
 .colophon-workspace .ProseMirror {
     /* Layout */
     width: 100%;
-    max-width: 700px; /* Sweet spot for readability (~65-75 chars) */
+    max-width: 700px;
+    /* Sweet spot for readability (~65-75 chars) */
     min-height: 100%;
     margin: 0 auto;
-    padding: 4rem 2rem; /* Comfortable padding */
-    
+    padding: 4rem 2rem;
+    /* Comfortable padding */
+
     /* Appearance */
     background-color: transparent;
     box-shadow: none;
     outline: none;
-    
+
     /* Typography Base */
     color: var(--text-normal);
     font-family: var(--colophon-default-font);
@@ -54,19 +85,21 @@
 
 /* Body (Default Paragraph) */
 .colophon-workspace .ProseMirror p {
-    font-size: 1.2rem; /* Slightly larger for elegance */
+    font-size: 1.2rem;
+    /* Slightly larger for elegance */
     line-height: 1.6;
     text-align: left;
     margin-top: 0;
     margin-bottom: 0;
-    text-indent: 1.5em; /* Classic paragraph indent */
+    text-indent: 1.5em;
+    /* Classic paragraph indent */
     font-family: var(--colophon-body-font);
 }
 
 /* Body First (No indent, e.g. after heading) */
-.colophon-workspace .ProseMirror h1 + p,
-.colophon-workspace .ProseMirror h2 + p,
-.colophon-workspace .ProseMirror h3 + p {
+.colophon-workspace .ProseMirror h1+p,
+.colophon-workspace .ProseMirror h2+p,
+.colophon-workspace .ProseMirror h3+p {
     text-indent: 0;
 }
 

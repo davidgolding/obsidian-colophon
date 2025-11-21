@@ -24954,6 +24954,7 @@ var require_view2 = __commonJS({
         this.data = null;
         this.markdownBody = "";
         this.frontmatter = "";
+        this.themeOverride = null;
         this.save = debounce(this.save.bind(this), 1e3, true);
       }
       getViewType() {
@@ -24968,10 +24969,29 @@ var require_view2 = __commonJS({
       async onOpen() {
         this.contentEl.empty();
         this.contentEl.addClass("colophon-workspace");
+        this.updateThemeClass();
+        this.addAction("sun", "Toggle Canvas Theme", () => {
+          this.toggleTheme();
+        });
         this.adapter = new TiptapAdapter(this.contentEl, (newData) => {
           this.data = newData;
           this.save();
         });
+      }
+      toggleTheme() {
+        if (this.themeOverride === null) {
+          const isSystemDark = document.body.classList.contains("theme-dark");
+          this.themeOverride = isSystemDark ? "light" : "dark";
+        } else {
+          this.themeOverride = this.themeOverride === "light" ? "dark" : "light";
+        }
+        this.updateThemeClass();
+      }
+      updateThemeClass() {
+        this.contentEl.removeClass("colophon-theme-light", "colophon-theme-dark");
+        if (this.themeOverride) {
+          this.contentEl.addClass(`colophon-theme-${this.themeOverride}`);
+        }
       }
       async onClose() {
         if (this.adapter) {
