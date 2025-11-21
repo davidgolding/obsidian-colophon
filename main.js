@@ -25497,53 +25497,53 @@ var require_tiptap_footnotes = __commonJS({
         ];
       },
       renderHTML({ HTMLAttributes }) {
-        return ["sup", mergeAttributes(HTMLAttributes, { "data-footnote-reference": "" }), `[${HTMLAttributes.number}]`];
-      }
-    });
-    var FootnoteDefinition = Node2.create({
-      name: "footnoteDefinition",
-      group: "block",
-      content: "paragraph+",
-      defining: true,
-      addAttributes() {
-        return {
-          id: {
-            default: null
-          },
-          number: {
-            default: 1
-          }
-        };
-      },
-      parseHTML() {
-        return [
-          {
-            tag: "div[data-footnote-definition]"
-          }
-        ];
-      },
-      renderHTML({ HTMLAttributes }) {
-        return [
-          "div",
-          mergeAttributes(HTMLAttributes, { "data-footnote-definition": "", class: "footnote-definition" }),
-          ["span", { class: "footnote-label", contenteditable: "false" }, `[${HTMLAttributes.number}]: `],
-          ["div", { class: "footnote-content" }, 0]
-        ];
+        return ["sup", mergeAttributes(HTMLAttributes, { "data-footnote-reference": "" }), `${HTMLAttributes.number}`];
       }
     });
     var FootnoteExtension = Node2.create({
       name: "footnote",
       addExtensions() {
         return [
-          FootnoteReference,
-          FootnoteDefinition
+          FootnoteReference
+        ];
+      },
+      addProseMirrorPlugins() {
+        const { Plugin: Plugin2, PluginKey } = require_state();
+        return [
+          new Plugin2({
+            key: new PluginKey("footnote-reindexer"),
+            appendTransaction: (transactions, oldState, newState) => {
+              const docChanged = transactions.some((tr2) => tr2.docChanged);
+              if (!docChanged) return;
+              const { tr } = newState;
+              let modified = false;
+              let index = 1;
+              newState.doc.descendants((node, pos) => {
+                if (node.type.name === "footnoteReference") {
+                  const currentNumber = node.attrs.number;
+                  const currentNumInt = parseInt(currentNumber, 10);
+                  if (currentNumInt !== index) {
+                    tr.setNodeMarkup(pos, void 0, {
+                      ...node.attrs,
+                      number: index
+                    });
+                    modified = true;
+                  }
+                  index++;
+                }
+              });
+              if (modified) {
+                return tr;
+              }
+            }
+          })
         ];
       },
       addCommands() {
         return {
           addFootnote: () => ({ editor, tr, dispatch }) => {
             const { selection } = editor.state;
-            const id = `fn-${Date.now()}`;
+            const id = crypto.randomUUID();
             let maxNum = 0;
             editor.state.doc.descendants((node) => {
               if (node.type.name === "footnoteReference") {
@@ -25554,11 +25554,6 @@ var require_tiptap_footnotes = __commonJS({
             if (dispatch) {
               const reference = editor.schema.nodes.footnoteReference.create({ id, number });
               tr.insert(selection.from, reference);
-              const definition = editor.schema.nodes.footnoteDefinition.create(
-                { id, number },
-                editor.schema.nodes.paragraph.create(null, [])
-              );
-              tr.insert(tr.doc.content.size, definition);
             }
             return true;
           }
@@ -25567,8 +25562,7 @@ var require_tiptap_footnotes = __commonJS({
     });
     module2.exports = {
       FootnoteExtension,
-      FootnoteReference,
-      FootnoteDefinition
+      FootnoteReference
     };
   }
 });
@@ -25659,71 +25653,77 @@ var require_tiptap_adapter = __commonJS({
         this.isLoaded = true;
       }
       parseMarkdown(markdown2) {
-        const definitionRegex = /^\[\^([a-zA-Z0-9-]+)\]: (.*)$/gm;
-        const referenceRegex = /\[\^([a-zA-Z0-9-]+)\]/g;
-        const definitions = /* @__PURE__ */ new Map();
-        let match;
-        while ((match = definitionRegex.exec(markdown2)) !== null) {
-          definitions.set(match[1], match[2]);
-        }
-        const bodyMarkdown = markdown2.replace(definitionRegex, "").trim();
-        const paragraphs = bodyMarkdown.split(/\n\n+/);
+        const lines = markdown2.split("\n");
         const content = [];
-        paragraphs.forEach((pText) => {
-          if (!pText.trim()) return;
-          const headingMatch = pText.match(/^(#{1,6})\s+(.*)/);
+        let inCodeBlock = false;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
           if (headingMatch) {
             content.push({
               type: "heading",
               attrs: { level: headingMatch[1].length },
-              content: [{ type: "text", text: headingMatch[2] }]
+              content: this.parseInline(headingMatch[2])
             });
-            return;
+            continue;
           }
-          const inlineContent = [];
-          let lastIndex = 0;
-          let refMatch;
-          referenceRegex.lastIndex = 0;
-          while ((refMatch = referenceRegex.exec(pText)) !== null) {
-            if (refMatch.index > lastIndex) {
-              inlineContent.push({
-                type: "text",
-                text: pText.substring(lastIndex, refMatch.index)
-              });
-            }
-            const id = refMatch[1];
-            inlineContent.push({
-              type: "footnoteReference",
-              attrs: { id, number: id }
-              // Using ID as number for now
-            });
-            lastIndex = referenceRegex.lastIndex;
-          }
-          if (lastIndex < pText.length) {
-            inlineContent.push({
-              type: "text",
-              text: pText.substring(lastIndex)
-            });
-          }
+          if (line.trim() === "") continue;
           content.push({
             type: "paragraph",
-            content: inlineContent
+            content: this.parseInline(line)
           });
-        });
-        definitions.forEach((defContent, id) => {
-          content.push({
-            type: "footnoteDefinition",
-            attrs: { id, number: id },
-            content: [{
-              type: "paragraph",
-              content: [{ type: "text", text: defContent }]
-            }]
-          });
-        });
+        }
         return {
           type: "doc",
           content
         };
+      }
+      parseInline(text) {
+        const content = [];
+        const parts = text.split(/(<sup data-fn="[^"]+">.*?<\/sup>)/g);
+        parts.forEach((part) => {
+          if (!part) return;
+          const fnMatch = part.match(/<sup data-fn="([^"]+)">((?:.|\n)*?)<\/sup>/);
+          if (fnMatch) {
+            content.push({
+              type: "footnoteReference",
+              attrs: {
+                id: fnMatch[1],
+                number: fnMatch[2]
+                // The label/number
+              }
+            });
+          } else {
+            content.push({
+              type: "text",
+              text: part
+            });
+          }
+        });
+        return content;
+      }
+      serializeMarkdown() {
+        const json = this.editor.getJSON();
+        let markdown2 = "";
+        json.content.forEach((block) => {
+          if (block.type === "heading") {
+            markdown2 += "#".repeat(block.attrs.level) + " " + this.serializeInline(block.content) + "\n\n";
+          } else if (block.type === "paragraph") {
+            markdown2 += this.serializeInline(block.content) + "\n\n";
+          }
+        });
+        return markdown2.trim();
+      }
+      serializeInline(content) {
+        if (!content) return "";
+        return content.map((node) => {
+          if (node.type === "text") {
+            return node.text;
+          } else if (node.type === "footnoteReference") {
+            return `<sup data-fn="${node.attrs.id}">${node.attrs.number}</sup>`;
+          }
+          return "";
+        }).join("");
       }
       addFootnote() {
         if (this.editor) {
@@ -25900,7 +25900,8 @@ var require_view2 = __commonJS({
       }
       async save() {
         if (!this.file || !this.data) return;
-        const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
+        const markdown2 = this.adapter ? this.adapter.serializeMarkdown() : this.markdownBody;
+        const newContent = serializeFile(markdown2, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
       }
     };
@@ -25911,9 +25912,116 @@ var require_view2 = __commonJS({
   }
 });
 
+// src/sidebar-view.js
+var require_sidebar_view = __commonJS({
+  "src/sidebar-view.js"(exports2, module2) {
+    var { ItemView, WorkspaceLeaf: WorkspaceLeaf2, debounce } = require("obsidian");
+    var { Editor } = require_dist9();
+    var { StarterKit } = require_dist30();
+    var SIDEBAR_VIEW_TYPE2 = "colophon-sidebar";
+    var ColophonSidebarView2 = class extends ItemView {
+      constructor(leaf) {
+        super(leaf);
+        this.activeColophonView = null;
+        this.editors = /* @__PURE__ */ new Map();
+        this.updateView = debounce(this.updateView.bind(this), 100, true);
+      }
+      getViewType() {
+        return SIDEBAR_VIEW_TYPE2;
+      }
+      getDisplayText() {
+        return "Colophon Footnotes";
+      }
+      getIcon() {
+        return "foot-prints";
+      }
+      async onOpen() {
+        const container = this.contentEl;
+        container.empty();
+        container.addClass("colophon-sidebar");
+        this.headerEl = container.createEl("div", { cls: "colophon-sidebar-header" });
+        this.headerEl.createEl("h4", { text: "Footnotes" });
+        this.listContainer = container.createDiv({ cls: "colophon-sidebar-list" });
+        this.registerEvent(
+          this.app.workspace.on("active-leaf-change", this.onActiveLeafChange.bind(this))
+        );
+        this.onActiveLeafChange(this.app.workspace.activeLeaf);
+      }
+      onActiveLeafChange(leaf) {
+        if (!leaf) return;
+        const view = leaf.view;
+        if (view.getViewType() === "colophon-view") {
+          this.activeColophonView = view;
+          this.updateView();
+          if (view.adapter) {
+            const originalOnUpdate = view.adapter.onUpdate;
+            view.adapter.onUpdate = (data) => {
+              if (originalOnUpdate) originalOnUpdate(data);
+              this.updateView();
+            };
+          }
+        } else {
+          this.activeColophonView = null;
+          this.listContainer.empty();
+          this.listContainer.createEl("p", { text: "No active manuscript.", cls: "colophon-empty-state" });
+        }
+      }
+      updateView() {
+        if (!this.activeColophonView || !this.activeColophonView.adapter || !this.activeColophonView.adapter.editor) return;
+        const editor = this.activeColophonView.adapter.editor;
+        const doc = editor.state.doc;
+        const footnotes = [];
+        doc.descendants((node) => {
+          if (node.type.name === "footnoteReference") {
+            footnotes.push({
+              id: node.attrs.id,
+              number: node.attrs.number
+            });
+          }
+        });
+        const data = this.activeColophonView.data || {};
+        const footnoteData = data.footnotes || {};
+        this.listContainer.empty();
+        if (footnotes.length === 0) {
+          this.listContainer.createEl("p", { text: "No footnotes yet.", cls: "colophon-empty-state" });
+          return;
+        }
+        footnotes.forEach((fn, index) => {
+          const wrapper = this.listContainer.createDiv({ cls: "colophon-sidebar-item" });
+          const header = wrapper.createDiv({ cls: "colophon-sidebar-item-header" });
+          header.createSpan({ text: `${index + 1}.`, cls: "colophon-sidebar-number" });
+          const editorContainer = wrapper.createDiv({ cls: "colophon-sidebar-editor" });
+          const content = footnoteData[fn.id] || "<p></p>";
+          const miniEditor = new Editor({
+            element: editorContainer,
+            extensions: [StarterKit],
+            content,
+            onUpdate: ({ editor: editor2 }) => {
+              if (!this.activeColophonView.data) this.activeColophonView.data = {};
+              if (!this.activeColophonView.data.footnotes) this.activeColophonView.data.footnotes = {};
+              this.activeColophonView.data.footnotes[fn.id] = editor2.getHTML();
+              this.activeColophonView.save();
+            }
+          });
+          this.editors.set(fn.id, miniEditor);
+        });
+      }
+      async onClose() {
+        this.editors.forEach((editor) => editor.destroy());
+        this.editors.clear();
+      }
+    };
+    module2.exports = {
+      ColophonSidebarView: ColophonSidebarView2,
+      SIDEBAR_VIEW_TYPE: SIDEBAR_VIEW_TYPE2
+    };
+  }
+});
+
 // src/main.js
 var { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require("obsidian");
 var { ColophonView, VIEW_TYPE } = require_view2();
+var { ColophonSidebarView, SIDEBAR_VIEW_TYPE } = require_sidebar_view();
 var DEFAULT_SETTINGS = {
   textColumnWidth: 1080
 };
@@ -25923,6 +26031,10 @@ module.exports = class ColophonPlugin extends Plugin {
     this.registerView(
       VIEW_TYPE,
       (leaf) => new ColophonView(leaf, this.settings)
+    );
+    this.registerView(
+      SIDEBAR_VIEW_TYPE,
+      (leaf) => new ColophonSidebarView(leaf)
     );
     this.addSettingTab(new ColophonSettingTab(this.app, this));
     this.patchOpenFile();
@@ -25978,6 +26090,23 @@ module.exports = class ColophonPlugin extends Plugin {
       id: "create-new-colophon-manuscript",
       name: "New manuscript",
       callback: () => this.createNewManuscript()
+    });
+    this.addCommand({
+      id: "toggle-colophon-sidebar",
+      name: "Toggle Footnotes Sidebar",
+      callback: async () => {
+        const { workspace } = this.app;
+        let leaf = null;
+        const leaves = workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
+        if (leaves.length > 0) {
+          leaf = leaves[0];
+          workspace.revealLeaf(leaf);
+        } else {
+          leaf = workspace.getRightLeaf(false);
+          await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
+        }
+        workspace.revealLeaf(leaf);
+      }
     });
   }
   async loadSettings() {

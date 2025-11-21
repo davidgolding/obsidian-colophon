@@ -32,42 +32,7 @@ const FootnoteReference = Node.create({
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['sup', mergeAttributes(HTMLAttributes, { 'data-footnote-reference': '' }), `[${HTMLAttributes.number}]`]
-    },
-});
-
-const FootnoteDefinition = Node.create({
-    name: 'footnoteDefinition',
-    group: 'block',
-    content: 'paragraph+',
-    defining: true,
-
-    addAttributes() {
-        return {
-            id: {
-                default: null,
-            },
-            number: {
-                default: 1,
-            }
-        }
-    },
-
-    parseHTML() {
-        return [
-            {
-                tag: 'div[data-footnote-definition]',
-            },
-        ]
-    },
-
-    renderHTML({ HTMLAttributes }) {
-        return [
-            'div',
-            mergeAttributes(HTMLAttributes, { 'data-footnote-definition': '', class: 'footnote-definition' }),
-            ['span', { class: 'footnote-label', contenteditable: 'false' }, `[${HTMLAttributes.number}]: `],
-            ['div', { class: 'footnote-content' }, 0]
-        ]
+        return ['sup', mergeAttributes(HTMLAttributes, { 'data-footnote-reference': '' }), `${HTMLAttributes.number}`]
     },
 });
 
@@ -77,7 +42,46 @@ const FootnoteExtension = Node.create({
     addExtensions() {
         return [
             FootnoteReference,
-            FootnoteDefinition,
+        ]
+    },
+
+    addProseMirrorPlugins() {
+        const { Plugin, PluginKey } = require('@tiptap/pm/state');
+
+        return [
+            new Plugin({
+                key: new PluginKey('footnote-reindexer'),
+                appendTransaction: (transactions, oldState, newState) => {
+                    // Check if any transaction changed the document
+                    const docChanged = transactions.some(tr => tr.docChanged);
+                    if (!docChanged) return;
+
+                    const { tr } = newState;
+                    let modified = false;
+                    let index = 1;
+
+                    newState.doc.descendants((node, pos) => {
+                        if (node.type.name === 'footnoteReference') {
+                            const currentNumber = node.attrs.number;
+                            // Convert to int just in case
+                            const currentNumInt = parseInt(currentNumber, 10);
+
+                            if (currentNumInt !== index) {
+                                tr.setNodeMarkup(pos, undefined, {
+                                    ...node.attrs,
+                                    number: index
+                                });
+                                modified = true;
+                            }
+                            index++;
+                        }
+                    });
+
+                    if (modified) {
+                        return tr;
+                    }
+                }
+            })
         ]
     },
 
@@ -85,10 +89,9 @@ const FootnoteExtension = Node.create({
         return {
             addFootnote: () => ({ editor, tr, dispatch }) => {
                 const { selection } = editor.state;
-                const id = `fn-${Date.now()}`;
+                const id = crypto.randomUUID();
 
                 // Calculate next number (naive implementation, real re-indexing happens on update usually)
-                // For now, let's just find the max number in existing footnotes
                 let maxNum = 0;
                 editor.state.doc.descendants((node) => {
                     if (node.type.name === 'footnoteReference') {
@@ -102,21 +105,7 @@ const FootnoteExtension = Node.create({
                     const reference = editor.schema.nodes.footnoteReference.create({ id, number });
                     tr.insert(selection.from, reference);
 
-                    // Insert Definition at end of doc
-                    const definition = editor.schema.nodes.footnoteDefinition.create(
-                        { id, number },
-                        editor.schema.nodes.paragraph.create(null, [])
-                    );
-
-                    tr.insert(tr.doc.content.size, definition);
-
-                    // Move cursor to definition
-                    // The definition was inserted at tr.doc.content.size (before insertion).
-                    // After insertion of reference (size 1) and definition (size ?), we need to calculate pos.
-                    // Easier: just map the position.
-
-                    // Actually, let's just focus the end of the document for now.
-                    // A better way is to find the position of the newly inserted definition.
+                    // Dispatch event for sidebar to pick up (if needed, or sidebar just reacts to doc change)
                 }
 
                 return true;
@@ -127,6 +116,5 @@ const FootnoteExtension = Node.create({
 
 module.exports = {
     FootnoteExtension,
-    FootnoteReference,
-    FootnoteDefinition
+    FootnoteReference
 };

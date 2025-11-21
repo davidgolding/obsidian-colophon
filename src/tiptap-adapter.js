@@ -101,104 +101,109 @@ class TiptapAdapter {
     }
 
     parseMarkdown(markdown) {
-        // Regex for footnote definitions: [^id]: content
-        const definitionRegex = /^\[\^([a-zA-Z0-9-]+)\]: (.*)$/gm;
-        // Regex for footnote references: [^id]
-        const referenceRegex = /\[\^([a-zA-Z0-9-]+)\]/g;
+        // We need to handle the new footnote format: <sup data-fn="id">1</sup>
+        // But also keep backward compatibility or handle standard MD footnotes if we want to migrate them?
+        // For now, let's focus on the new format.
 
-        // 1. Extract Definitions
-        const definitions = new Map();
-        let match;
-        while ((match = definitionRegex.exec(markdown)) !== null) {
-            definitions.set(match[1], match[2]);
-        }
+        // Simple parser that converts Markdown to Tiptap JSON
+        // This is a simplified version. For a production app, we might want a more robust parser.
 
-        // Remove definitions from markdown to process body
-        const bodyMarkdown = markdown.replace(definitionRegex, '').trim();
-
-        // 2. Process Body
-        // Split by double newline for paragraphs
-        const paragraphs = bodyMarkdown.split(/\n\n+/);
-
+        const lines = markdown.split('\n');
         const content = [];
 
-        paragraphs.forEach(pText => {
-            if (!pText.trim()) return;
+        let inCodeBlock = false;
 
-            // Check if it's a heading
-            const headingMatch = pText.match(/^(#{1,6})\s+(.*)/);
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Headings
+            const headingMatch = line.match(/^(#{1,6})\s+(.*)/);
             if (headingMatch) {
                 content.push({
                     type: 'heading',
                     attrs: { level: headingMatch[1].length },
-                    content: [{ type: 'text', text: headingMatch[2] }]
+                    content: this.parseInline(headingMatch[2])
                 });
-                return;
+                continue;
             }
 
-            // Process paragraph text for references
-            const inlineContent = [];
-            let lastIndex = 0;
-            let refMatch;
-
-            // Reset regex lastIndex
-            referenceRegex.lastIndex = 0;
-
-            while ((refMatch = referenceRegex.exec(pText)) !== null) {
-                // Text before reference
-                if (refMatch.index > lastIndex) {
-                    inlineContent.push({
-                        type: 'text',
-                        text: pText.substring(lastIndex, refMatch.index)
-                    });
-                }
-
-                // Reference
-                const id = refMatch[1];
-                // Find number based on order? Or just use ID?
-                // For simplicity, let's map IDs to numbers based on appearance order or definition order.
-                // Let's assume ID is the number for now if it's numeric, or generate one.
-                // Actually, let's just pass the ID. The extension can handle display.
-                // But we defined 'number' attr.
-
-                inlineContent.push({
-                    type: 'footnoteReference',
-                    attrs: { id: id, number: id } // Using ID as number for now
-                });
-
-                lastIndex = referenceRegex.lastIndex;
-            }
-
-            // Remaining text
-            if (lastIndex < pText.length) {
-                inlineContent.push({
-                    type: 'text',
-                    text: pText.substring(lastIndex)
-                });
-            }
+            // Paragraphs (default)
+            if (line.trim() === '') continue;
 
             content.push({
                 type: 'paragraph',
-                content: inlineContent
+                content: this.parseInline(line)
             });
-        });
-
-        // 3. Append Definitions to content
-        definitions.forEach((defContent, id) => {
-            content.push({
-                type: 'footnoteDefinition',
-                attrs: { id: id, number: id },
-                content: [{
-                    type: 'paragraph',
-                    content: [{ type: 'text', text: defContent }]
-                }]
-            });
-        });
+        }
 
         return {
             type: 'doc',
             content: content
         };
+    }
+
+    parseInline(text) {
+        const content = [];
+        // Regex for our footnote: <sup data-fn="id">label</sup>
+        // And basic formatting
+
+        // This is a very naive parser. In a real scenario, use a proper tokenizer.
+        // For this task, let's assume we just need to handle text and footnotes for now.
+
+        // Split by footnote tag
+        const parts = text.split(/(<sup data-fn="[^"]+">.*?<\/sup>)/g);
+
+        parts.forEach(part => {
+            if (!part) return;
+
+            const fnMatch = part.match(/<sup data-fn="([^"]+)">((?:.|\n)*?)<\/sup>/);
+            if (fnMatch) {
+                content.push({
+                    type: 'footnoteReference',
+                    attrs: {
+                        id: fnMatch[1],
+                        number: fnMatch[2] // The label/number
+                    }
+                });
+            } else {
+                // Text node
+                content.push({
+                    type: 'text',
+                    text: part
+                });
+            }
+        });
+
+        return content;
+    }
+
+    serializeMarkdown() {
+        const json = this.editor.getJSON();
+        let markdown = '';
+
+        json.content.forEach(block => {
+            if (block.type === 'heading') {
+                markdown += '#'.repeat(block.attrs.level) + ' ' + this.serializeInline(block.content) + '\n\n';
+            } else if (block.type === 'paragraph') {
+                markdown += this.serializeInline(block.content) + '\n\n';
+            }
+            // Add other block types here
+        });
+
+        return markdown.trim();
+    }
+
+    serializeInline(content) {
+        if (!content) return '';
+        return content.map(node => {
+            if (node.type === 'text') {
+                // Handle marks (bold, italic, etc) if we had them implemented in serializer
+                return node.text;
+            } else if (node.type === 'footnoteReference') {
+                return `<sup data-fn="${node.attrs.id}">${node.attrs.number}</sup>`;
+            }
+            return '';
+        }).join('');
     }
 
     addFootnote() {
