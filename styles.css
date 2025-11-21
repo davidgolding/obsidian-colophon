@@ -174,13 +174,28 @@
 }
 
 /* Footnotes */
-.colophon-workspace .ProseMirror .footnote-list {
+.colophon-workspace .ProseMirror .footnote-definition {
+    display: flex;
+    gap: 0.5rem;
     font-size: 0.9rem;
     line-height: 1.4;
     color: var(--text-muted);
-    margin-top: 4rem;
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.colophon-workspace .ProseMirror .footnote-label {
+    user-select: none;
+    flex-shrink: 0;
+}
+
+.colophon-workspace .ProseMirror .footnote-content {
+    flex-grow: 1;
+}
+
+.colophon-workspace .ProseMirror .footnote-content p {
+    margin: 0;
+    text-indent: 0;
+    font-size: 0.9rem;
 }
 
 /* Hide Tiptap's default focus outline */

@@ -18,8 +18,41 @@ module.exports = class ColophonPlugin extends Plugin {
         // Add Settings Tab
         this.addSettingTab(new ColophonSettingTab(this.app, this));
 
-        // PATCH: Intercept WorkspaceLeaf.openFile to prevent FOUC (Flash of Unstyled Content)
+        // Patch WorkspaceLeaf.openFile to intercept manuscript files
         this.patchOpenFile();
+
+        // Intercept "Insert Footnote" command
+        this.app.workspace.onLayoutReady(() => {
+            const originalCommand = this.app.commands.commands['editor:insert-footnote'];
+            if (originalCommand) {
+                this.originalInsertFootnoteCallback = originalCommand.callback;
+                this.originalInsertFootnoteCheckCallback = originalCommand.checkCallback;
+
+                // Override
+                originalCommand.callback = () => {
+                    const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                    if (view) {
+                        view.addFootnote();
+                    } else if (this.originalInsertFootnoteCallback) {
+                        this.originalInsertFootnoteCallback();
+                    }
+                };
+
+                originalCommand.checkCallback = (checking) => {
+                    const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                    if (view) {
+                        if (!checking) {
+                            view.addFootnote();
+                        }
+                        return true;
+                    }
+                    if (this.originalInsertFootnoteCheckCallback) {
+                        return this.originalInsertFootnoteCheckCallback(checking);
+                    }
+                    return false;
+                };
+            }
+        });
 
         // EVENT LISTENER: Handle file opening (initial opens)
         this.registerEvent(
