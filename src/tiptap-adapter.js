@@ -97,6 +97,7 @@ class TiptapAdapter {
 
         // Initialize Popover
         this.popover = new PopoverMenu(this.editor, this.containerEl);
+        this.popover.setMode('default');
 
         // Add Context Menu Listener
         this.editor.view.dom.addEventListener('contextmenu', (e) => {

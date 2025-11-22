@@ -25382,27 +25382,41 @@ var require_popover_menu = __commonJS({
         this.containerEl = containerEl;
         this.el = null;
         this.isVisible = false;
+        this.currentMode = "default";
         this.handleClickOutside = this.handleClickOutside.bind(this);
       }
       create() {
         this.el = document.createElement("div");
         this.el.addClass("colophon-popover");
         this.containerEl.appendChild(this.el);
+        this.sections = [];
         const styleSection = this.el.createDiv("colophon-popover-section");
         this.createButton(styleSection, "Heading 1", "h1", () => this.editor.chain().focus().toggleHeading({ level: 1 }).run());
         this.createButton(styleSection, "Heading 2", "h2", () => this.editor.chain().focus().toggleHeading({ level: 2 }).run());
         this.createButton(styleSection, "Heading 3", "h3", () => this.editor.chain().focus().toggleHeading({ level: 3 }).run());
         this.createButton(styleSection, "Body", "pilcrow", () => this.editor.chain().focus().setParagraph().run());
+        this.sections.push(styleSection);
         const formatSection = this.el.createDiv("colophon-popover-section");
         this.createIconButton(formatSection, "bold", () => this.editor.chain().focus().toggleBold().run(), "isActive", "bold");
         this.createIconButton(formatSection, "italic", () => this.editor.chain().focus().toggleItalic().run(), "isActive", "italic");
         this.createIconButton(formatSection, "underline", () => this.editor.chain().focus().toggleUnderline().run(), "isActive", "underline");
         this.createIconButton(formatSection, "strikethrough", () => this.editor.chain().focus().toggleStrike().run(), "isActive", "strike");
+        this.sections.push(formatSection);
         const advancedSection = this.el.createDiv("colophon-popover-section");
         this.createIconButton(advancedSection, "superscript", () => this.editor.chain().focus().toggleSuperscript().run(), "isActive", "superscript");
         this.createIconButton(advancedSection, "subscript", () => this.editor.chain().focus().toggleSubscript().run(), "isActive", "subscript");
         const smallCapsBtn = this.createIconButton(advancedSection, "type", () => this.editor.chain().focus().toggleSmallCaps().run(), "isActive", "smallCaps");
         smallCapsBtn.setAttribute("aria-label", "Small Caps");
+        this.sections.push(advancedSection);
+      }
+      setMode(mode) {
+        this.currentMode = mode;
+        if (!this.el) this.create();
+        if (mode === "footnote") {
+          if (this.sections[0]) this.sections[0].style.display = "none";
+        } else {
+          if (this.sections[0]) this.sections[0].style.display = "flex";
+        }
       }
       createButton(parent, text, icon, action) {
         const btn = parent.createEl("button", { cls: "colophon-popover-item" });
@@ -25432,7 +25446,11 @@ var require_popover_menu = __commonJS({
         return btn;
       }
       show(x, y) {
-        if (!this.el) this.create();
+        if (!this.el || !this.el.isConnected) {
+          if (this.el) this.el.remove();
+          this.create();
+          this.setMode(this.currentMode);
+        }
         this.el.style.left = `${x}px`;
         this.el.style.top = `${y}px`;
         this.el.addClass("is-visible");
@@ -25611,6 +25629,7 @@ var require_tiptap_adapter = __commonJS({
           }
         });
         this.popover = new PopoverMenu(this.editor, this.containerEl);
+        this.popover.setMode("default");
         this.editor.view.dom.addEventListener("contextmenu", (e) => {
           const { from, to } = this.editor.state.selection;
           if (from !== to) {
@@ -25904,12 +25923,14 @@ var require_footnote_view = __commonJS({
     var Subscript = require_dist31();
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
+    var PopoverMenu = require_popover_menu();
     var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
     var FootnoteView2 = class extends ItemView {
       constructor(leaf) {
         super(leaf);
         this.adapter = null;
         this.editors = /* @__PURE__ */ new Map();
+        this.popover = null;
       }
       getViewType() {
         return FOOTNOTE_VIEW_TYPE2;
@@ -25924,11 +25945,16 @@ var require_footnote_view = __commonJS({
         const container = this.contentEl;
         container.empty();
         container.addClass("colophon-footnote-view");
+        this.popover = new PopoverMenu(null, container);
+        this.popover.setMode("footnote");
         this.render();
       }
       async onClose() {
         this.editors.forEach((editor) => editor.destroy());
         this.editors.clear();
+        if (this.popover) {
+          this.popover.destroy();
+        }
       }
       setAdapter(adapter) {
         this.adapter = adapter;
@@ -25997,6 +26023,18 @@ var require_footnote_view = __commonJS({
                 attributes: {
                   class: "colophon-footnote-editor-content"
                 }
+              }
+            });
+            editor.view.dom.addEventListener("contextmenu", (e) => {
+              const { from, to } = editor.state.selection;
+              if (from !== to) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.popover.editor = editor;
+                const rect = this.contentEl.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                this.popover.show(x, y);
               }
             });
             this.editors.set(fn.id, editor);

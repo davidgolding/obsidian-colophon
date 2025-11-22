@@ -5,6 +5,7 @@ const Underline = require('@tiptap/extension-underline');
 const Subscript = require('@tiptap/extension-subscript');
 const Superscript = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
+const PopoverMenu = require('./popover-menu');
 
 const FOOTNOTE_VIEW_TYPE = 'colophon-footnote-view';
 
@@ -13,6 +14,7 @@ class FootnoteView extends ItemView {
         super(leaf);
         this.adapter = null;
         this.editors = new Map(); // Map<id, Editor>
+        this.popover = null;
     }
 
     getViewType() {
@@ -32,6 +34,11 @@ class FootnoteView extends ItemView {
         container.empty();
         container.addClass('colophon-footnote-view');
 
+        // Initialize Popover (shared instance)
+        // We pass null as editor initially, it will be updated on trigger
+        this.popover = new PopoverMenu(null, container);
+        this.popover.setMode('footnote');
+
         this.render();
     }
 
@@ -39,6 +46,10 @@ class FootnoteView extends ItemView {
         // Cleanup editors
         this.editors.forEach(editor => editor.destroy());
         this.editors.clear();
+
+        if (this.popover) {
+            this.popover.destroy();
+        }
     }
 
     setAdapter(adapter) {
@@ -146,6 +157,26 @@ class FootnoteView extends ItemView {
                             class: 'colophon-footnote-editor-content',
                         },
                     },
+                });
+
+                // Add Context Menu Listener for Popover
+                editor.view.dom.addEventListener('contextmenu', (e) => {
+                    // Check if there is a selection
+                    const { from, to } = editor.state.selection;
+                    if (from !== to) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        // Update popover's editor reference
+                        this.popover.editor = editor;
+
+                        // Calculate position relative to container
+                        const rect = this.contentEl.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+
+                        this.popover.show(x, y);
+                    }
                 });
 
                 this.editors.set(fn.id, editor);

@@ -6,6 +6,7 @@ class PopoverMenu {
         this.containerEl = containerEl;
         this.el = null;
         this.isVisible = false;
+        this.currentMode = 'default'; // Store mode
 
         // Bind methods
         this.handleClickOutside = this.handleClickOutside.bind(this);
@@ -16,28 +17,45 @@ class PopoverMenu {
         this.el.addClass('colophon-popover');
         this.containerEl.appendChild(this.el);
 
-        // Section 1: Styles (Headings)
+        this.sections = [];
+
+        // Section 1: Styles (Headings) - Index 0
         const styleSection = this.el.createDiv('colophon-popover-section');
         this.createButton(styleSection, 'Heading 1', 'h1', () => this.editor.chain().focus().toggleHeading({ level: 1 }).run());
         this.createButton(styleSection, 'Heading 2', 'h2', () => this.editor.chain().focus().toggleHeading({ level: 2 }).run());
         this.createButton(styleSection, 'Heading 3', 'h3', () => this.editor.chain().focus().toggleHeading({ level: 3 }).run());
         this.createButton(styleSection, 'Body', 'pilcrow', () => this.editor.chain().focus().setParagraph().run());
+        this.sections.push(styleSection);
 
-        // Section 2: Formatting
+        // Section 2: Formatting - Index 1
         const formatSection = this.el.createDiv('colophon-popover-section');
         this.createIconButton(formatSection, 'bold', () => this.editor.chain().focus().toggleBold().run(), 'isActive', 'bold');
         this.createIconButton(formatSection, 'italic', () => this.editor.chain().focus().toggleItalic().run(), 'isActive', 'italic');
         this.createIconButton(formatSection, 'underline', () => this.editor.chain().focus().toggleUnderline().run(), 'isActive', 'underline');
         this.createIconButton(formatSection, 'strikethrough', () => this.editor.chain().focus().toggleStrike().run(), 'isActive', 'strike');
+        this.sections.push(formatSection);
 
-        // Section 3: Advanced Formatting
+        // Section 3: Advanced Formatting - Index 2
         const advancedSection = this.el.createDiv('colophon-popover-section');
         this.createIconButton(advancedSection, 'superscript', () => this.editor.chain().focus().toggleSuperscript().run(), 'isActive', 'superscript');
         this.createIconButton(advancedSection, 'subscript', () => this.editor.chain().focus().toggleSubscript().run(), 'isActive', 'subscript');
         // Custom Small Caps icon/button
         const smallCapsBtn = this.createIconButton(advancedSection, 'type', () => this.editor.chain().focus().toggleSmallCaps().run(), 'isActive', 'smallCaps');
         smallCapsBtn.setAttribute('aria-label', 'Small Caps');
-        // We might want a custom icon for small caps, but 'type' is a placeholder
+        this.sections.push(advancedSection);
+    }
+
+    setMode(mode) {
+        this.currentMode = mode;
+        if (!this.el) this.create();
+
+        if (mode === 'footnote') {
+            // Hide Style Section (Headings)
+            if (this.sections[0]) this.sections[0].style.display = 'none';
+        } else {
+            // Default: Show all
+            if (this.sections[0]) this.sections[0].style.display = 'flex';
+        }
     }
 
     createButton(parent, text, icon, action) {
@@ -76,7 +94,12 @@ class PopoverMenu {
     }
 
     show(x, y) {
-        if (!this.el) this.create();
+        // Check if el exists and is connected to DOM
+        if (!this.el || !this.el.isConnected) {
+            if (this.el) this.el.remove(); // Cleanup detached element
+            this.create();
+            this.setMode(this.currentMode); // Re-apply mode
+        }
 
         // Position
         this.el.style.left = `${x}px`;
