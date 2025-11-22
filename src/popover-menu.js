@@ -37,10 +37,7 @@ class PopoverMenu {
         // Custom Small Caps icon/button
         const smallCapsBtn = this.createIconButton(advancedSection, 'type', () => this.editor.chain().focus().toggleSmallCaps().run(), 'isActive', 'smallCaps');
         smallCapsBtn.setAttribute('aria-label', 'Small Caps');
-
-        // Footnote Button
-        const footnoteBtn = this.createIconButton(advancedSection, 'footprints', () => this.editor.chain().focus().addFootnote().run());
-        footnoteBtn.setAttribute('aria-label', 'Add Footnote');
+        // We might want a custom icon for small caps, but 'type' is a placeholder
     }
 
     createButton(parent, text, icon, action) {

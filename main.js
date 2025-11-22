@@ -25403,8 +25403,6 @@ var require_popover_menu = __commonJS({
         this.createIconButton(advancedSection, "subscript", () => this.editor.chain().focus().toggleSubscript().run(), "isActive", "subscript");
         const smallCapsBtn = this.createIconButton(advancedSection, "type", () => this.editor.chain().focus().toggleSmallCaps().run(), "isActive", "smallCaps");
         smallCapsBtn.setAttribute("aria-label", "Small Caps");
-        const footnoteBtn = this.createIconButton(advancedSection, "footprints", () => this.editor.chain().focus().addFootnote().run());
-        footnoteBtn.setAttribute("aria-label", "Add Footnote");
       }
       createButton(parent, text, icon, action) {
         const btn = parent.createEl("button", { cls: "colophon-popover-item" });
@@ -25464,115 +25462,6 @@ var require_popover_menu = __commonJS({
   }
 });
 
-// src/tiptap-footnotes.js
-var require_tiptap_footnotes = __commonJS({
-  "src/tiptap-footnotes.js"(exports2, module2) {
-    var { Node: Node2, mergeAttributes } = require_dist9();
-    var FootnoteReference = Node2.create({
-      name: "footnoteReference",
-      inline: true,
-      group: "inline",
-      atom: true,
-      addAttributes() {
-        return {
-          id: {
-            default: null,
-            parseHTML: (element) => element.getAttribute("data-id"),
-            renderHTML: (attributes) => {
-              return {
-                "data-id": attributes.id
-              };
-            }
-          },
-          number: {
-            default: 1
-          }
-        };
-      },
-      parseHTML() {
-        return [
-          {
-            tag: "sup[data-footnote-reference]"
-          }
-        ];
-      },
-      renderHTML({ HTMLAttributes }) {
-        return ["sup", mergeAttributes(HTMLAttributes, { "data-footnote-reference": "" }), `[${HTMLAttributes.number}]`];
-      }
-    });
-    var FootnoteDefinition = Node2.create({
-      name: "footnoteDefinition",
-      group: "block",
-      content: "paragraph+",
-      defining: true,
-      addAttributes() {
-        return {
-          id: {
-            default: null
-          },
-          number: {
-            default: 1
-          }
-        };
-      },
-      parseHTML() {
-        return [
-          {
-            tag: "div[data-footnote-definition]"
-          }
-        ];
-      },
-      renderHTML({ HTMLAttributes }) {
-        return [
-          "div",
-          mergeAttributes(HTMLAttributes, { "data-footnote-definition": "", class: "footnote-definition" }),
-          ["span", { class: "footnote-label", contenteditable: "false" }, `[${HTMLAttributes.number}]: `],
-          ["div", { class: "footnote-content" }, 0]
-        ];
-      }
-    });
-    var FootnoteExtension = Node2.create({
-      name: "footnote",
-      addExtensions() {
-        return [
-          FootnoteReference,
-          FootnoteDefinition
-        ];
-      },
-      addCommands() {
-        return {
-          addFootnote: () => ({ editor, tr, dispatch }) => {
-            const { selection } = editor.state;
-            const id = `fn-${Date.now()}`;
-            let maxNum = 0;
-            editor.state.doc.descendants((node) => {
-              if (node.type.name === "footnoteReference") {
-                maxNum = Math.max(maxNum, node.attrs.number);
-              }
-            });
-            const number = maxNum + 1;
-            if (dispatch) {
-              const reference = editor.schema.nodes.footnoteReference.create({ id, number });
-              tr.insert(selection.from, reference);
-              const definition = editor.schema.nodes.footnoteDefinition.create(
-                { id, number },
-                editor.schema.nodes.paragraph.create(null, [])
-              );
-              tr.insert(tr.doc.content.size, definition);
-            }
-            return true;
-          }
-        };
-      }
-    });
-    module2.exports = {
-      FootnoteExtension,
-      FootnoteReference,
-      FootnoteDefinition
-    };
-  }
-});
-
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
@@ -25583,7 +25472,6 @@ var require_tiptap_adapter = __commonJS({
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
-    var { FootnoteExtension } = require_tiptap_footnotes();
     var SmallCaps = Mark.create({
       name: "smallCaps",
       parseHTML() {
@@ -25620,7 +25508,13 @@ var require_tiptap_adapter = __commonJS({
         }
         let content = data;
         if (!content) {
-          content = this.parseMarkdown(markdown2);
+          content = {
+            type: "doc",
+            content: markdown2.split("\n\n").map((text) => ({
+              type: "paragraph",
+              content: text.trim() ? [{ type: "text", text: text.trim() }] : []
+            }))
+          };
         }
         this.editor = new Editor({
           element: this.containerEl,
@@ -25630,8 +25524,7 @@ var require_tiptap_adapter = __commonJS({
             Subscript,
             Superscript,
             TextStyle,
-            SmallCaps,
-            FootnoteExtension
+            SmallCaps
           ],
           editorProps: {
             attributes: {
@@ -25657,78 +25550,6 @@ var require_tiptap_adapter = __commonJS({
           }
         });
         this.isLoaded = true;
-      }
-      parseMarkdown(markdown2) {
-        const definitionRegex = /^\[\^([a-zA-Z0-9-]+)\]: (.*)$/gm;
-        const referenceRegex = /\[\^([a-zA-Z0-9-]+)\]/g;
-        const definitions = /* @__PURE__ */ new Map();
-        let match;
-        while ((match = definitionRegex.exec(markdown2)) !== null) {
-          definitions.set(match[1], match[2]);
-        }
-        const bodyMarkdown = markdown2.replace(definitionRegex, "").trim();
-        const paragraphs = bodyMarkdown.split(/\n\n+/);
-        const content = [];
-        paragraphs.forEach((pText) => {
-          if (!pText.trim()) return;
-          const headingMatch = pText.match(/^(#{1,6})\s+(.*)/);
-          if (headingMatch) {
-            content.push({
-              type: "heading",
-              attrs: { level: headingMatch[1].length },
-              content: [{ type: "text", text: headingMatch[2] }]
-            });
-            return;
-          }
-          const inlineContent = [];
-          let lastIndex = 0;
-          let refMatch;
-          referenceRegex.lastIndex = 0;
-          while ((refMatch = referenceRegex.exec(pText)) !== null) {
-            if (refMatch.index > lastIndex) {
-              inlineContent.push({
-                type: "text",
-                text: pText.substring(lastIndex, refMatch.index)
-              });
-            }
-            const id = refMatch[1];
-            inlineContent.push({
-              type: "footnoteReference",
-              attrs: { id, number: id }
-              // Using ID as number for now
-            });
-            lastIndex = referenceRegex.lastIndex;
-          }
-          if (lastIndex < pText.length) {
-            inlineContent.push({
-              type: "text",
-              text: pText.substring(lastIndex)
-            });
-          }
-          content.push({
-            type: "paragraph",
-            content: inlineContent
-          });
-        });
-        definitions.forEach((defContent, id) => {
-          content.push({
-            type: "footnoteDefinition",
-            attrs: { id, number: id },
-            content: [{
-              type: "paragraph",
-              content: [{ type: "text", text: defContent }]
-            }]
-          });
-        });
-        return {
-          type: "doc",
-          content
-        };
-      }
-      addFootnote() {
-        if (this.editor) {
-          this.editor.chain().focus().addFootnote().run();
-        }
       }
       destroy() {
         if (this.popover) {
@@ -25865,11 +25686,6 @@ var require_view2 = __commonJS({
         this.settings = newSettings;
         this.applySettings();
       }
-      addFootnote() {
-        if (this.adapter) {
-          this.adapter.addFootnote();
-        }
-      }
       applySettings() {
         if (this.contentEl) {
           this.contentEl.style.setProperty("--colophon-editor-width", `${this.settings.textColumnWidth}px`);
@@ -25926,34 +25742,6 @@ module.exports = class ColophonPlugin extends Plugin {
     );
     this.addSettingTab(new ColophonSettingTab(this.app, this));
     this.patchOpenFile();
-    this.app.workspace.onLayoutReady(() => {
-      const originalCommand = this.app.commands.commands["editor:insert-footnote"];
-      if (originalCommand) {
-        this.originalInsertFootnoteCallback = originalCommand.callback;
-        this.originalInsertFootnoteCheckCallback = originalCommand.checkCallback;
-        originalCommand.callback = () => {
-          const view = this.app.workspace.getActiveViewOfType(ColophonView);
-          if (view) {
-            view.addFootnote();
-          } else if (this.originalInsertFootnoteCallback) {
-            this.originalInsertFootnoteCallback();
-          }
-        };
-        originalCommand.checkCallback = (checking) => {
-          const view = this.app.workspace.getActiveViewOfType(ColophonView);
-          if (view) {
-            if (!checking) {
-              view.addFootnote();
-            }
-            return true;
-          }
-          if (this.originalInsertFootnoteCheckCallback) {
-            return this.originalInsertFootnoteCheckCallback(checking);
-          }
-          return false;
-        };
-      }
-    });
     this.registerEvent(
       this.app.workspace.on("file-open", this.handleFileOpen.bind(this))
     );

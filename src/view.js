@@ -97,12 +97,6 @@ class ColophonView extends FileView {
         this.applySettings();
     }
 
-    addFootnote() {
-        if (this.adapter) {
-            this.adapter.addFootnote();
-        }
-    }
-
     applySettings() {
         if (this.contentEl) {
             this.contentEl.style.setProperty('--colophon-editor-width', `${this.settings.textColumnWidth}px`);
