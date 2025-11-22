@@ -4,14 +4,17 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:@codemirror/view --external:@codemirror/state --platform=node"
+    "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:@codemirror/view --external:@codemirror/state --platform=node",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.19.0",
   "devDependencies": {
-    "esbuild": "^0.27.0"
+    "esbuild": "^0.27.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0"
   },
   "dependencies": {
     "@tiptap/core": "^3.11.0",

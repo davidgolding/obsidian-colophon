@@ -20,7 +20,6 @@
     --colophon-h2-font: var(--colophon-default-font);
     --colophon-h3-font: var(--colophon-default-font);
     --colophon-title-font: var(--colophon-default-font);
-    --colophon-footnote-font: var(--colophon-default-font);
     --colophon-body-font: var(--colophon-default-font);
     --colophon-supertitle-font: var(--colophon-default-font);
     --colophon-body-first-font: var(--colophon-default-font);
@@ -337,4 +336,85 @@
 .colophon-popover-icon-btn svg {
     width: 16px;
     height: 16px;
+}
+
+/* 6. FOOTNOTE SIDEBAR VIEW */
+.colophon-footnote-view {
+    padding: 10px;
+    height: 100%;
+    overflow-y: auto;
+    --colophon-footnote-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
+}
+
+.colophon-footnote-empty {
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 20px;
+    font-style: italic;
+}
+
+.colophon-footnote-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.colophon-footnote-item {
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.colophon-footnote-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+}
+
+.colophon-footnote-number {
+    font-weight: bold;
+    color: var(--text-accent);
+}
+
+.colophon-footnote-id {
+    font-family: monospace;
+    opacity: 0.5;
+}
+
+.colophon-footnote-editor {
+    width: 100%;
+    min-height: 60px;
+    resize: none;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    padding: 8px;
+    font-family: var(--font-text);
+    font-size: 0.9rem;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.colophon-footnote-editor:focus {
+    border-color: var(--text-accent);
+    box-shadow: 0 0 0 2px rgba(var(--text-accent-rgb), 0.2);
+}
+
+.colophon-footnote-editor-content {
+    font-family: var(--colophon-footnote-font);
+}
+
+/* Footnote in text */
+.colophon-footnote {
+    vertical-align: super;
+    font-size: 0.8em;
+    color: var(--text-accent);
+    cursor: pointer;
+    margin-right: 2px;
 }

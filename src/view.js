@@ -146,6 +146,39 @@ class ColophonView extends FileView {
         const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
     }
+
+    insertFootnote() {
+        if (this.adapter) {
+            const id = this.adapter.addFootnote();
+            if (id) {
+                // Auto-focus the sidebar
+                // We need to find the FootnoteView and call focusFootnote(id)
+                // But we might need to wait for the view to update?
+                // The adapter updates synchronously usually, but the view might re-render async?
+                // Actually, the adapter triggers onUpdate which calls save().
+                // The FootnoteView listens to adapter updates?
+                // Wait, FootnoteView calls getFootnotes() on render.
+                // We need to tell FootnoteView to re-render or update.
+                // Currently, FootnoteView is reactive to nothing unless we tell it.
+                // Ah, we missed connecting the updates!
+                // The FootnoteView needs to know when adapter changes.
+                // Let's fix that in main.js or here.
+
+                // Better: The adapter should emit an event or we manually update.
+                // For now, let's manually update the FootnoteView if found.
+                const leaves = this.app.workspace.getLeavesOfType('colophon-footnote-view');
+                if (leaves.length > 0) {
+                    const view = leaves[0].view;
+                    if (view) {
+                        view.render(); // Refresh list
+                        setTimeout(() => {
+                            view.focusFootnote(id);
+                        }, 50); // Small delay for DOM update
+                    }
+                }
+            }
+        }
+    }
 }
 
 module.exports = {

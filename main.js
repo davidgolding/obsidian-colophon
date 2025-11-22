@@ -25462,6 +25462,67 @@ var require_popover_menu = __commonJS({
   }
 });
 
+// src/extensions/footnote.js
+var require_footnote = __commonJS({
+  "src/extensions/footnote.js"(exports2, module2) {
+    var { Node: Node2, mergeAttributes } = require_dist9();
+    var Footnote = Node2.create({
+      name: "footnote",
+      group: "inline",
+      inline: true,
+      atom: true,
+      addAttributes() {
+        return {
+          id: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("data-id"),
+            renderHTML: (attributes) => {
+              return {
+                "data-id": attributes.id
+              };
+            }
+          },
+          number: {
+            default: null
+            // Number is transient, calculated at render time usually, but we can store it for now
+            // or rely on the decoration logic. For simplicity, let's try to keep it in sync or just render a placeholder if needed.
+            // Actually, for a simple implementation, we might just render [*] and let the view handle the numbering,
+            // but Tiptap nodes can be reactive.
+            // Let's stick to ID for the data model.
+          }
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: 'span[data-type="footnote"]'
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return [
+          "span",
+          mergeAttributes(HTMLAttributes, { "data-type": "footnote", class: "colophon-footnote" }),
+          ["sup", HTMLAttributes.number || "#"]
+        ];
+      },
+      addCommands() {
+        return {
+          addFootnote: () => ({ commands: commands2 }) => {
+            const id = `fn-${Date.now()}`;
+            return commands2.insertContent({
+              type: this.name,
+              attrs: { id, number: "#" }
+              // Initial placeholder
+            });
+          }
+        };
+      }
+    });
+    module2.exports = Footnote;
+  }
+});
+
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
@@ -25472,6 +25533,7 @@ var require_tiptap_adapter = __commonJS({
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
+    var Footnote = require_footnote();
     var SmallCaps = Mark.create({
       name: "smallCaps",
       parseHTML() {
@@ -25501,12 +25563,22 @@ var require_tiptap_adapter = __commonJS({
         this.editor = null;
         this.isLoaded = false;
         this.popover = null;
+        this.footnotes = [];
       }
       load(markdown2, data) {
         if (this.editor) {
           this.editor.destroy();
         }
-        let content = data;
+        let content = null;
+        if (data) {
+          if (data.doc) {
+            content = data.doc;
+            this.footnotes = data.footnotes || [];
+          } else {
+            content = data;
+            this.footnotes = [];
+          }
+        }
         if (!content) {
           content = {
             type: "doc",
@@ -25515,6 +25587,7 @@ var require_tiptap_adapter = __commonJS({
               content: text.trim() ? [{ type: "text", text: text.trim() }] : []
             }))
           };
+          this.footnotes = [];
         }
         this.editor = new Editor({
           element: this.containerEl,
@@ -25524,7 +25597,8 @@ var require_tiptap_adapter = __commonJS({
             Subscript,
             Superscript,
             TextStyle,
-            SmallCaps
+            SmallCaps,
+            Footnote
           ],
           editorProps: {
             attributes: {
@@ -25533,9 +25607,7 @@ var require_tiptap_adapter = __commonJS({
           },
           content,
           onUpdate: ({ editor }) => {
-            if (this.onUpdate) {
-              this.onUpdate(editor.getJSON());
-            }
+            this.triggerUpdate();
           }
         });
         this.popover = new PopoverMenu(this.editor, this.containerEl);
@@ -25550,6 +25622,84 @@ var require_tiptap_adapter = __commonJS({
           }
         });
         this.isLoaded = true;
+      }
+      triggerUpdate() {
+        if (!this.editor) return;
+        const footnotesInDoc = [];
+        let index = 1;
+        let hasChanges = false;
+        this.editor.state.doc.descendants((node, pos) => {
+          if (node.type.name === "footnote") {
+            const number = String(index++);
+            footnotesInDoc.push({
+              id: node.attrs.id,
+              number,
+              pos
+            });
+            if (node.attrs.number !== number) {
+              hasChanges = true;
+            }
+          }
+        });
+        const newFootnotesList = footnotesInDoc.map((fn) => {
+          const existing = this.footnotes.find((f) => f.id === fn.id);
+          return {
+            id: fn.id,
+            number: fn.number,
+            content: existing ? existing.content : ""
+          };
+        });
+        this.footnotes = newFootnotesList;
+        if (hasChanges) {
+          Promise.resolve().then(() => {
+            if (!this.editor || this.editor.isDestroyed) return;
+            const tr = this.editor.state.tr;
+            let modified = false;
+            this.editor.state.doc.descendants((node, pos) => {
+              if (node.type.name === "footnote") {
+                const targetNumber = footnotesInDoc.find((f) => f.id === node.attrs.id)?.number;
+                if (targetNumber && node.attrs.number !== targetNumber) {
+                  tr.setNodeMarkup(pos, null, { ...node.attrs, number: targetNumber });
+                  modified = true;
+                }
+              }
+            });
+            if (modified) {
+              this.editor.view.dispatch(tr);
+            }
+          });
+        }
+        if (this.onUpdate) {
+          this.onUpdate({
+            doc: this.editor.getJSON(),
+            footnotes: this.footnotes
+          });
+        }
+      }
+      addFootnote() {
+        if (this.editor) {
+          const id = `fn-${Date.now()}`;
+          this.editor.chain().focus().insertContent({
+            type: "footnote",
+            attrs: { id, number: "#" }
+          }).run();
+          return id;
+        }
+      }
+      updateFootnote(id, content) {
+        const fn = this.footnotes.find((f) => f.id === id);
+        if (fn) {
+          fn.content = content;
+          if (this.onUpdate) {
+            this.onUpdate({
+              doc: this.editor.getJSON(),
+              footnotes: this.footnotes
+            });
+          }
+        }
+      }
+      getFootnotes() {
+        return this.footnotes;
       }
       destroy() {
         if (this.popover) {
@@ -25719,6 +25869,23 @@ var require_view2 = __commonJS({
         const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
       }
+      insertFootnote() {
+        if (this.adapter) {
+          const id = this.adapter.addFootnote();
+          if (id) {
+            const leaves = this.app.workspace.getLeavesOfType("colophon-footnote-view");
+            if (leaves.length > 0) {
+              const view = leaves[0].view;
+              if (view) {
+                view.render();
+                setTimeout(() => {
+                  view.focusFootnote(id);
+                }, 50);
+              }
+            }
+          }
+        }
+      }
     };
     module2.exports = {
       ColophonView: ColophonView2,
@@ -25727,9 +25894,152 @@ var require_view2 = __commonJS({
   }
 });
 
+// src/footnote-view.js
+var require_footnote_view = __commonJS({
+  "src/footnote-view.js"(exports2, module2) {
+    var { ItemView, WorkspaceLeaf: WorkspaceLeaf2, Notice: Notice2, setIcon } = require("obsidian");
+    var { Editor, mergeAttributes } = require_dist9();
+    var { StarterKit } = require_dist30();
+    var Underline = require_dist24();
+    var Subscript = require_dist31();
+    var Superscript = require_dist32();
+    var TextStyle = require_dist33();
+    var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
+    var FootnoteView2 = class extends ItemView {
+      constructor(leaf) {
+        super(leaf);
+        this.adapter = null;
+        this.editors = /* @__PURE__ */ new Map();
+      }
+      getViewType() {
+        return FOOTNOTE_VIEW_TYPE2;
+      }
+      getDisplayText() {
+        return "Footnotes";
+      }
+      getIcon() {
+        return "list";
+      }
+      async onOpen() {
+        const container = this.contentEl;
+        container.empty();
+        container.addClass("colophon-footnote-view");
+        this.render();
+      }
+      async onClose() {
+        this.editors.forEach((editor) => editor.destroy());
+        this.editors.clear();
+      }
+      setAdapter(adapter) {
+        this.adapter = adapter;
+        this.render();
+      }
+      render() {
+        const container = this.contentEl;
+        if (!this.adapter) {
+          container.empty();
+          this.editors.forEach((editor) => editor.destroy());
+          this.editors.clear();
+          container.createEl("div", {
+            text: "No active manuscript.",
+            cls: "colophon-footnote-empty"
+          });
+          return;
+        }
+        const footnotes = this.adapter.getFootnotes();
+        if (!footnotes || footnotes.length === 0) {
+          container.empty();
+          this.editors.forEach((editor) => editor.destroy());
+          this.editors.clear();
+          container.createEl("div", {
+            text: "No footnotes yet.",
+            cls: "colophon-footnote-empty"
+          });
+          return;
+        }
+        let list = container.querySelector(".colophon-footnote-list");
+        if (!list) {
+          container.empty();
+          list = container.createEl("div", { cls: "colophon-footnote-list" });
+        }
+        const activeIds = new Set(footnotes.map((f) => f.id));
+        for (const [id, editor] of this.editors) {
+          if (!activeIds.has(id)) {
+            editor.destroy();
+            this.editors.delete(id);
+            const el = list.querySelector(`[data-footnote-id="${id}"]`);
+            if (el) el.remove();
+          }
+        }
+        footnotes.forEach((fn, index) => {
+          let item = list.querySelector(`[data-footnote-id="${fn.id}"]`);
+          if (!item) {
+            item = list.createEl("div", { cls: "colophon-footnote-item" });
+            item.dataset.footnoteId = fn.id;
+            const header = item.createEl("div", { cls: "colophon-footnote-header" });
+            header.createSpan({ text: `${fn.number || index + 1}. `, cls: "colophon-footnote-number" });
+            const editorContainer = item.createEl("div", { cls: "colophon-footnote-editor-container" });
+            const editor = new Editor({
+              element: editorContainer,
+              extensions: [
+                StarterKit,
+                Underline,
+                Subscript,
+                Superscript,
+                TextStyle
+              ],
+              content: fn.content,
+              // Handles string or JSON
+              onUpdate: ({ editor: editor2 }) => {
+                this.adapter.updateFootnote(fn.id, editor2.getJSON());
+              },
+              editorProps: {
+                attributes: {
+                  class: "colophon-footnote-editor-content"
+                }
+              }
+            });
+            this.editors.set(fn.id, editor);
+          } else {
+            const numberSpan = item.querySelector(".colophon-footnote-number");
+            if (numberSpan) numberSpan.innerText = `${fn.number || index + 1}. `;
+          }
+        });
+        footnotes.forEach((fn) => {
+          const item = list.querySelector(`[data-footnote-id="${fn.id}"]`);
+          if (item) list.appendChild(item);
+        });
+      }
+      focusFootnote(id) {
+        const editor = this.editors.get(id);
+        if (editor) {
+          editor.commands.focus();
+          const item = this.contentEl.querySelector(`[data-footnote-id="${id}"]`);
+          if (item) {
+            item.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+      }
+      getFocusedEditor() {
+        for (const editor of this.editors.values()) {
+          if (editor.isFocused) {
+            return editor;
+          }
+        }
+        return null;
+      }
+    };
+    module2.exports = {
+      FootnoteView: FootnoteView2,
+      FOOTNOTE_VIEW_TYPE: FOOTNOTE_VIEW_TYPE2
+    };
+  }
+});
+
 // src/main.js
 var { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require("obsidian");
 var { ColophonView, VIEW_TYPE } = require_view2();
+var { FootnoteView, FOOTNOTE_VIEW_TYPE } = require_footnote_view();
 var DEFAULT_SETTINGS = {
   textColumnWidth: 1080
 };
@@ -25739,6 +26049,10 @@ module.exports = class ColophonPlugin extends Plugin {
     this.registerView(
       VIEW_TYPE,
       (leaf) => new ColophonView(leaf, this.settings)
+    );
+    this.registerView(
+      FOOTNOTE_VIEW_TYPE,
+      (leaf) => new FootnoteView(leaf)
     );
     this.addSettingTab(new ColophonSettingTab(this.app, this));
     this.patchOpenFile();
@@ -25767,6 +26081,80 @@ module.exports = class ColophonPlugin extends Plugin {
       name: "New manuscript",
       callback: () => this.createNewManuscript()
     });
+    this.addCommand({
+      id: "open-colophon-footnotes",
+      name: "Open Footnotes Sidebar",
+      callback: async () => {
+        this.activateFootnoteView();
+      }
+    });
+    this.addCommand({
+      id: "insert-colophon-footnote",
+      name: "Insert Footnote",
+      checkCallback: (checking) => {
+        const view = this.app.workspace.getActiveViewOfType(ColophonView);
+        if (view) {
+          if (!checking) {
+            view.insertFootnote();
+          }
+          return true;
+        }
+        return false;
+      }
+    });
+    this.app.workspace.onLayoutReady(() => {
+      const patchCommand = (commandId, action) => {
+        const originalCommand = this.app.commands.commands[commandId];
+        if (originalCommand) {
+          const originalCheckCallback = originalCommand.checkCallback;
+          originalCommand.checkCallback = (checking) => {
+            const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
+            const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+            if (colophonView) {
+              let targetEditor = null;
+              if (footnoteView && footnoteView instanceof FootnoteView) {
+                const focusedFootnoteEditor = footnoteView.getFocusedEditor();
+                if (focusedFootnoteEditor) {
+                  targetEditor = focusedFootnoteEditor;
+                }
+              }
+              if (!targetEditor && colophonView.adapter && colophonView.adapter.editor && colophonView.adapter.editor.isFocused) {
+                targetEditor = colophonView.adapter.editor;
+              }
+              if (targetEditor) {
+                if (!checking) {
+                  action(targetEditor);
+                }
+                return true;
+              }
+            }
+            if (originalCheckCallback) {
+              return originalCheckCallback(checking);
+            }
+            return false;
+          };
+        }
+      };
+      patchCommand("editor:insert-footnote", (editor) => {
+        const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
+        if (colophonView) colophonView.insertFootnote();
+      });
+      patchCommand("editor:toggle-bold", (editor) => editor.chain().focus().toggleBold().run());
+      patchCommand("editor:toggle-italics", (editor) => editor.chain().focus().toggleItalic().run());
+      patchCommand("editor:toggle-strikethrough", (editor) => editor.chain().focus().toggleStrike().run());
+    });
+  }
+  async activateFootnoteView() {
+    const { workspace } = this.app;
+    let leaf = null;
+    const leaves = workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+    if (leaves.length > 0) {
+      leaf = leaves[0];
+    } else {
+      leaf = workspace.getRightLeaf(false);
+      await leaf.setViewState({ type: FOOTNOTE_VIEW_TYPE, active: true });
+    }
+    workspace.revealLeaf(leaf);
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -25810,6 +26198,7 @@ module.exports = class ColophonPlugin extends Plugin {
   }
   async handleActiveLeafChange(leaf) {
     if (!leaf) return;
+    this.updateFootnoteView(leaf.view);
     const file = leaf.view.file;
     if (!file) return;
     await this.ensureCorrectView(leaf, file);
@@ -25818,7 +26207,21 @@ module.exports = class ColophonPlugin extends Plugin {
     if (!file) return;
     const leaf = this.app.workspace.activeLeaf;
     if (!leaf) return;
+    this.updateFootnoteView(leaf.view);
     await this.ensureCorrectView(leaf, file);
+  }
+  updateFootnoteView(activeView) {
+    const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+    if (footnoteLeaves.length === 0) return;
+    const footnoteView = footnoteLeaves[0].view;
+    if (activeView instanceof FootnoteView) {
+      return;
+    }
+    if (activeView instanceof ColophonView && activeView.adapter) {
+      footnoteView.setAdapter(activeView.adapter);
+    } else {
+      footnoteView.setAdapter(null);
+    }
   }
   async ensureCorrectView(leaf, file) {
     const cache = this.app.metadataCache.getFileCache(file);

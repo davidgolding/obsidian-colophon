@@ -1,5 +1,6 @@
 const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
 const { ColophonView, VIEW_TYPE } = require('./view');
+const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080
@@ -13,6 +14,12 @@ module.exports = class ColophonPlugin extends Plugin {
         this.registerView(
             VIEW_TYPE,
             (leaf) => new ColophonView(leaf, this.settings)
+        );
+
+        // Register Footnote View
+        this.registerView(
+            FOOTNOTE_VIEW_TYPE,
+            (leaf) => new FootnoteView(leaf)
         );
 
         // Add Settings Tab
@@ -59,6 +66,117 @@ module.exports = class ColophonPlugin extends Plugin {
             name: 'New manuscript',
             callback: () => this.createNewManuscript()
         });
+
+        // COMMAND: Open Footnotes View
+        this.addCommand({
+            id: 'open-colophon-footnotes',
+            name: 'Open Footnotes Sidebar',
+            callback: async () => {
+                this.activateFootnoteView();
+            }
+        });
+
+        // COMMAND: Insert Footnote
+        this.addCommand({
+            id: 'insert-colophon-footnote',
+            name: 'Insert Footnote',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view) {
+                    if (!checking) {
+                        view.insertFootnote();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        // INTERCEPT: Native "Insert Footnote" command and formatting commands
+        // We cannot remove the command as it breaks the native menu item.
+        // Instead, we will try to monkey-patch the existing command's checkCallback
+        // to allow it to run when ColophonView is active.
+
+        this.app.workspace.onLayoutReady(() => {
+            // Helper to patch commands
+            const patchCommand = (commandId, action) => {
+                const originalCommand = this.app.commands.commands[commandId];
+                if (originalCommand) {
+                    const originalCheckCallback = originalCommand.checkCallback;
+
+                    originalCommand.checkCallback = (checking) => {
+                        // Check if Colophon is active
+                        const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
+                        const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+
+                        // Check if we are in a Colophon context
+                        if (colophonView) {
+                            // Determine target editor
+                            let targetEditor = null;
+
+                            // 1. Check Footnote Sidebar Focus
+                            if (footnoteView && footnoteView instanceof FootnoteView) {
+                                const focusedFootnoteEditor = footnoteView.getFocusedEditor();
+                                if (focusedFootnoteEditor) {
+                                    targetEditor = focusedFootnoteEditor;
+                                }
+                            }
+
+                            // 2. Check Main View Focus (fallback or if active)
+                            if (!targetEditor && colophonView.adapter && colophonView.adapter.editor && colophonView.adapter.editor.isFocused) {
+                                targetEditor = colophonView.adapter.editor;
+                            }
+
+                            // If we found a target editor in our plugin, handle the command
+                            if (targetEditor) {
+                                if (!checking) {
+                                    action(targetEditor);
+                                }
+                                return true;
+                            }
+                        }
+
+                        // Fallback to original
+                        if (originalCheckCallback) {
+                            return originalCheckCallback(checking);
+                        }
+                        return false;
+                    };
+                }
+            };
+
+            // Patch Insert Footnote
+            patchCommand('editor:insert-footnote', (editor) => {
+                const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (colophonView) colophonView.insertFootnote();
+            });
+
+            // Patch Formatting Commands
+            patchCommand('editor:toggle-bold', (editor) => editor.chain().focus().toggleBold().run());
+            patchCommand('editor:toggle-italics', (editor) => editor.chain().focus().toggleItalic().run());
+            patchCommand('editor:toggle-strikethrough', (editor) => editor.chain().focus().toggleStrike().run());
+            // patchCommand('editor:toggle-code', (editor) => editor.chain().focus().toggleCode().run()); // If needed
+        });
+    }
+
+    async activateFootnoteView() {
+        const { workspace } = this.app;
+
+        let leaf = null;
+        const leaves = workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+
+        if (leaves.length > 0) {
+            // A leaf with our view already exists, use that
+            leaf = leaves[0];
+        } else {
+            // Our view could not be found in the workspace, create a new leaf
+            // in the right sidebar for it
+            leaf = workspace.getRightLeaf(false);
+            await leaf.setViewState({ type: FOOTNOTE_VIEW_TYPE, active: true });
+        }
+
+        // "Reveal" the leaf in case it is in a collapsed sidebar
+        workspace.revealLeaf(leaf);
     }
 
     async loadSettings() {
@@ -112,6 +230,10 @@ module.exports = class ColophonPlugin extends Plugin {
 
     async handleActiveLeafChange(leaf) {
         if (!leaf) return;
+
+        // Update Footnote View if it exists
+        this.updateFootnoteView(leaf.view);
+
         const file = leaf.view.file;
         if (!file) return;
         await this.ensureCorrectView(leaf, file);
@@ -121,7 +243,35 @@ module.exports = class ColophonPlugin extends Plugin {
         if (!file) return;
         const leaf = this.app.workspace.activeLeaf;
         if (!leaf) return;
+
+        // Update Footnote View
+        this.updateFootnoteView(leaf.view);
+
         await this.ensureCorrectView(leaf, file);
+    }
+
+    updateFootnoteView(activeView) {
+        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+        if (footnoteLeaves.length === 0) return;
+
+        const footnoteView = footnoteLeaves[0].view;
+
+        // If the active view is the FootnoteView itself, DO NOT clear the adapter.
+        // This allows interaction with the sidebar without losing context.
+        if (activeView instanceof FootnoteView) {
+            return;
+        }
+
+        if (activeView instanceof ColophonView && activeView.adapter) {
+            footnoteView.setAdapter(activeView.adapter);
+        } else {
+            // Only clear if we switched to a completely different view (like a normal markdown file)
+            // or if we closed the file.
+            // But wait, if we switch to another tab, we should clear.
+            // If we click the sidebar, the active leaf becomes the sidebar.
+            // So the check `activeView instanceof FootnoteView` above handles the sidebar click.
+            footnoteView.setAdapter(null);
+        }
     }
 
     async ensureCorrectView(leaf, file) {
