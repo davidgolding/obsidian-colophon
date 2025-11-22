@@ -25582,6 +25582,13 @@ var require_tiptap_adapter = __commonJS({
         this.isLoaded = false;
         this.popover = null;
         this.footnotes = [];
+        this.listeners = [];
+      }
+      subscribe(callback) {
+        this.listeners.push(callback);
+        return () => {
+          this.listeners = this.listeners.filter((cb) => cb !== callback);
+        };
       }
       load(markdown2, data) {
         if (this.editor) {
@@ -25955,9 +25962,22 @@ var require_footnote_view = __commonJS({
         if (this.popover) {
           this.popover.destroy();
         }
+        if (this.unsubscribe) {
+          this.unsubscribe();
+          this.unsubscribe = null;
+        }
       }
       setAdapter(adapter) {
+        if (this.unsubscribe) {
+          this.unsubscribe();
+          this.unsubscribe = null;
+        }
         this.adapter = adapter;
+        if (this.adapter) {
+          this.unsubscribe = this.adapter.subscribe(() => {
+            this.render();
+          });
+        }
         this.render();
       }
       render() {

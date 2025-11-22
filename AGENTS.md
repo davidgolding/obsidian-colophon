@@ -33,36 +33,40 @@
 - **Context Menu Popover (`src/popover-menu.js`)**: 
   - Appears on right-click with selection.
   - Provides styling (H1-H3, Body), formatting (Bold, Italic, Small Caps, etc.), and "Add Footnote".
+  - **Modes**: Supports 'default' (Main Editor) and 'footnote' (Sidebar, restricted options).
   - Styled with backdrop blur and rounded corners.
-- **Footnotes (`src/footnotes.js`)**:
-  - **Commands**: Intercepts Obsidian's `editor:insert-footnote` command to use the plugin's logic.
+- **Footnotes**:
+  - **Architecture**: 
+    - **Tiptap Extension (`src/extensions/footnote.js`)**: Inline atomic node with dynamic numbering.
+    - **Sidebar View (`src/footnote-view.js`)**: Dedicated sidebar for managing footnotes using **Rich Text Tiptap Editors**.
+    - **Synchronization**: Sidebar subscribes to main editor updates for real-time deletion and re-ordering.
+  - **Styling**: Matches `pages-styles.yaml` (Minion 3 Caption, 10pt). Selection style matches main editor.
+  - **Commands**: Intercepts native formatting commands (`bold`, `italic`) to work seamlessly in both main and sidebar editors.
+  - **Persistence**: Footnote content is stored in the "sidecar" block (`%% colophon:data ... %%`) as JSON.
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.
 - `src/view.js`: View container, theme logic, settings application.
-- `src/tiptap-adapter.js`: Tiptap editor setup, parsing logic, event handling.
-- `src/footnotes.js`: Footnote node schemas and commands.
+- `src/tiptap-adapter.js`: Tiptap editor setup, parsing logic, event handling, subscription system.
+- `src/extensions/footnote.js`: Footnote node schema.
+- `src/footnote-view.js`: Sidebar view logic, Tiptap instantiation for footnotes.
 - `src/popover-menu.js`: UI for the floating context menu.
 - `styles.css`: All CSS.
 
 ## Next Steps / Roadmap
 
-### 1. Persistence & Serialization (Critical)
-- **Current Status**: We have a robust `load()` method that parses Markdown to Tiptap.
-- **Missing**: We need to ensure the `save()` method (via `io.js` or `TiptapAdapter`) correctly serializes the Tiptap document *back* to Markdown, especially the new Footnote nodes.
-
-### 2. Commenting System (Phase 3)
+### 1. Commenting System (Phase 3)
 - **Goal**: Google Docs-style comments.
 - **Plan**: 
   - Use Tiptap marks for commented ranges.
-  - Store comment data in the "Sidecar" block at the bottom of the file (`%% colophon:data ... %%`).
-  - Render comments as floating bubbles in the margin.
+  - Store comment data in the "Sidecar" block (`%% colophon:data ... %%`).
+  - Render comments as floating bubbles in the margin or a dedicated sidebar tab.
 
-### 3. Track Changes (Phase 4)
+### 2. Track Changes (Phase 4)
 - **Goal**: Track Changes mode (like Suggestion mode in Google Docs or Review mode in Microsoft Word).
 - **Plan**: Use CriticMarkup syntax (`{++ ++}`, `{-- --}`) for storage.
 
 ## How to Resume
 1.  **Run Build**: `pnpm run build` to ensure everything is fresh.
-2.  **Verify Persistence**: Type some text and add a footnote. Save the file. Close and reopen. Check if the footnote persists in the underlying Markdown file. This is likely the first thing to fix/implement.
-3.  **Proceed to Comments**: Once persistence is solid, start on the Commenting System.
+2.  **Verify Footnotes**: Check that footnotes can be added, edited (rich text), and that they persist after reload. Verify deletion sync.
+3.  **Start Comments**: Begin implementing the Commenting System.

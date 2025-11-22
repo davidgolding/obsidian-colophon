@@ -50,10 +50,29 @@ class FootnoteView extends ItemView {
         if (this.popover) {
             this.popover.destroy();
         }
+
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+        }
     }
 
     setAdapter(adapter) {
+        // Unsubscribe from previous adapter if exists
+        if (this.unsubscribe) {
+            this.unsubscribe();
+            this.unsubscribe = null;
+        }
+
         this.adapter = adapter;
+
+        if (this.adapter) {
+            // Subscribe to updates
+            this.unsubscribe = this.adapter.subscribe(() => {
+                this.render();
+            });
+        }
+
         this.render();
     }
 

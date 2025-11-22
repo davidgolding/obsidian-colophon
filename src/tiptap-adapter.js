@@ -39,6 +39,14 @@ class TiptapAdapter {
         this.isLoaded = false;
         this.popover = null;
         this.footnotes = []; // Store footnote definitions: { id, content }
+        this.listeners = []; // Listeners for footnote updates
+    }
+
+    subscribe(callback) {
+        this.listeners.push(callback);
+        return () => {
+            this.listeners = this.listeners.filter(cb => cb !== callback);
+        };
     }
 
     load(markdown, data) {
