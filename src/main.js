@@ -1,6 +1,5 @@
 const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
 const { ColophonView, VIEW_TYPE } = require('./view');
-const { ColophonSidebarView, SIDEBAR_VIEW_TYPE } = require('./sidebar-view');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080
@@ -14,12 +13,6 @@ module.exports = class ColophonPlugin extends Plugin {
         this.registerView(
             VIEW_TYPE,
             (leaf) => new ColophonView(leaf, this.settings)
-        );
-
-        // Register the sidebar view
-        this.registerView(
-            SIDEBAR_VIEW_TYPE,
-            (leaf) => new ColophonSidebarView(leaf)
         );
 
         // Add Settings Tab
@@ -98,29 +91,6 @@ module.exports = class ColophonPlugin extends Plugin {
             id: 'create-new-colophon-manuscript',
             name: 'New manuscript',
             callback: () => this.createNewManuscript()
-        });
-
-        // COMMAND: Toggle Footnotes Sidebar
-        this.addCommand({
-            id: 'toggle-colophon-sidebar',
-            name: 'Toggle Footnotes Sidebar',
-            callback: async () => {
-                const { workspace } = this.app;
-                let leaf = null;
-                const leaves = workspace.getLeavesOfType(SIDEBAR_VIEW_TYPE);
-
-                if (leaves.length > 0) {
-                    // A leaf with our view already exists, use that
-                    leaf = leaves[0];
-                    workspace.revealLeaf(leaf);
-                } else {
-                    // Our view could not be found in the workspace, create a new leaf
-                    // in the right sidebar for it
-                    leaf = workspace.getRightLeaf(false);
-                    await leaf.setViewState({ type: SIDEBAR_VIEW_TYPE, active: true });
-                }
-                workspace.revealLeaf(leaf);
-            },
         });
     }
 
