@@ -51,7 +51,7 @@ class ColophonView extends FileView {
 
         // Initialize Tiptap Adapter
         // We pass a callback for updates
-        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
+        this.adapter = new TiptapAdapter(this.app, this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
             this.data = newData;
             this.save();
         });

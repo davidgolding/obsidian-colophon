@@ -428,6 +428,7 @@
     font-size: 0.8em;
     color: var(--text-accent);
     cursor: pointer;
+    line-height: 0;
 }
 
 /* Footnote Selection */

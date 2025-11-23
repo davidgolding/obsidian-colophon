@@ -10,6 +10,7 @@ const { InputRule } = require('@tiptap/core');
 const PopoverMenu = require('./popover-menu');
 const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
+const Wikilink = require('./extensions/wikilink');
 
 // Custom Paragraph with Class Support
 const CustomParagraph = Paragraph.extend({
@@ -76,7 +77,8 @@ const SmallCaps = Mark.create({
 });
 
 class TiptapAdapter {
-    constructor(containerEl, isSpellcheckEnabled, settings, onUpdate) {
+    constructor(app, containerEl, isSpellcheckEnabled, settings, onUpdate) {
+        this.app = app;
         this.containerEl = containerEl;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.settings = settings;
@@ -166,6 +168,9 @@ class TiptapAdapter {
                     smartDashes: this.settings.smartDashes,
                     doubleQuoteStyle: this.settings.doubleQuoteStyle,
                     singleQuoteStyle: this.settings.singleQuoteStyle,
+                }),
+                Wikilink.configure({
+                    app: this.app
                 })
             ],
             editorProps: {

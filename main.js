@@ -25669,6 +25669,134 @@ var require_substitutions = __commonJS({
   }
 });
 
+// src/link-suggest-modal.js
+var require_link_suggest_modal = __commonJS({
+  "src/link-suggest-modal.js"(exports2, module2) {
+    var { SuggestModal } = require("obsidian");
+    var LinkSuggestModal = class extends SuggestModal {
+      constructor(app, editor, range) {
+        super(app);
+        this.editor = editor;
+        this.range = range;
+      }
+      getSuggestions(query) {
+        const files = this.app.vault.getFiles();
+        return files.filter(
+          (file) => file.path.toLowerCase().includes(query.toLowerCase()) || file.basename.toLowerCase().includes(query.toLowerCase())
+        );
+      }
+      renderSuggestion(file, el) {
+        el.createEl("div", { text: file.basename });
+        el.createEl("small", { text: file.path });
+      }
+      onChooseSuggestion(file, evt) {
+        const linkText = file.basename;
+        if (this.editor && !this.editor.isDestroyed) {
+          const { schema } = this.editor.state;
+          const tr = this.editor.state.tr;
+          tr.replaceWith(this.range.from, this.range.to, schema.text(linkText, [
+            schema.marks.wikilink.create({ href: linkText })
+          ]));
+          tr.insert(tr.mapping.map(this.range.to), schema.text(" "));
+          this.editor.view.dispatch(tr);
+        }
+      }
+    };
+    module2.exports = LinkSuggestModal;
+  }
+});
+
+// src/extensions/wikilink.js
+var require_wikilink = __commonJS({
+  "src/extensions/wikilink.js"(exports2, module2) {
+    var { Mark, InputRule, mergeAttributes } = require_dist9();
+    var { Plugin: Plugin2 } = require_state();
+    var LinkSuggestModal = require_link_suggest_modal();
+    var Wikilink = Mark.create({
+      name: "wikilink",
+      inclusive: false,
+      addOptions() {
+        return {
+          app: null,
+          // Obsidian App instance
+          HTMLAttributes: {
+            class: "internal-link"
+          }
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: "a.internal-link"
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["a", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+      },
+      addAttributes() {
+        return {
+          href: {
+            default: null
+          }
+        };
+      },
+      addInputRules() {
+        return [
+          new InputRule({
+            find: /\[\[([^\]]+)\]\]$/,
+            handler: ({ state, range, match }) => {
+              const { tr } = state;
+              const start = range.from;
+              const end = range.to;
+              const text = match[1];
+              tr.replaceWith(start, end, state.schema.text(text, [
+                state.schema.marks.wikilink.create({ href: text })
+              ]));
+              return tr;
+            }
+          })
+        ];
+      },
+      addProseMirrorPlugins() {
+        const extension = this;
+        return [
+          new Plugin2({
+            props: {
+              handleClick(view, pos, event) {
+                const { schema } = view.state;
+                const node = view.state.doc.nodeAt(pos);
+                const marks = view.state.doc.resolve(pos).marks();
+                const wikilinkMark = marks.find((mark) => mark.type.name === "wikilink");
+                if (wikilinkMark && wikilinkMark.attrs.href && extension.options.app) {
+                  event.preventDefault();
+                  extension.options.app.workspace.openLinkText(wikilinkMark.attrs.href, "", false);
+                  return true;
+                }
+                return false;
+              },
+              handleTextInput(view, from, to, text) {
+                if (text === "[" && extension.options.app) {
+                  const prevChar = view.state.doc.textBetween(from - 1, from);
+                  if (prevChar === "[") {
+                    const range = { from: from - 1, to: to + 1 };
+                    setTimeout(() => {
+                      const modal = new LinkSuggestModal(extension.options.app, extension.editor, { from: from - 1, to: from + 1 });
+                      modal.open();
+                    }, 0);
+                  }
+                }
+                return false;
+              }
+            }
+          })
+        ];
+      }
+    });
+    module2.exports = Wikilink;
+  }
+});
+
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
@@ -25684,6 +25812,7 @@ var require_tiptap_adapter = __commonJS({
     var PopoverMenu = require_popover_menu();
     var Footnote = require_footnote();
     var Substitutions = require_substitutions();
+    var Wikilink = require_wikilink();
     var CustomParagraph = Paragraph.extend({
       addAttributes() {
         return {
@@ -25743,7 +25872,8 @@ var require_tiptap_adapter = __commonJS({
       }
     });
     var TiptapAdapter = class {
-      constructor(containerEl, isSpellcheckEnabled, settings, onUpdate) {
+      constructor(app, containerEl, isSpellcheckEnabled, settings, onUpdate) {
+        this.app = app;
         this.containerEl = containerEl;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.settings = settings;
@@ -25817,6 +25947,9 @@ var require_tiptap_adapter = __commonJS({
               smartDashes: this.settings.smartDashes,
               doubleQuoteStyle: this.settings.doubleQuoteStyle,
               singleQuoteStyle: this.settings.singleQuoteStyle
+            }),
+            Wikilink.configure({
+              app: this.app
             })
           ],
           editorProps: {
@@ -26020,7 +26153,7 @@ var require_view2 = __commonJS({
         });
         this.showLoader();
         const isSpellcheckEnabled = this.app.vault.getConfig("spellcheck");
-        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
+        this.adapter = new TiptapAdapter(this.app, this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
           this.data = newData;
           this.save();
         });
@@ -26129,6 +26262,7 @@ var require_footnote_view = __commonJS({
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
     var Substitutions = require_substitutions();
+    var Wikilink = require_wikilink();
     var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
     var FootnoteView2 = class extends ItemView {
       constructor(leaf, settings) {
@@ -26241,6 +26375,9 @@ var require_footnote_view = __commonJS({
                   smartDashes: this.settings.smartDashes,
                   doubleQuoteStyle: this.settings.doubleQuoteStyle,
                   singleQuoteStyle: this.settings.singleQuoteStyle
+                }),
+                Wikilink.configure({
+                  app: this.app
                 })
               ],
               content: fn.content,
