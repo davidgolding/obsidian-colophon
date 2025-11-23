@@ -1,3 +1,7 @@
 {
-  "textColumnWidth": 950
+  "textColumnWidth": 950,
+  "smartQuotes": true,
+  "smartDashes": false,
+  "doubleQuoteStyle": "“|”",
+  "singleQuoteStyle": "‘|’"
 }

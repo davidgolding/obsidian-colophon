@@ -25600,10 +25600,79 @@ var require_footnote = __commonJS({
   }
 });
 
+// src/extensions/substitutions.js
+var require_substitutions = __commonJS({
+  "src/extensions/substitutions.js"(exports2, module2) {
+    var { Extension, InputRule } = require_dist9();
+    var Substitutions = Extension.create({
+      name: "substitutions",
+      addOptions() {
+        return {
+          smartQuotes: true,
+          smartDashes: true,
+          doubleQuoteStyle: "\u201C|\u201D",
+          singleQuoteStyle: "\u2018|\u2019"
+        };
+      },
+      addInputRules() {
+        const rules = [];
+        if (this.options.smartDashes) {
+          rules.push(new InputRule({
+            find: /---\s$/,
+            handler: ({ state, range }) => {
+              return state.tr.insertText("\u2014 ", range.from, range.to);
+            }
+          }));
+          rules.push(new InputRule({
+            find: /--\s$/,
+            handler: ({ state, range }) => {
+              return state.tr.insertText("\u2013 ", range.from, range.to);
+            }
+          }));
+        }
+        if (this.options.smartQuotes) {
+          const [openDouble, closeDouble] = this.options.doubleQuoteStyle.split("|");
+          const [openSingle, closeSingle] = this.options.singleQuoteStyle.split("|");
+          rules.push(new InputRule({
+            find: /(?:^|[\s\{\[\(\<'"\u2018\u201C])(")$/,
+            handler: ({ state, range, match }) => {
+              const matchText = match[0];
+              const prefix = matchText.substring(0, matchText.length - 1);
+              return state.tr.insertText(prefix + openDouble, range.from, range.to);
+            }
+          }));
+          rules.push(new InputRule({
+            find: /"$/,
+            handler: ({ state, range }) => {
+              return state.tr.insertText(closeDouble, range.from, range.to);
+            }
+          }));
+          rules.push(new InputRule({
+            find: /(?:^|[\s\{\[\(\<'"\u2018\u201C])(')$/,
+            handler: ({ state, range, match }) => {
+              const matchText = match[0];
+              const prefix = matchText.substring(0, matchText.length - 1);
+              return state.tr.insertText(prefix + openSingle, range.from, range.to);
+            }
+          }));
+          rules.push(new InputRule({
+            find: /'$/,
+            handler: ({ state, range }) => {
+              return state.tr.insertText(closeSingle, range.from, range.to);
+            }
+          }));
+        }
+        return rules;
+      }
+    });
+    module2.exports = Substitutions;
+  }
+});
+
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
-    var { Editor, Mark, mergeAttributes } = require_dist9();
+    var { Editor, Mark, Extension, mergeAttributes } = require_dist9();
     var { StarterKit } = require_dist30();
     var { Paragraph } = require_dist21();
     var { Heading } = require_dist16();
@@ -25611,8 +25680,10 @@ var require_tiptap_adapter = __commonJS({
     var Subscript = require_dist31();
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
+    var { InputRule } = require_dist9();
     var PopoverMenu = require_popover_menu();
     var Footnote = require_footnote();
+    var Substitutions = require_substitutions();
     var CustomParagraph = Paragraph.extend({
       addAttributes() {
         return {
@@ -25672,9 +25743,10 @@ var require_tiptap_adapter = __commonJS({
       }
     });
     var TiptapAdapter = class {
-      constructor(containerEl, isSpellcheckEnabled, onUpdate) {
+      constructor(containerEl, isSpellcheckEnabled, settings, onUpdate) {
         this.containerEl = containerEl;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
+        this.settings = settings;
         this.onUpdate = onUpdate;
         this.editor = null;
         this.isLoaded = false;
@@ -25687,6 +25759,15 @@ var require_tiptap_adapter = __commonJS({
         return () => {
           this.listeners = this.listeners.filter((cb) => cb !== callback);
         };
+      }
+      updateSettings(newSettings) {
+        this.settings = newSettings;
+        if (this.editor) {
+          const content = this.editor.getJSON();
+          const selection = this.editor.state.selection;
+          this.editor.destroy();
+          this.initEditor(content);
+        }
       }
       load(markdown2, data) {
         if (this.editor) {
@@ -25712,6 +25793,10 @@ var require_tiptap_adapter = __commonJS({
           };
           this.footnotes = [];
         }
+        this.initEditor(content);
+        this.isLoaded = true;
+      }
+      initEditor(content) {
         this.editor = new Editor({
           element: this.containerEl,
           extensions: [
@@ -25726,7 +25811,13 @@ var require_tiptap_adapter = __commonJS({
             Superscript,
             TextStyle,
             SmallCaps,
-            Footnote
+            Footnote,
+            Substitutions.configure({
+              smartQuotes: this.settings.smartQuotes,
+              smartDashes: this.settings.smartDashes,
+              doubleQuoteStyle: this.settings.doubleQuoteStyle,
+              singleQuoteStyle: this.settings.singleQuoteStyle
+            })
           ],
           editorProps: {
             attributes: {
@@ -25750,7 +25841,6 @@ var require_tiptap_adapter = __commonJS({
             this.popover.show(x, y);
           }
         });
-        this.isLoaded = true;
       }
       triggerUpdate() {
         if (!this.editor) return;
@@ -25930,7 +26020,7 @@ var require_view2 = __commonJS({
         });
         this.showLoader();
         const isSpellcheckEnabled = this.app.vault.getConfig("spellcheck");
-        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, (newData) => {
+        this.adapter = new TiptapAdapter(this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
           this.data = newData;
           this.save();
         });
@@ -25965,6 +26055,9 @@ var require_view2 = __commonJS({
       updateSettings(newSettings) {
         this.settings = newSettings;
         this.applySettings();
+        if (this.adapter) {
+          this.adapter.updateSettings(this.settings);
+        }
       }
       applySettings() {
         if (this.contentEl) {
@@ -26035,10 +26128,12 @@ var require_footnote_view = __commonJS({
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
+    var Substitutions = require_substitutions();
     var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
     var FootnoteView2 = class extends ItemView {
-      constructor(leaf) {
+      constructor(leaf, settings) {
         super(leaf);
+        this.settings = settings || { smartQuotes: true, smartDashes: true, doubleQuoteStyle: "\u201C|\u201D", singleQuoteStyle: "\u2018|\u2019" };
         this.adapter = null;
         this.editors = /* @__PURE__ */ new Map();
         this.popover = null;
@@ -26071,6 +26166,10 @@ var require_footnote_view = __commonJS({
           this.unsubscribe = null;
         }
       }
+      updateSettings(newSettings) {
+        this.settings = newSettings;
+        this.render(true);
+      }
       setAdapter(adapter) {
         if (this.unsubscribe) {
           this.unsubscribe();
@@ -26084,7 +26183,7 @@ var require_footnote_view = __commonJS({
         }
         this.render();
       }
-      render() {
+      render(force = false) {
         const container = this.contentEl;
         if (!this.adapter) {
           container.empty();
@@ -26114,7 +26213,7 @@ var require_footnote_view = __commonJS({
         }
         const activeIds = new Set(footnotes.map((f) => f.id));
         for (const [id, editor] of this.editors) {
-          if (!activeIds.has(id)) {
+          if (!activeIds.has(id) || force) {
             editor.destroy();
             this.editors.delete(id);
             const el = list.querySelector(`[data-footnote-id="${id}"]`);
@@ -26136,7 +26235,13 @@ var require_footnote_view = __commonJS({
                 Underline,
                 Subscript,
                 Superscript,
-                TextStyle
+                TextStyle,
+                Substitutions.configure({
+                  smartQuotes: this.settings.smartQuotes,
+                  smartDashes: this.settings.smartDashes,
+                  doubleQuoteStyle: this.settings.doubleQuoteStyle,
+                  singleQuoteStyle: this.settings.singleQuoteStyle
+                })
               ],
               content: fn.content,
               // Handles string or JSON
@@ -26203,7 +26308,11 @@ var { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, S
 var { ColophonView, VIEW_TYPE } = require_view2();
 var { FootnoteView, FOOTNOTE_VIEW_TYPE } = require_footnote_view();
 var DEFAULT_SETTINGS = {
-  textColumnWidth: 1080
+  textColumnWidth: 1080,
+  smartQuotes: true,
+  smartDashes: true,
+  doubleQuoteStyle: "\u201C|\u201D",
+  singleQuoteStyle: "\u2018|\u2019"
 };
 module.exports = class ColophonPlugin extends Plugin {
   async onload() {
@@ -26214,7 +26323,7 @@ module.exports = class ColophonPlugin extends Plugin {
     );
     this.registerView(
       FOOTNOTE_VIEW_TYPE,
-      (leaf) => new FootnoteView(leaf)
+      (leaf) => new FootnoteView(leaf, this.settings)
     );
     this.addSettingTab(new ColophonSettingTab(this.app, this));
     this.patchOpenFile();
@@ -26325,6 +26434,11 @@ module.exports = class ColophonPlugin extends Plugin {
     await this.saveData(this.settings);
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((leaf) => {
       if (leaf.view instanceof ColophonView) {
+        leaf.view.updateSettings(this.settings);
+      }
+    });
+    this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE).forEach((leaf) => {
+      if (leaf.view instanceof FootnoteView) {
         leaf.view.updateSettings(this.settings);
       }
     });
@@ -26456,6 +26570,26 @@ var ColophonSettingTab = class extends PluginSettingTab {
     containerEl.createEl("h2", { text: "Colophon Settings" });
     new Setting(containerEl).setName("Text Column Width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.textColumnWidth = value;
+      await this.plugin.saveSettings();
+    }));
+    containerEl.createEl("h3", { text: "Substitutions" });
+    new Setting(containerEl).setName("Smart Quotes").setDesc("Automatically replace straight quotes with smart quotes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartQuotes).onChange(async (value) => {
+      this.plugin.settings.smartQuotes = value;
+      await this.plugin.saveSettings();
+      this.display();
+    }));
+    if (this.plugin.settings.smartQuotes) {
+      new Setting(containerEl).setName("Double Quote Style").setDesc("Choose the style for double quotes.").addDropdown((dropdown) => dropdown.addOption("\u201C|\u201D", "\u201Cabc\u201D").addOption("\u201E|\u201C", "\u201Eabc\u201C").addOption("\u201E|\u201D", "\u201Eabc\u201D").addOption("\u201D|\u201D", "\u201Dabc\u201D").addOption("\xAB|\xBB", "\xABabc\xBB").addOption("\xBB|\xAB", "\xBBabc\xAB").addOption('"|"', '"abc"').setValue(this.plugin.settings.doubleQuoteStyle).onChange(async (value) => {
+        this.plugin.settings.doubleQuoteStyle = value;
+        await this.plugin.saveSettings();
+      }));
+      new Setting(containerEl).setName("Single Quote Style").setDesc("Choose the style for single quotes.").addDropdown((dropdown) => dropdown.addOption("\u2018|\u2019", "\u2018abc\u2019").addOption("\u201A|\u2018", "\u201Aabc\u2018").addOption("\u201A|\u2019", "\u201Aabc\u2019").addOption("\u2019|\u2019", "\u2019abc\u2019").addOption("\u2039|\u203A", "\u2039abc\u203A").addOption("\u203A|\u2039", "\u203Aabc\u2039").addOption("'|'", "'abc'").setValue(this.plugin.settings.singleQuoteStyle).onChange(async (value) => {
+        this.plugin.settings.singleQuoteStyle = value;
+        await this.plugin.saveSettings();
+      }));
+    }
+    new Setting(containerEl).setName("Smart Dashes").setDesc("Replace -- with em-dash (\u2014) and --- with en-dash (\u2013).").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartDashes).onChange(async (value) => {
+      this.plugin.settings.smartDashes = value;
       await this.plugin.saveSettings();
     }));
   }

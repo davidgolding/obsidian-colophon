@@ -1,4 +1,4 @@
-const { Editor, Mark, mergeAttributes } = require('@tiptap/core');
+const { Editor, Mark, Extension, mergeAttributes } = require('@tiptap/core');
 const { StarterKit } = require('@tiptap/starter-kit');
 const { Paragraph } = require('@tiptap/extension-paragraph');
 const { Heading } = require('@tiptap/extension-heading');
@@ -6,8 +6,10 @@ const Underline = require('@tiptap/extension-underline');
 const Subscript = require('@tiptap/extension-subscript');
 const Superscript = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
+const { InputRule } = require('@tiptap/core');
 const PopoverMenu = require('./popover-menu');
 const Footnote = require('./extensions/footnote');
+const Substitutions = require('./extensions/substitutions');
 
 // Custom Paragraph with Class Support
 const CustomParagraph = Paragraph.extend({
@@ -74,9 +76,10 @@ const SmallCaps = Mark.create({
 });
 
 class TiptapAdapter {
-    constructor(containerEl, isSpellcheckEnabled, onUpdate) {
+    constructor(containerEl, isSpellcheckEnabled, settings, onUpdate) {
         this.containerEl = containerEl;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
+        this.settings = settings;
         this.onUpdate = onUpdate; // Callback when editor content changes
         this.editor = null;
         this.isLoaded = false;
@@ -90,6 +93,20 @@ class TiptapAdapter {
         return () => {
             this.listeners = this.listeners.filter(cb => cb !== callback);
         };
+    }
+
+    updateSettings(newSettings) {
+        this.settings = newSettings;
+        // Re-initialize editor to apply new input rules
+        // We need to save current state first
+        if (this.editor) {
+            const content = this.editor.getJSON();
+            const selection = this.editor.state.selection;
+            this.editor.destroy();
+            this.initEditor(content);
+            // Restore selection? Might be tricky with new editor instance
+            // For now, just reloading is safer for settings changes
+        }
     }
 
     load(markdown, data) {
@@ -124,6 +141,11 @@ class TiptapAdapter {
             this.footnotes = [];
         }
 
+        this.initEditor(content);
+        this.isLoaded = true;
+    }
+
+    initEditor(content) {
         this.editor = new Editor({
             element: this.containerEl,
             extensions: [
@@ -138,7 +160,13 @@ class TiptapAdapter {
                 Superscript,
                 TextStyle,
                 SmallCaps,
-                Footnote
+                Footnote,
+                Substitutions.configure({
+                    smartQuotes: this.settings.smartQuotes,
+                    smartDashes: this.settings.smartDashes,
+                    doubleQuoteStyle: this.settings.doubleQuoteStyle,
+                    singleQuoteStyle: this.settings.singleQuoteStyle,
+                })
             ],
             editorProps: {
                 attributes: {
@@ -168,8 +196,6 @@ class TiptapAdapter {
                 this.popover.show(x, y);
             }
         });
-
-        this.isLoaded = true;
     }
 
     triggerUpdate() {

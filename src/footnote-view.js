@@ -6,12 +6,14 @@ const Subscript = require('@tiptap/extension-subscript');
 const Superscript = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const PopoverMenu = require('./popover-menu');
+const Substitutions = require('./extensions/substitutions');
 
 const FOOTNOTE_VIEW_TYPE = 'colophon-footnote-view';
 
 class FootnoteView extends ItemView {
-    constructor(leaf) {
+    constructor(leaf, settings) {
         super(leaf);
+        this.settings = settings || { smartQuotes: true, smartDashes: true, doubleQuoteStyle: '“|”', singleQuoteStyle: '‘|’' };
         this.adapter = null;
         this.editors = new Map(); // Map<id, Editor>
         this.popover = null;
@@ -57,6 +59,14 @@ class FootnoteView extends ItemView {
         }
     }
 
+    updateSettings(newSettings) {
+        this.settings = newSettings;
+        // We need to re-initialize editors to apply new input rules
+        // This is a bit heavy, but necessary for input rules
+        // We can just clear and re-render
+        this.render(true); // Force re-render
+    }
+
     setAdapter(adapter) {
         // Unsubscribe from previous adapter if exists
         if (this.unsubscribe) {
@@ -76,25 +86,8 @@ class FootnoteView extends ItemView {
         this.render();
     }
 
-    render() {
+    render(force = false) {
         const container = this.contentEl;
-
-        // If we re-render completely, we lose focus and editor states.
-        // We should try to reconcile if possible, or just clear and rebuild.
-        // For now, simple rebuild, but we need to be careful about focus.
-        // Actually, if we rebuild on every keystroke (via adapter update), it will be terrible.
-        // The adapter update triggers 'save', but does it trigger 'render'?
-        // In main.js, handleActiveLeafChange calls updateFootnoteView -> setAdapter -> render.
-        // But typing in the footnote editor calls adapter.updateFootnote -> triggerUpdate -> onUpdate.
-        // This loop does NOT call setAdapter again unless the active leaf changes.
-        // So we are safe from re-rendering loop while typing in the footnote itself.
-
-        // However, if the main document changes (e.g. adding a footnote), we might want to re-render.
-        // But we don't have a listener for that yet other than setAdapter.
-        // We should probably add a listener or just rely on manual updates.
-        // For now, we assume setAdapter is called when necessary.
-
-        // To avoid destroying existing editors that haven't changed, we can diff.
 
         if (!this.adapter) {
             container.empty();
@@ -132,7 +125,7 @@ class FootnoteView extends ItemView {
 
         // Remove old editors
         for (const [id, editor] of this.editors) {
-            if (!activeIds.has(id)) {
+            if (!activeIds.has(id) || force) {
                 editor.destroy();
                 this.editors.delete(id);
                 const el = list.querySelector(`[data-footnote-id="${id}"]`);
@@ -163,7 +156,13 @@ class FootnoteView extends ItemView {
                         Underline,
                         Subscript,
                         Superscript,
-                        TextStyle
+                        TextStyle,
+                        Substitutions.configure({
+                            smartQuotes: this.settings.smartQuotes,
+                            smartDashes: this.settings.smartDashes,
+                            doubleQuoteStyle: this.settings.doubleQuoteStyle,
+                            singleQuoteStyle: this.settings.singleQuoteStyle,
+                        })
                     ],
                     content: fn.content, // Handles string or JSON
                     onUpdate: ({ editor }) => {

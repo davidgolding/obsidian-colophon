@@ -3,7 +3,11 @@ const { ColophonView, VIEW_TYPE } = require('./view');
 const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
 
 const DEFAULT_SETTINGS = {
-    textColumnWidth: 1080
+    textColumnWidth: 1080,
+    smartQuotes: true,
+    smartDashes: true,
+    doubleQuoteStyle: '“|”',
+    singleQuoteStyle: '‘|’'
 };
 
 module.exports = class ColophonPlugin extends Plugin {
@@ -19,7 +23,7 @@ module.exports = class ColophonPlugin extends Plugin {
         // Register Footnote View
         this.registerView(
             FOOTNOTE_VIEW_TYPE,
-            (leaf) => new FootnoteView(leaf)
+            (leaf) => new FootnoteView(leaf, this.settings)
         );
 
         // Add Settings Tab
@@ -188,6 +192,12 @@ module.exports = class ColophonPlugin extends Plugin {
         // Trigger update in active views
         this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
             if (leaf.view instanceof ColophonView) {
+                leaf.view.updateSettings(this.settings);
+            }
+        });
+        // Trigger update in footnote views
+        this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE).forEach(leaf => {
+            if (leaf.view instanceof FootnoteView) {
                 leaf.view.updateSettings(this.settings);
             }
         });
@@ -363,6 +373,65 @@ class ColophonSettingTab extends PluginSettingTab {
                 .setDynamicTooltip()
                 .onChange(async (value) => {
                     this.plugin.settings.textColumnWidth = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        containerEl.createEl('h3', { text: 'Substitutions' });
+
+        new Setting(containerEl)
+            .setName('Smart Quotes')
+            .setDesc('Automatically replace straight quotes with smart quotes.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.smartQuotes)
+                .onChange(async (value) => {
+                    this.plugin.settings.smartQuotes = value;
+                    await this.plugin.saveSettings();
+                    this.display(); // Refresh to show/hide sub-options
+                }));
+
+        if (this.plugin.settings.smartQuotes) {
+            new Setting(containerEl)
+                .setName('Double Quote Style')
+                .setDesc('Choose the style for double quotes.')
+                .addDropdown(dropdown => dropdown
+                    .addOption('“|”', '“abc”')
+                    .addOption('„|“', '„abc“')
+                    .addOption('„|”', '„abc”')
+                    .addOption('”|”', '”abc”')
+                    .addOption('«|»', '«abc»')
+                    .addOption('»|«', '»abc«')
+                    .addOption('"|"', '"abc"')
+                    .setValue(this.plugin.settings.doubleQuoteStyle)
+                    .onChange(async (value) => {
+                        this.plugin.settings.doubleQuoteStyle = value;
+                        await this.plugin.saveSettings();
+                    }));
+
+            new Setting(containerEl)
+                .setName('Single Quote Style')
+                .setDesc('Choose the style for single quotes.')
+                .addDropdown(dropdown => dropdown
+                    .addOption('‘|’', '‘abc’')
+                    .addOption('‚|‘', '‚abc‘')
+                    .addOption('‚|’', '‚abc’')
+                    .addOption('’|’', '’abc’')
+                    .addOption('‹|›', '‹abc›')
+                    .addOption('›|‹', '›abc‹')
+                    .addOption('\'|\'', '\'abc\'')
+                    .setValue(this.plugin.settings.singleQuoteStyle)
+                    .onChange(async (value) => {
+                        this.plugin.settings.singleQuoteStyle = value;
+                        await this.plugin.saveSettings();
+                    }));
+        }
+
+        new Setting(containerEl)
+            .setName('Smart Dashes')
+            .setDesc('Replace -- with em-dash (—) and --- with en-dash (–).')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.smartDashes)
+                .onChange(async (value) => {
+                    this.plugin.settings.smartDashes = value;
                     await this.plugin.saveSettings();
                 }));
     }
