@@ -211,6 +211,9 @@ class TiptapAdapter {
                 footnotes: this.footnotes
             });
         }
+
+        // Notify listeners (e.g. FootnoteView)
+        this.listeners.forEach(listener => listener());
     }
 
     addFootnote() {

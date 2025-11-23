@@ -25701,6 +25701,7 @@ var require_tiptap_adapter = __commonJS({
             footnotes: this.footnotes
           });
         }
+        this.listeners.forEach((listener) => listener());
       }
       addFootnote() {
         if (this.editor) {
