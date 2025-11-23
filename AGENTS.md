@@ -43,12 +43,24 @@
   - **Styling**: Matches `pages-styles.yaml` (Minion 3 Caption, 10pt). Selection style matches main editor.
   - **Commands**: Intercepts native formatting commands (`bold`, `italic`) to work seamlessly in both main and sidebar editors.
   - **Persistence**: Footnote content is stored in the "sidecar" block (`%% colophon:data ... %%`) as JSON.
+- **Substitutions**:
+  - **Settings**: "Smart Quotes" (with configurable styles) and "Smart Dashes".
+  - **Implementation**: Custom Tiptap extension (`src/extensions/substitutions.js`) using `InputRule`.
+  - **Scope**: Applied to both main manuscript and footnote editors.
+- **Wikilinks**:
+  - **Support**: `[[Link]]` syntax is detected and rendered as interactive links.
+  - **Navigation**: Clicking links uses Obsidian's native navigation (`openLinkText`).
+  - **Autocomplete**: Typing `[[` triggers a custom `SuggestModal` (`src/link-suggest-modal.js`) listing vault files.
+  - **Implementation**: Custom Tiptap extension (`src/extensions/wikilink.js`) and Obsidian `SuggestModal`.
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.
 - `src/view.js`: View container, theme logic, settings application.
 - `src/tiptap-adapter.js`: Tiptap editor setup, parsing logic, event handling, subscription system.
 - `src/extensions/footnote.js`: Footnote node schema.
+- `src/extensions/substitutions.js`: Smart quotes and dashes logic.
+- `src/extensions/wikilink.js`: Wikilink mark and behavior.
+- `src/link-suggest-modal.js`: Autocomplete modal for Wikilinks.
 - `src/footnote-view.js`: Sidebar view logic, Tiptap instantiation for footnotes.
 - `src/popover-menu.js`: UI for the floating context menu.
 - `styles.css`: All CSS.
@@ -68,5 +80,5 @@
 
 ## How to Resume
 1.  **Run Build**: `pnpm run build` to ensure everything is fresh.
-2.  **Verify Footnotes**: Check that footnotes can be added, edited (rich text), and that they persist after reload. Verify deletion sync.
+2.  **Verify Features**: Check Footnotes (rich text, sync), Substitutions (quotes/dashes), and Wikilinks (navigation, autocomplete).
 3.  **Start Comments**: Begin implementing the Commenting System.
