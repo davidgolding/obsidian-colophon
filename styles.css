@@ -111,7 +111,17 @@
     font-family: var(--colophon-body-font);
 }
 
-/* Body First (No indent, e.g. after heading) */
+/* Supertitle */
+.colophon-workspace .ProseMirror p.supertitle {
+    font-size: 1rem;
+    text-align: center;
+    text-indent: 0;
+    margin-bottom: 1.5em;
+    font-family: var(--colophon-supertitle-font);
+}
+
+/* Body First (No indent) */
+.colophon-workspace .ProseMirror p.body-first,
 .colophon-workspace .ProseMirror h1+p,
 .colophon-workspace .ProseMirror h2+p,
 .colophon-workspace .ProseMirror h3+p {
@@ -164,10 +174,10 @@
 /* Title */
 .colophon-workspace .ProseMirror h1.title {
     font-size: 2.5rem;
+    font-style: normal;
     text-align: center;
     line-height: 1.2;
     margin-top: 0;
-    /* Will be handled by first-child anyway, but good to be explicit */
     margin-bottom: 2em;
     font-family: var(--colophon-title-font);
 }
@@ -422,5 +432,66 @@
 
 /* Footnote Selection */
 .colophon-footnote-editor-content ::selection {
+    background-color: var(--text-selection);
+}
+
+/* Select Menu */
+.colophon-select-container {
+    position: relative;
+    width: 100%;
+}
+
+.colophon-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.colophon-select-trigger:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.colophon-select-icon {
+    color: var(--text-muted);
+}
+
+.colophon-select-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+    margin-top: 4px;
+    overflow: hidden;
+    padding: 4px;
+}
+
+.colophon-select-item {
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-normal);
+    transition: background-color 0.1s;
+}
+
+.colophon-select-item:hover {
+    background-color: var(--background-modifier-hover);
+}
+
+.colophon-select-item.is-selected {
     background-color: var(--text-selection);
 }

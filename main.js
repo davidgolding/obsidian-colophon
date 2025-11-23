@@ -25391,10 +25391,15 @@ var require_popover_menu = __commonJS({
         this.containerEl.appendChild(this.el);
         this.sections = [];
         const styleSection = this.el.createDiv("colophon-popover-section");
-        this.createButton(styleSection, "Heading 1", "h1", () => this.editor.chain().focus().toggleHeading({ level: 1 }).run());
-        this.createButton(styleSection, "Heading 2", "h2", () => this.editor.chain().focus().toggleHeading({ level: 2 }).run());
-        this.createButton(styleSection, "Heading 3", "h3", () => this.editor.chain().focus().toggleHeading({ level: 3 }).run());
-        this.createButton(styleSection, "Body", "pilcrow", () => this.editor.chain().focus().setParagraph().run());
+        this.styleSelect = this.createSelectMenu(styleSection, [
+          { label: "Supertitle", value: "supertitle", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "supertitle" }).run() },
+          { label: "Title", value: "title", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: "title" }).run() },
+          { label: "Heading 1", value: "h1", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: null }).run() },
+          { label: "Heading 2", value: "h2", action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes("heading", { class: null }).run() },
+          { label: "Heading 3", value: "h3", action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes("heading", { class: null }).run() },
+          { label: "Body First", value: "body-first", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "body-first" }).run() },
+          { label: "Body", value: "paragraph", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: null }).run() }
+        ]);
         this.sections.push(styleSection);
         const formatSection = this.el.createDiv("colophon-popover-section");
         this.createIconButton(formatSection, "bold", () => this.editor.chain().focus().toggleBold().run(), "isActive", "bold");
@@ -25409,6 +25414,57 @@ var require_popover_menu = __commonJS({
         smallCapsBtn.setAttribute("aria-label", "Small Caps");
         this.sections.push(advancedSection);
       }
+      createSelectMenu(parent, options) {
+        const container = parent.createDiv("colophon-select-container");
+        const trigger = container.createEl("button", { cls: "colophon-select-trigger" });
+        const labelSpan = trigger.createSpan({ cls: "colophon-select-label", text: "Select Style" });
+        const iconSpan = trigger.createSpan({ cls: "colophon-select-icon" });
+        setIcon(iconSpan, "chevron-down");
+        const dropdown = container.createDiv("colophon-select-dropdown");
+        dropdown.style.display = "none";
+        trigger.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isHidden = dropdown.style.display === "none";
+          dropdown.style.display = isHidden ? "block" : "none";
+        });
+        options.forEach((opt) => {
+          const item = dropdown.createEl("div", { cls: "colophon-select-item" });
+          item.dataset.value = opt.value;
+          item.createSpan({ text: opt.label });
+          item.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            opt.action();
+            this.hide();
+          });
+        });
+        return { container, trigger, labelSpan, dropdown, options };
+      }
+      updateSelectMenu() {
+        if (!this.styleSelect || !this.editor) return;
+        let activeValue = "paragraph";
+        if (this.editor.isActive("heading", { level: 1 })) {
+          if (this.editor.isActive({ class: "title" })) activeValue = "title";
+          else activeValue = "h1";
+        } else if (this.editor.isActive("heading", { level: 2 })) activeValue = "h2";
+        else if (this.editor.isActive("heading", { level: 3 })) activeValue = "h3";
+        else if (this.editor.isActive("paragraph")) {
+          if (this.editor.isActive({ class: "supertitle" })) activeValue = "supertitle";
+          else if (this.editor.isActive({ class: "body-first" })) activeValue = "body-first";
+          else activeValue = "paragraph";
+        }
+        const activeOption = this.styleSelect.options.find((o) => o.value === activeValue);
+        this.styleSelect.labelSpan.innerText = activeOption ? activeOption.label : "Select Style";
+        const items = this.styleSelect.dropdown.querySelectorAll(".colophon-select-item");
+        items.forEach((item) => {
+          if (item.dataset.value === activeValue) {
+            item.addClass("is-selected");
+          } else {
+            item.removeClass("is-selected");
+          }
+        });
+      }
       setMode(mode) {
         this.currentMode = mode;
         if (!this.el) this.create();
@@ -25417,21 +25473,6 @@ var require_popover_menu = __commonJS({
         } else {
           if (this.sections[0]) this.sections[0].style.display = "flex";
         }
-      }
-      createButton(parent, text, icon, action) {
-        const btn = parent.createEl("button", { cls: "colophon-popover-item" });
-        if (icon) {
-          const iconSpan = btn.createSpan("colophon-popover-icon");
-          setIcon(iconSpan, icon);
-        }
-        btn.createSpan({ text });
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          action();
-          this.hide();
-        });
-        return btn;
       }
       createIconButton(parent, icon, action, checkMethod, checkArg) {
         const btn = parent.createEl("button", { cls: "colophon-popover-icon-btn" });
@@ -25443,7 +25484,20 @@ var require_popover_menu = __commonJS({
           action();
           this.hide();
         });
+        btn._checkState = () => {
+          if (this.editor && this.editor.isActive(checkArg)) {
+            btn.addClass("is-active");
+          } else {
+            btn.removeClass("is-active");
+          }
+        };
         return btn;
+      }
+      updateButtonStates() {
+        const btns = this.el.querySelectorAll(".colophon-popover-icon-btn");
+        btns.forEach((btn) => {
+          if (btn._checkState) btn._checkState();
+        });
       }
       show(x, y) {
         if (!this.el || !this.el.isConnected) {
@@ -25451,6 +25505,8 @@ var require_popover_menu = __commonJS({
           this.create();
           this.setMode(this.currentMode);
         }
+        this.updateSelectMenu();
+        this.updateButtonStates();
         this.el.style.left = `${x}px`;
         this.el.style.top = `${y}px`;
         this.el.addClass("is-visible");
@@ -25462,6 +25518,9 @@ var require_popover_menu = __commonJS({
           this.el.removeClass("is-visible");
           this.isVisible = false;
           document.removeEventListener("click", this.handleClickOutside);
+          if (this.styleSelect && this.styleSelect.dropdown) {
+            this.styleSelect.dropdown.style.display = "none";
+          }
         }
       }
       handleClickOutside(e) {
@@ -25546,12 +25605,51 @@ var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
     var { Editor, Mark, mergeAttributes } = require_dist9();
     var { StarterKit } = require_dist30();
+    var { Paragraph } = require_dist21();
+    var { Heading } = require_dist16();
     var Underline = require_dist24();
     var Subscript = require_dist31();
     var Superscript = require_dist32();
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
     var Footnote = require_footnote();
+    var CustomParagraph = Paragraph.extend({
+      addAttributes() {
+        return {
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("class"),
+            renderHTML: (attributes) => {
+              if (!attributes.class) {
+                return {};
+              }
+              return { class: attributes.class };
+            }
+          }
+        };
+      }
+    });
+    var CustomHeading = Heading.extend({
+      addAttributes() {
+        return {
+          ...this.parent?.(),
+          level: {
+            default: 1,
+            keepOnSplit: false
+          },
+          class: {
+            default: null,
+            parseHTML: (element) => element.getAttribute("class"),
+            renderHTML: (attributes) => {
+              if (!attributes.class) {
+                return {};
+              }
+              return { class: attributes.class };
+            }
+          }
+        };
+      }
+    });
     var SmallCaps = Mark.create({
       name: "smallCaps",
       parseHTML() {
@@ -25617,7 +25715,12 @@ var require_tiptap_adapter = __commonJS({
         this.editor = new Editor({
           element: this.containerEl,
           extensions: [
-            StarterKit,
+            StarterKit.configure({
+              paragraph: false,
+              heading: false
+            }),
+            CustomParagraph,
+            CustomHeading,
             Underline,
             Subscript,
             Superscript,

@@ -19,12 +19,17 @@ class PopoverMenu {
 
         this.sections = [];
 
-        // Section 1: Styles (Headings) - Index 0
+        // Section 1: Styles (Select Menu) - Index 0
         const styleSection = this.el.createDiv('colophon-popover-section');
-        this.createButton(styleSection, 'Heading 1', 'h1', () => this.editor.chain().focus().toggleHeading({ level: 1 }).run());
-        this.createButton(styleSection, 'Heading 2', 'h2', () => this.editor.chain().focus().toggleHeading({ level: 2 }).run());
-        this.createButton(styleSection, 'Heading 3', 'h3', () => this.editor.chain().focus().toggleHeading({ level: 3 }).run());
-        this.createButton(styleSection, 'Body', 'pilcrow', () => this.editor.chain().focus().setParagraph().run());
+        this.styleSelect = this.createSelectMenu(styleSection, [
+            { label: 'Supertitle', value: 'supertitle', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'supertitle' }).run() },
+            { label: 'Title', value: 'title', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: 'title' }).run() },
+            { label: 'Heading 1', value: 'h1', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: null }).run() },
+            { label: 'Heading 2', value: 'h2', action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes('heading', { class: null }).run() },
+            { label: 'Heading 3', value: 'h3', action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes('heading', { class: null }).run() },
+            { label: 'Body First', value: 'body-first', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'body-first' }).run() },
+            { label: 'Body', value: 'paragraph', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: null }).run() }
+        ]);
         this.sections.push(styleSection);
 
         // Section 2: Formatting - Index 1
@@ -45,6 +50,78 @@ class PopoverMenu {
         this.sections.push(advancedSection);
     }
 
+    createSelectMenu(parent, options) {
+        const container = parent.createDiv('colophon-select-container');
+
+        // Trigger Button
+        const trigger = container.createEl('button', { cls: 'colophon-select-trigger' });
+        const labelSpan = trigger.createSpan({ cls: 'colophon-select-label', text: 'Select Style' });
+        const iconSpan = trigger.createSpan({ cls: 'colophon-select-icon' });
+        setIcon(iconSpan, 'chevron-down');
+
+        // Dropdown Menu
+        const dropdown = container.createDiv('colophon-select-dropdown');
+        dropdown.style.display = 'none';
+
+        // Toggle Logic
+        trigger.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isHidden = dropdown.style.display === 'none';
+            dropdown.style.display = isHidden ? 'block' : 'none';
+        });
+
+        // Options
+        options.forEach(opt => {
+            const item = dropdown.createEl('div', { cls: 'colophon-select-item' });
+            item.dataset.value = opt.value;
+
+            item.createSpan({ text: opt.label });
+
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                opt.action();
+                this.hide(); // Close popover on selection
+            });
+        });
+
+        return { container, trigger, labelSpan, dropdown, options };
+    }
+
+    updateSelectMenu() {
+        if (!this.styleSelect || !this.editor) return;
+
+        let activeValue = 'paragraph';
+
+        // Check attributes
+        if (this.editor.isActive('heading', { level: 1 })) {
+            if (this.editor.isActive({ class: 'title' })) activeValue = 'title';
+            else activeValue = 'h1';
+        }
+        else if (this.editor.isActive('heading', { level: 2 })) activeValue = 'h2';
+        else if (this.editor.isActive('heading', { level: 3 })) activeValue = 'h3';
+        else if (this.editor.isActive('paragraph')) {
+            if (this.editor.isActive({ class: 'supertitle' })) activeValue = 'supertitle';
+            else if (this.editor.isActive({ class: 'body-first' })) activeValue = 'body-first';
+            else activeValue = 'paragraph';
+        }
+
+        // Update Label
+        const activeOption = this.styleSelect.options.find(o => o.value === activeValue);
+        this.styleSelect.labelSpan.innerText = activeOption ? activeOption.label : 'Select Style';
+
+        // Update Selection State
+        const items = this.styleSelect.dropdown.querySelectorAll('.colophon-select-item');
+        items.forEach(item => {
+            if (item.dataset.value === activeValue) {
+                item.addClass('is-selected');
+            } else {
+                item.removeClass('is-selected');
+            }
+        });
+    }
+
     setMode(mode) {
         this.currentMode = mode;
         if (!this.el) this.create();
@@ -56,22 +133,6 @@ class PopoverMenu {
             // Default: Show all
             if (this.sections[0]) this.sections[0].style.display = 'flex';
         }
-    }
-
-    createButton(parent, text, icon, action) {
-        const btn = parent.createEl('button', { cls: 'colophon-popover-item' });
-        if (icon) {
-            const iconSpan = btn.createSpan('colophon-popover-icon');
-            setIcon(iconSpan, icon);
-        }
-        btn.createSpan({ text: text });
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            action();
-            this.hide();
-        });
-        return btn;
     }
 
     createIconButton(parent, icon, action, checkMethod, checkArg) {
@@ -86,11 +147,24 @@ class PopoverMenu {
             this.hide();
         });
 
-        // Optional: Check active state logic could go here if we were updating live, 
-        // but for a context menu, it's static at open time usually.
-        // However, we can check state when opening.
+        // Store check logic for update
+        btn._checkState = () => {
+            if (this.editor && this.editor.isActive(checkArg)) {
+                btn.addClass('is-active');
+            } else {
+                btn.removeClass('is-active');
+            }
+        };
 
         return btn;
+    }
+
+    updateButtonStates() {
+        // Update Icon Buttons
+        const btns = this.el.querySelectorAll('.colophon-popover-icon-btn');
+        btns.forEach(btn => {
+            if (btn._checkState) btn._checkState();
+        });
     }
 
     show(x, y) {
@@ -100,6 +174,10 @@ class PopoverMenu {
             this.create();
             this.setMode(this.currentMode); // Re-apply mode
         }
+
+        // Update States
+        this.updateSelectMenu();
+        this.updateButtonStates();
 
         // Position
         this.el.style.left = `${x}px`;
@@ -116,6 +194,11 @@ class PopoverMenu {
             this.el.removeClass('is-visible');
             this.isVisible = false;
             document.removeEventListener('click', this.handleClickOutside);
+
+            // Close dropdown if open
+            if (this.styleSelect && this.styleSelect.dropdown) {
+                this.styleSelect.dropdown.style.display = 'none';
+            }
         }
     }
 

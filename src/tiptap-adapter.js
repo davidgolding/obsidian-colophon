@@ -1,11 +1,54 @@
 const { Editor, Mark, mergeAttributes } = require('@tiptap/core');
 const { StarterKit } = require('@tiptap/starter-kit');
+const { Paragraph } = require('@tiptap/extension-paragraph');
+const { Heading } = require('@tiptap/extension-heading');
 const Underline = require('@tiptap/extension-underline');
 const Subscript = require('@tiptap/extension-subscript');
 const Superscript = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const PopoverMenu = require('./popover-menu');
 const Footnote = require('./extensions/footnote');
+
+// Custom Paragraph with Class Support
+const CustomParagraph = Paragraph.extend({
+    addAttributes() {
+        return {
+            class: {
+                default: null,
+                parseHTML: element => element.getAttribute('class'),
+                renderHTML: attributes => {
+                    if (!attributes.class) {
+                        return {}
+                    }
+                    return { class: attributes.class }
+                },
+            },
+        }
+    },
+});
+
+// Custom Heading with Class Support
+const CustomHeading = Heading.extend({
+    addAttributes() {
+        return {
+            ...this.parent?.(),
+            level: {
+                default: 1,
+                keepOnSplit: false,
+            },
+            class: {
+                default: null,
+                parseHTML: element => element.getAttribute('class'),
+                renderHTML: attributes => {
+                    if (!attributes.class) {
+                        return {}
+                    }
+                    return { class: attributes.class }
+                },
+            },
+        }
+    },
+});
 
 // Custom Small Caps Extension
 const SmallCaps = Mark.create({
@@ -84,7 +127,12 @@ class TiptapAdapter {
         this.editor = new Editor({
             element: this.containerEl,
             extensions: [
-                StarterKit,
+                StarterKit.configure({
+                    paragraph: false,
+                    heading: false,
+                }),
+                CustomParagraph,
+                CustomHeading,
                 Underline,
                 Subscript,
                 Superscript,
