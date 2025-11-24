@@ -77,7 +77,7 @@ class LinkSuggestModal extends SuggestModal {
             const to = this.editor.state.selection.from;
 
             tr.replaceWith(from, to, schema.text(linkText, [
-                schema.marks.wikilink.create({ href: linkText })
+                schema.marks.internallink.create({ href: linkText })
             ]));
 
             // Insert a space after the new link and move selection there

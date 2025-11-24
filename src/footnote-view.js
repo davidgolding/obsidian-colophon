@@ -7,7 +7,7 @@ const Superscript = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const PopoverMenu = require('./popover-menu');
 const Substitutions = require('./extensions/substitutions');
-const Wikilink = require('./extensions/wikilink');
+const InternalLink = require('./extensions/internallink');
 
 const FOOTNOTE_VIEW_TYPE = 'colophon-footnote-view';
 
@@ -164,7 +164,7 @@ class FootnoteView extends ItemView {
                             doubleQuoteStyle: this.settings.doubleQuoteStyle,
                             singleQuoteStyle: this.settings.singleQuoteStyle,
                         }),
-                        Wikilink.configure({
+                        InternalLink.configure({
                             app: this.app
                         })
                     ],

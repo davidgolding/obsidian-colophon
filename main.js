@@ -25730,7 +25730,7 @@ var require_link_suggest_modal = __commonJS({
           const from = this.range.from;
           const to = this.editor.state.selection.from;
           tr.replaceWith(from, to, schema.text(linkText, [
-            schema.marks.wikilink.create({ href: linkText })
+            schema.marks.internallink.create({ href: linkText })
           ]));
           const endOfLink = from + linkText.length;
           tr.insert(endOfLink, schema.text(" "));
@@ -25743,14 +25743,14 @@ var require_link_suggest_modal = __commonJS({
   }
 });
 
-// src/extensions/wikilink.js
-var require_wikilink = __commonJS({
-  "src/extensions/wikilink.js"(exports2, module2) {
+// src/extensions/internallink.js
+var require_internallink = __commonJS({
+  "src/extensions/internallink.js"(exports2, module2) {
     var { Mark, InputRule, mergeAttributes } = require_dist9();
-    var { Plugin: Plugin2 } = require_state();
+    var { Plugin: Plugin2, PluginKey } = require_state();
     var LinkSuggestModal = require_link_suggest_modal();
-    var Wikilink = Mark.create({
-      name: "wikilink",
+    var InternalLink = Mark.create({
+      name: "internallink",
       inclusive: false,
       addOptions() {
         return {
@@ -25784,9 +25784,6 @@ var require_wikilink = __commonJS({
       addInputRules() {
         return [
           new InputRule({
-            // Match [[Note]] or [[Note|Alias]]
-            // Group 1: Note (href)
-            // Group 2: Alias (optional)
             find: /\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/,
             handler: ({ state, range, match }) => {
               const { tr } = state;
@@ -25796,8 +25793,7 @@ var require_wikilink = __commonJS({
               const alias = match[2];
               const text = alias || href;
               tr.replaceWith(start, end, state.schema.text(text, [
-                state.schema.marks.wikilink.create({ href, text: alias })
-                // Store alias in attrs just in case
+                state.schema.marks.internallink.create({ href, text: alias })
               ]));
               return tr;
             }
@@ -25806,50 +25802,138 @@ var require_wikilink = __commonJS({
       },
       addProseMirrorPlugins() {
         const extension = this;
-        return [
-          new Plugin2({
-            props: {
-              handleDOMEvents: {
-                click(view, event) {
-                  const target = event.target.closest(".internal-link");
-                  if (!target) return false;
-                  const href = target.getAttribute("href");
-                  if (href && extension.options.app) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    const sourcePath = extension.options.getFilePath ? extension.options.getFilePath() : "";
-                    const isMod = navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? event.metaKey : event.ctrlKey;
-                    const isAlt = event.altKey;
-                    if (isMod && isAlt) {
-                      extension.options.app.workspace.openLinkText(href, sourcePath, "split");
-                    } else if (isMod) {
-                      extension.options.app.workspace.openLinkText(href, sourcePath, "tab");
-                    } else {
-                      extension.options.app.workspace.openLinkText(href, sourcePath, false);
-                    }
-                    return true;
-                  }
-                  return false;
+        const editor = extension.editor;
+        const findMarkRange = ($pos, markType) => {
+          const mark = $pos.marks().find((m) => m.type === markType);
+          if (!mark) return null;
+          let from = $pos.pos, to = $pos.pos;
+          let startIndex = $pos.index();
+          for (let i = startIndex; i >= 0; i--) {
+            const node = $pos.parent.child(i);
+            if (mark.isInSet(node.marks)) {
+              from = $pos.start() + node.content.findIndex(node).offset;
+            } else {
+              break;
+            }
+          }
+          for (let i = startIndex; i < $pos.parent.childCount; i++) {
+            const node = $pos.parent.child(i);
+            if (mark.isInSet(node.marks)) {
+              to = $pos.start() + node.content.findIndex(node).offset + node.nodeSize;
+            } else {
+              break;
+            }
+          }
+          return { from, to, mark };
+        };
+        const livePreviewPlugin = new Plugin2({
+          key: new PluginKey("internallink-live-preview"),
+          state: {
+            init() {
+              return { activeLink: null };
+            },
+            apply(tr, value, oldState, newState) {
+              const { selection } = tr;
+              const oldActiveLink = value.activeLink;
+              let activeLink = null;
+              if (oldActiveLink) {
+                const { from, to } = oldActiveLink;
+                const mappedFrom = tr.mapping.map(from);
+                const mappedTo = tr.mapping.map(to);
+                if (selection.from >= mappedFrom && selection.to <= mappedTo) {
+                  activeLink = { from: mappedFrom, to: mappedTo, text: newState.doc.textBetween(mappedFrom, mappedTo) };
                 }
-              },
-              handleTextInput(view, from, to, text) {
-                if (text === "[" && extension.options.app) {
-                  const prevChar = view.state.doc.textBetween(from - 1, from);
-                  if (prevChar === "[") {
-                    setTimeout(() => {
-                      const modal = new LinkSuggestModal(extension.options.app, extension.editor, { from: from - 1, to: from + 1 });
-                      modal.open();
-                    }, 0);
+              }
+              if (selection.empty) {
+                const markRange = findMarkRange(selection.$from, newState.schema.marks.internallink);
+                if (markRange) {
+                  const { from, to, mark } = markRange;
+                  const alias = mark.attrs.text;
+                  const text = alias ? `[[${mark.attrs.href}|${alias}]]` : `[[${mark.attrs.href}]]`;
+                  activeLink = { from, to, text, mark };
+                }
+              }
+              if (JSON.stringify(activeLink) === JSON.stringify(oldActiveLink)) {
+                return value;
+              }
+              return { activeLink };
+            }
+          },
+          view(editorView) {
+            return {
+              update: (view, prevState) => {
+                const pluginState = this.key.getState(view.state);
+                const prevPluginState = this.key.getState(prevState);
+                if (pluginState.activeLink && !prevPluginState.activeLink) {
+                  const { from, to, text } = pluginState.activeLink;
+                  view.dispatch(
+                    view.state.tr.removeMark(from, to).replaceWith(from, to, view.state.schema.text(text)).setMeta("addToHistory", false)
+                  );
+                } else if (!pluginState.activeLink && prevPluginState.activeLink) {
+                  const { from, to } = prevPluginState.activeLink;
+                  const text = prevState.doc.textBetween(from, to);
+                  const match = text.match(/\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/);
+                  const tr = view.state.tr;
+                  if (match) {
+                    const href = match[1];
+                    const alias = match[2];
+                    const linkText = alias || href;
+                    tr.replaceWith(from, to, view.state.schema.text(linkText, [
+                      view.state.schema.marks.internallink.create({ href, text: alias })
+                    ]));
+                  } else {
                   }
+                  if (tr.docChanged) {
+                    view.dispatch(tr);
+                  }
+                }
+              }
+            };
+          }
+        });
+        const suggestionPlugin = new Plugin2({
+          props: {
+            handleDOMEvents: {
+              click(view, event) {
+                const target = event.target.closest(".internal-link");
+                if (!target) return false;
+                const href = target.getAttribute("href");
+                if (href && extension.options.app) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const sourcePath = extension.options.getFilePath ? extension.options.getFilePath() : "";
+                  const isMod = navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? event.metaKey : event.ctrlKey;
+                  const isAlt = event.altKey;
+                  if (isMod && isAlt) {
+                    extension.options.app.workspace.openLinkText(href, sourcePath, "split");
+                  } else if (isMod) {
+                    extension.options.app.workspace.openLinkText(href, sourcePath, "tab");
+                  } else {
+                    extension.options.app.workspace.openLinkText(href, sourcePath, false);
+                  }
+                  return true;
                 }
                 return false;
               }
+            },
+            handleTextInput(view, from, to, text) {
+              if (text === "[" && extension.options.app) {
+                const prevChar = view.state.doc.textBetween(from - 1, from);
+                if (prevChar === "[") {
+                  setTimeout(() => {
+                    const modal = new LinkSuggestModal(extension.options.app, extension.editor, { from: from - 1, to: from + 1 });
+                    modal.open();
+                  }, 0);
+                }
+              }
+              return false;
             }
-          })
-        ];
+          }
+        });
+        return [suggestionPlugin, livePreviewPlugin];
       }
     });
-    module2.exports = Wikilink;
+    module2.exports = InternalLink;
   }
 });
 
@@ -25962,7 +26046,7 @@ var require_tiptap_adapter = __commonJS({
     var PopoverMenu = require_popover_menu();
     var Footnote = require_footnote();
     var Substitutions = require_substitutions();
-    var Wikilink = require_wikilink();
+    var InternalLink = require_internallink();
     var StandardLink = require_standard_link();
     var CustomParagraph = Paragraph.extend({
       addAttributes() {
@@ -26100,7 +26184,7 @@ var require_tiptap_adapter = __commonJS({
               doubleQuoteStyle: this.settings.doubleQuoteStyle,
               singleQuoteStyle: this.settings.singleQuoteStyle
             }),
-            Wikilink.configure({
+            InternalLink.configure({
               app: this.app,
               getFilePath: () => this.filePath
             }),
@@ -26419,7 +26503,7 @@ var require_footnote_view = __commonJS({
     var TextStyle = require_dist33();
     var PopoverMenu = require_popover_menu();
     var Substitutions = require_substitutions();
-    var Wikilink = require_wikilink();
+    var InternalLink = require_internallink();
     var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
     var FootnoteView2 = class extends ItemView {
       constructor(leaf, settings) {
@@ -26533,7 +26617,7 @@ var require_footnote_view = __commonJS({
                   doubleQuoteStyle: this.settings.doubleQuoteStyle,
                   singleQuoteStyle: this.settings.singleQuoteStyle
                 }),
-                Wikilink.configure({
+                InternalLink.configure({
                   app: this.app
                 })
               ],
