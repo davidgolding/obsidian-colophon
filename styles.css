@@ -353,7 +353,7 @@
     padding: 10px;
     height: 100%;
     overflow-y: auto;
-    --colophon-footnote-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
+    --colophon-footnote-font: "Minion 3 Caption", "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
     position: relative;
     /* For popover positioning */
 }

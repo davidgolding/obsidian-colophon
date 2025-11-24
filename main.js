@@ -26636,11 +26636,13 @@ module.exports = class ColophonPlugin extends Plugin {
         if (originalCommand) {
           const originalCheckCallback = originalCommand.checkCallback;
           originalCommand.checkCallback = (checking) => {
-            const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
-            const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+            const colophonLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
+            const colophonView = colophonLeaves.length > 0 ? colophonLeaves[0].view : null;
             if (colophonView) {
+              const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
               let targetEditor = null;
-              if (footnoteView && footnoteView instanceof FootnoteView) {
+              const activeLeaf = this.app.workspace.activeLeaf;
+              if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
                 const focusedFootnoteEditor = footnoteView.getFocusedEditor();
                 if (focusedFootnoteEditor) {
                   targetEditor = focusedFootnoteEditor;

@@ -109,17 +109,21 @@ module.exports = class ColophonPlugin extends Plugin {
                     const originalCheckCallback = originalCommand.checkCallback;
 
                     originalCommand.checkCallback = (checking) => {
-                        // Check if Colophon is active
-                        const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
-                        const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+                        // A Colophon view must exist, but doesn't have to be active
+                        const colophonLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
+                        const colophonView = colophonLeaves.length > 0 ? colophonLeaves[0].view : null;
 
                         // Check if we are in a Colophon context
                         if (colophonView) {
+                            const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+
                             // Determine target editor
                             let targetEditor = null;
 
                             // 1. Check Footnote Sidebar Focus
-                            if (footnoteView && footnoteView instanceof FootnoteView) {
+                            // We need to check if the sidebar *itself* is the active leaf's view
+                            const activeLeaf = this.app.workspace.activeLeaf;
+                            if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
                                 const focusedFootnoteEditor = footnoteView.getFocusedEditor();
                                 if (focusedFootnoteEditor) {
                                     targetEditor = focusedFootnoteEditor;
