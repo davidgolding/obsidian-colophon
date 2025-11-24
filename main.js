@@ -25673,16 +25673,50 @@ var require_substitutions = __commonJS({
 var require_link_suggest_modal = __commonJS({
   "src/link-suggest-modal.js"(exports2, module2) {
     var { SuggestModal } = require("obsidian");
+    var { TextSelection } = require_state();
     var LinkSuggestModal = class extends SuggestModal {
       constructor(app, editor, range) {
         super(app);
+        this.app = app;
         this.editor = editor;
         this.range = range;
+        this.updateListener = () => this.updateAndFilterSuggestions();
+      }
+      onOpen() {
+        super.onOpen();
+        this.editor.on("update", this.updateListener);
+        this.updateAndFilterSuggestions();
+      }
+      onClose() {
+        super.onClose();
+        this.editor.off("update", this.updateListener);
+      }
+      updateAndFilterSuggestions() {
+        const query = this.getEditorQuery();
+        if (query === null) {
+          this.close();
+          return;
+        }
+        this.inputEl.value = query;
+        this.onInput();
+      }
+      getEditorQuery() {
+        try {
+          const currentState = this.editor.state;
+          const currentPos = currentState.selection.from;
+          if (currentPos < this.range.from + 2) return null;
+          if (currentState.doc.textBetween(this.range.from, this.range.from + 2) !== "[[") return null;
+          return currentState.doc.textBetween(this.range.from + 2, currentPos);
+        } catch (e) {
+          return null;
+        }
       }
       getSuggestions(query) {
-        const files = this.app.vault.getFiles();
+        const files = this.app.vault.getMarkdownFiles();
+        if (!query) return files;
+        const lowerCaseQuery = query.toLowerCase();
         return files.filter(
-          (file) => file.path.toLowerCase().includes(query.toLowerCase()) || file.basename.toLowerCase().includes(query.toLowerCase())
+          (file) => file.path.toLowerCase().includes(lowerCaseQuery) || file.basename.toLowerCase().includes(lowerCaseQuery)
         );
       }
       renderSuggestion(file, el) {
@@ -25692,12 +25726,15 @@ var require_link_suggest_modal = __commonJS({
       onChooseSuggestion(file, evt) {
         const linkText = file.basename;
         if (this.editor && !this.editor.isDestroyed) {
-          const { schema } = this.editor.state;
-          const tr = this.editor.state.tr;
-          tr.replaceWith(this.range.from, this.range.to, schema.text(linkText, [
+          const { schema, tr } = this.editor.state;
+          const from = this.range.from;
+          const to = this.editor.state.selection.from;
+          tr.replaceWith(from, to, schema.text(linkText, [
             schema.marks.wikilink.create({ href: linkText })
           ]));
-          tr.insert(tr.mapping.map(this.range.to), schema.text(" "));
+          const endOfLink = from + linkText.length;
+          tr.insert(endOfLink, schema.text(" "));
+          tr.setSelection(TextSelection.create(tr.doc, endOfLink + 1));
           this.editor.view.dispatch(tr);
         }
       }
