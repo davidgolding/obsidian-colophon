@@ -111,7 +111,9 @@ class TiptapAdapter {
         }
     }
 
-    load(markdown, data) {
+    load(markdown, data, filePath) {
+        this.filePath = filePath;
+
         if (this.editor) {
             this.editor.destroy();
         }
@@ -170,7 +172,8 @@ class TiptapAdapter {
                     singleQuoteStyle: this.settings.singleQuoteStyle,
                 }),
                 Wikilink.configure({
-                    app: this.app
+                    app: this.app,
+                    getFilePath: () => this.filePath
                 })
             ],
             editorProps: {

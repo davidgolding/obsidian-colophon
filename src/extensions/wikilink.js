@@ -61,22 +61,35 @@ const Wikilink = Mark.create({
         return [
             new Plugin({
                 props: {
-                    handleClick(view, pos, event) {
-                        const { schema } = view.state;
-                        // Check if the click is actually on a wikilink mark
-                        // We check the node at the position
-                        const node = view.state.doc.nodeAt(pos);
-                        // Marks are on the node, but we need to check if the specific position has the mark
-                        // resolve(pos).marks() gives marks at the position
-                        const marks = view.state.doc.resolve(pos).marks();
-                        const wikilinkMark = marks.find(mark => mark.type.name === 'wikilink');
+                    handleDOMEvents: {
+                        click(view, event) {
+                            const target = event.target.closest('.internal-link');
+                            if (!target) return false;
 
-                        if (wikilinkMark && wikilinkMark.attrs.href && extension.options.app) {
-                            event.preventDefault();
-                            extension.options.app.workspace.openLinkText(wikilinkMark.attrs.href, '', false);
-                            return true;
+                            const href = target.getAttribute('href');
+
+                            if (href && extension.options.app) {
+                                event.preventDefault();
+                                event.stopPropagation();
+
+                                const sourcePath = extension.options.getFilePath ? extension.options.getFilePath() : '';
+                                const isMod = navigator.platform.toUpperCase().indexOf('MAC') >= 0 ? event.metaKey : event.ctrlKey;
+                                const isAlt = event.altKey;
+
+                                if (isMod && isAlt) {
+                                    // Cmd/Ctrl + Opt/Alt + Click -> Split Leaf
+                                    extension.options.app.workspace.openLinkText(href, sourcePath, 'split');
+                                } else if (isMod) {
+                                    // Cmd/Ctrl + Click -> New Tab
+                                    extension.options.app.workspace.openLinkText(href, sourcePath, 'tab');
+                                } else {
+                                    // Click -> Active Leaf
+                                    extension.options.app.workspace.openLinkText(href, sourcePath, false);
+                                }
+                                return true;
+                            }
+                            return false;
                         }
-                        return false;
                     },
                     handleTextInput(view, from, to, text) {
                         if (text === '[' && extension.options.app) {

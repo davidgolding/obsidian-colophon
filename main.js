@@ -25763,17 +25763,28 @@ var require_wikilink = __commonJS({
         return [
           new Plugin2({
             props: {
-              handleClick(view, pos, event) {
-                const { schema } = view.state;
-                const node = view.state.doc.nodeAt(pos);
-                const marks = view.state.doc.resolve(pos).marks();
-                const wikilinkMark = marks.find((mark) => mark.type.name === "wikilink");
-                if (wikilinkMark && wikilinkMark.attrs.href && extension.options.app) {
-                  event.preventDefault();
-                  extension.options.app.workspace.openLinkText(wikilinkMark.attrs.href, "", false);
-                  return true;
+              handleDOMEvents: {
+                click(view, event) {
+                  const target = event.target.closest(".internal-link");
+                  if (!target) return false;
+                  const href = target.getAttribute("href");
+                  if (href && extension.options.app) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const sourcePath = extension.options.getFilePath ? extension.options.getFilePath() : "";
+                    const isMod = navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? event.metaKey : event.ctrlKey;
+                    const isAlt = event.altKey;
+                    if (isMod && isAlt) {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, "split");
+                    } else if (isMod) {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, "tab");
+                    } else {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, false);
+                    }
+                    return true;
+                  }
+                  return false;
                 }
-                return false;
               },
               handleTextInput(view, from, to, text) {
                 if (text === "[" && extension.options.app) {
@@ -25899,7 +25910,8 @@ var require_tiptap_adapter = __commonJS({
           this.initEditor(content);
         }
       }
-      load(markdown2, data) {
+      load(markdown2, data, filePath) {
+        this.filePath = filePath;
         if (this.editor) {
           this.editor.destroy();
         }
@@ -25949,7 +25961,8 @@ var require_tiptap_adapter = __commonJS({
               singleQuoteStyle: this.settings.singleQuoteStyle
             }),
             Wikilink.configure({
-              app: this.app
+              app: this.app,
+              getFilePath: () => this.filePath
             })
           ],
           editorProps: {
@@ -26212,7 +26225,7 @@ var require_view2 = __commonJS({
         this.data = data;
         this.frontmatter = frontmatter;
         if (this.adapter) {
-          this.adapter.load(markdown2, data);
+          this.adapter.load(markdown2, data, this.file.path);
           this.hideLoader();
         }
       }

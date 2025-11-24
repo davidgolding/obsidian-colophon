@@ -127,7 +127,7 @@ class ColophonView extends FileView {
         this.frontmatter = frontmatter;
 
         if (this.adapter) {
-            this.adapter.load(markdown, data);
+            this.adapter.load(markdown, data, this.file.path);
 
             // Hide loader once loaded
             this.hideLoader();
