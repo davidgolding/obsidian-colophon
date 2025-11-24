@@ -24,30 +24,47 @@ const Wikilink = Mark.create({
         ]
     },
 
-    renderHTML({ HTMLAttributes }) {
-        return ['a', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
-    },
+
 
     addAttributes() {
         return {
             href: {
                 default: null,
             },
+            text: {
+                default: null,
+            },
         }
+    },
+
+    renderHTML({ HTMLAttributes }) {
+        // If we have an alias (text attribute), we want to render that text content?
+        // Marks wrap text. We can't easily change the text content of the mark from here without being a Node.
+        // BUT, for Wikilinks, the text inside the editor IS the link text.
+        // If we type [[Note|Alias]], we want the editor to show "Alias".
+        // This means we need to replace the whole [[...]] with just "Alias" and apply the mark.
+        // So the mark itself doesn't need to render text, the InputRule needs to insert the alias as text.
+
+        return ['a', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
     },
 
     addInputRules() {
         return [
             new InputRule({
-                find: /\[\[([^\]]+)\]\]$/,
+                // Match [[Note]] or [[Note|Alias]]
+                // Group 1: Note (href)
+                // Group 2: Alias (optional)
+                find: /\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/,
                 handler: ({ state, range, match }) => {
                     const { tr } = state;
                     const start = range.from;
                     const end = range.to;
-                    const text = match[1];
+                    const href = match[1];
+                    const alias = match[2];
+                    const text = alias || href; // Display text is alias if present, else href
 
                     tr.replaceWith(start, end, state.schema.text(text, [
-                        state.schema.marks.wikilink.create({ href: text })
+                        state.schema.marks.wikilink.create({ href, text: alias }) // Store alias in attrs just in case
                     ]));
 
                     return tr;
@@ -98,16 +115,6 @@ const Wikilink = Mark.create({
                             if (prevChar === '[') {
                                 // We have '[['
                                 // Trigger Modal
-                                // We need to pass the range of '[['
-                                const range = { from: from - 1, to: to + 1 }; // -1 for prev [, +1 for current [ (which is being inserted)
-                                // Wait, handleTextInput is called BEFORE insertion?
-                                // "Called when the user types text... before the text is applied."
-                                // So 'from' is where the new char will be.
-                                // If we return true, we suppress insertion.
-                                // We want insertion to happen, THEN trigger?
-                                // Or trigger and handle insertion ourselves?
-
-                                // Let's let it insert, then trigger.
                                 setTimeout(() => {
                                     const modal = new LinkSuggestModal(extension.options.app, extension.editor, { from: from - 1, to: from + 1 });
                                     modal.open();

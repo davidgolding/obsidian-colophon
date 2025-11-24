@@ -11,6 +11,7 @@ const PopoverMenu = require('./popover-menu');
 const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
 const Wikilink = require('./extensions/wikilink');
+const StandardLink = require('./extensions/standard-link');
 
 // Custom Paragraph with Class Support
 const CustomParagraph = Paragraph.extend({
@@ -172,6 +173,10 @@ class TiptapAdapter {
                     singleQuoteStyle: this.settings.singleQuoteStyle,
                 }),
                 Wikilink.configure({
+                    app: this.app,
+                    getFilePath: () => this.filePath
+                }),
+                StandardLink.configure({
                     app: this.app,
                     getFilePath: () => this.filePath
                 })

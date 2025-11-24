@@ -48,10 +48,13 @@
   - **Implementation**: Custom Tiptap extension (`src/extensions/substitutions.js`) using `InputRule`.
   - **Scope**: Applied to both main manuscript and footnote editors.
 - **Wikilinks**:
-  - **Support**: `[[Link]]` syntax is detected and rendered as interactive links.
+  - **Support**: `[[Link]]`, `[[Link|Alias]]`, and `[[Link#Anchor]]`.
   - **Navigation**: Clicking links uses Obsidian's native navigation (`openLinkText`).
   - **Autocomplete**: Typing `[[` triggers a custom `SuggestModal` (`src/link-suggest-modal.js`) listing vault files.
   - **Implementation**: Custom Tiptap extension (`src/extensions/wikilink.js`) and Obsidian `SuggestModal`.
+- **Standard Links**:
+  - **Support**: `[Text](Link)` syntax is detected and treated as an internal link if no protocol is present.
+  - **Implementation**: Custom Tiptap extension (`src/extensions/standard-link.js`).
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.

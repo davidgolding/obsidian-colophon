@@ -25731,27 +25731,36 @@ var require_wikilink = __commonJS({
           }
         ];
       },
-      renderHTML({ HTMLAttributes }) {
-        return ["a", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
-      },
       addAttributes() {
         return {
           href: {
             default: null
+          },
+          text: {
+            default: null
           }
         };
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["a", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
       },
       addInputRules() {
         return [
           new InputRule({
-            find: /\[\[([^\]]+)\]\]$/,
+            // Match [[Note]] or [[Note|Alias]]
+            // Group 1: Note (href)
+            // Group 2: Alias (optional)
+            find: /\[\[([^|\]]+)(?:\|([^\]]+))?\]\]$/,
             handler: ({ state, range, match }) => {
               const { tr } = state;
               const start = range.from;
               const end = range.to;
-              const text = match[1];
+              const href = match[1];
+              const alias = match[2];
+              const text = alias || href;
               tr.replaceWith(start, end, state.schema.text(text, [
-                state.schema.marks.wikilink.create({ href: text })
+                state.schema.marks.wikilink.create({ href, text: alias })
+                // Store alias in attrs just in case
               ]));
               return tr;
             }
@@ -25790,7 +25799,6 @@ var require_wikilink = __commonJS({
                 if (text === "[" && extension.options.app) {
                   const prevChar = view.state.doc.textBetween(from - 1, from);
                   if (prevChar === "[") {
-                    const range = { from: from - 1, to: to + 1 };
                     setTimeout(() => {
                       const modal = new LinkSuggestModal(extension.options.app, extension.editor, { from: from - 1, to: from + 1 });
                       modal.open();
@@ -25805,6 +25813,100 @@ var require_wikilink = __commonJS({
       }
     });
     module2.exports = Wikilink;
+  }
+});
+
+// src/extensions/standard-link.js
+var require_standard_link = __commonJS({
+  "src/extensions/standard-link.js"(exports2, module2) {
+    var { Mark, InputRule, mergeAttributes } = require_dist9();
+    var { Plugin: Plugin2 } = require_state();
+    var StandardLink = Mark.create({
+      name: "standardLink",
+      inclusive: false,
+      addOptions() {
+        return {
+          app: null,
+          // Obsidian App instance
+          HTMLAttributes: {
+            class: "standard-link"
+          }
+        };
+      },
+      addAttributes() {
+        return {
+          href: {
+            default: null
+          }
+        };
+      },
+      parseHTML() {
+        return [
+          {
+            tag: "a[href]:not(.internal-link)"
+          }
+        ];
+      },
+      renderHTML({ HTMLAttributes }) {
+        return ["a", mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+      },
+      addInputRules() {
+        return [
+          new InputRule({
+            find: /\[([^\]]+)\]\(([^)]+)\)$/,
+            handler: ({ state, range, match }) => {
+              const { tr } = state;
+              const start = range.from;
+              const end = range.to;
+              const text = match[1];
+              const href = match[2];
+              tr.replaceWith(start, end, state.schema.text(text, [
+                state.schema.marks.standardLink.create({ href })
+              ]));
+              return tr;
+            }
+          })
+        ];
+      },
+      addProseMirrorPlugins() {
+        const extension = this;
+        return [
+          new Plugin2({
+            props: {
+              handleDOMEvents: {
+                click(view, event) {
+                  const target = event.target.closest("a.standard-link");
+                  if (!target) return false;
+                  const href = target.getAttribute("href");
+                  if (href && extension.options.app) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const isExternal = /^(http|https|mailto|tel):/.test(href);
+                    if (isExternal) {
+                      window.open(href, "_blank");
+                      return true;
+                    }
+                    const sourcePath = extension.options.getFilePath ? extension.options.getFilePath() : "";
+                    const isMod = navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? event.metaKey : event.ctrlKey;
+                    const isAlt = event.altKey;
+                    if (isMod && isAlt) {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, "split");
+                    } else if (isMod) {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, "tab");
+                    } else {
+                      extension.options.app.workspace.openLinkText(href, sourcePath, false);
+                    }
+                    return true;
+                  }
+                  return false;
+                }
+              }
+            }
+          })
+        ];
+      }
+    });
+    module2.exports = StandardLink;
   }
 });
 
@@ -25824,6 +25926,7 @@ var require_tiptap_adapter = __commonJS({
     var Footnote = require_footnote();
     var Substitutions = require_substitutions();
     var Wikilink = require_wikilink();
+    var StandardLink = require_standard_link();
     var CustomParagraph = Paragraph.extend({
       addAttributes() {
         return {
@@ -25961,6 +26064,10 @@ var require_tiptap_adapter = __commonJS({
               singleQuoteStyle: this.settings.singleQuoteStyle
             }),
             Wikilink.configure({
+              app: this.app,
+              getFilePath: () => this.filePath
+            }),
+            StandardLink.configure({
               app: this.app,
               getFilePath: () => this.filePath
             })
