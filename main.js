@@ -25732,9 +25732,6 @@ var require_link_suggest_modal = __commonJS({
           tr.replaceWith(from, to, schema.text(linkText, [
             schema.marks.internallink.create({ href: linkText })
           ]));
-          const endOfLink = from + linkText.length;
-          tr.insert(endOfLink, schema.text(" "));
-          tr.setSelection(TextSelection.create(tr.doc, endOfLink + 1));
           this.editor.view.dispatch(tr);
         }
       }

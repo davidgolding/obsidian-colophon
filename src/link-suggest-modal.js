@@ -80,10 +80,7 @@ class LinkSuggestModal extends SuggestModal {
                 schema.marks.internallink.create({ href: linkText })
             ]));
 
-            // Insert a space after the new link and move selection there
-            const endOfLink = from + linkText.length;
-            tr.insert(endOfLink, schema.text(' '));
-            tr.setSelection(TextSelection.create(tr.doc, endOfLink + 1));
+
 
             this.editor.view.dispatch(tr);
         }
