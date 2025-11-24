@@ -10,7 +10,7 @@ const { InputRule } = require('@tiptap/core');
 const PopoverMenu = require('./popover-menu');
 const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
-const Wikilink = require('./extensions/wikilink');
+const InternalLink = require('./extensions/internallink');
 const StandardLink = require('./extensions/standard-link');
 
 // Custom Paragraph with Class Support
@@ -172,7 +172,7 @@ class TiptapAdapter {
                     doubleQuoteStyle: this.settings.doubleQuoteStyle,
                     singleQuoteStyle: this.settings.singleQuoteStyle,
                 }),
-                Wikilink.configure({
+                InternalLink.configure({
                     app: this.app,
                     getFilePath: () => this.filePath
                 }),
