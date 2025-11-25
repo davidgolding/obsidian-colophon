@@ -194,12 +194,23 @@ class FootnoteView extends ItemView {
                         // Update popover's editor reference
                         this.popover.editor = editor;
 
-                        // Calculate position relative to container
-                        const rect = this.contentEl.getBoundingClientRect();
-                        const x = e.clientX - rect.left;
-                        const y = e.clientY - rect.top;
+                        // Get selection coordinates
+                        const selection = window.getSelection();
+                        if (selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            const selectionRect = range.getBoundingClientRect();
+                            const containerRect = this.contentEl.getBoundingClientRect();
 
-                        this.popover.show(x, y);
+                            // Calculate target rect relative to container content
+                            const targetRect = {
+                                left: selectionRect.left - containerRect.left + this.contentEl.scrollLeft,
+                                top: selectionRect.top - containerRect.top + this.contentEl.scrollTop,
+                                width: selectionRect.width,
+                                height: selectionRect.height
+                            };
+
+                            this.popover.show(targetRect);
+                        }
                     }
                 });
 

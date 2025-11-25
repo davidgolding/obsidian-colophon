@@ -25552,7 +25552,7 @@ var require_popover_menu = __commonJS({
           if (btn._checkState) btn._checkState();
         });
       }
-      show(x, y) {
+      show(targetRect) {
         if (!this.el || !this.el.isConnected) {
           if (this.el) this.el.remove();
           this.create();
@@ -25560,10 +25560,26 @@ var require_popover_menu = __commonJS({
         }
         this.updateSelectMenu();
         this.updateButtonStates();
-        this.el.style.left = `${x}px`;
-        this.el.style.top = `${y}px`;
         this.el.addClass("is-visible");
         this.isVisible = true;
+        const popoverWidth = this.el.offsetWidth;
+        const popoverHeight = this.el.offsetHeight;
+        const containerWidth = this.containerEl.offsetWidth;
+        let left = targetRect.left + targetRect.width / 2 - popoverWidth / 2;
+        let top = targetRect.top - popoverHeight - 10;
+        const padding = 10;
+        const scrollTop = this.containerEl.scrollTop;
+        const scrollLeft = this.containerEl.scrollLeft;
+        if (left < scrollLeft + padding) {
+          left = scrollLeft + padding;
+        } else if (left + popoverWidth > scrollLeft + containerWidth - padding) {
+          left = scrollLeft + containerWidth - popoverWidth - padding;
+        }
+        if (top < scrollTop + padding) {
+          top = targetRect.top + targetRect.height + 10;
+        }
+        this.el.style.left = `${left}px`;
+        this.el.style.top = `${top}px`;
         document.addEventListener("click", this.handleClickOutside);
       }
       hide() {
@@ -26614,10 +26630,19 @@ var require_tiptap_adapter = __commonJS({
           const { from, to } = this.editor.state.selection;
           if (from !== to) {
             e.preventDefault();
-            const rect = this.containerEl.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            this.popover.show(x, y);
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+              const range2 = selection.getRangeAt(0);
+              const selectionRect = range2.getBoundingClientRect();
+              const containerRect = this.containerEl.getBoundingClientRect();
+              const targetRect = {
+                left: selectionRect.left - containerRect.left + this.containerEl.scrollLeft,
+                top: selectionRect.top - containerRect.top + this.containerEl.scrollTop,
+                width: selectionRect.width,
+                height: selectionRect.height
+              };
+              this.popover.show(targetRect);
+            }
           }
         });
       }
@@ -27123,10 +27148,19 @@ var require_footnote_view = __commonJS({
                 e.preventDefault();
                 e.stopPropagation();
                 this.popover.editor = editor;
-                const rect = this.contentEl.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                this.popover.show(x, y);
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                  const range2 = selection.getRangeAt(0);
+                  const selectionRect = range2.getBoundingClientRect();
+                  const containerRect = this.contentEl.getBoundingClientRect();
+                  const targetRect = {
+                    left: selectionRect.left - containerRect.left + this.contentEl.scrollLeft,
+                    top: selectionRect.top - containerRect.top + this.contentEl.scrollTop,
+                    width: selectionRect.width,
+                    height: selectionRect.height
+                  };
+                  this.popover.show(targetRect);
+                }
               }
             });
             this.editors.set(fn.id, editor);

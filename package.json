@@ -1,32 +1,32 @@
 {
-  "name": "obsidian-colophon",
-  "version": "1.0.0",
-  "description": "A dedicated writing environment for Obsidian.",
-  "main": "main.js",
-  "scripts": {
-    "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:electron --platform=node",
-    "test": "jest"
-  },
-  "keywords": [],
-  "author": "David Golding",
-  "license": "ISC",
-  "packageManager": "pnpm@10.19.0",
-  "devDependencies": {
-    "esbuild": "^0.27.0",
-    "jest": "^30.2.0",
-    "jest-environment-jsdom": "^30.2.0"
-  },
-  "dependencies": {
-    "@tiptap/core": "^3.11.0",
-    "@tiptap/extension-document": "^3.11.0",
-    "@tiptap/extension-paragraph": "^3.11.0",
-    "@tiptap/extension-subscript": "^3.11.0",
-    "@tiptap/extension-superscript": "^3.11.0",
-    "@tiptap/extension-text": "^3.11.0",
-    "@tiptap/extension-text-style": "^3.11.0",
-    "@tiptap/extension-underline": "^3.11.0",
-    "@tiptap/starter-kit": "^3.11.0",
-    "docx": "^9.5.1",
-    "prosemirror-docx": "^0.6.1"
-  }
+    "name": "obsidian-colophon",
+    "version": "1.0.1",
+    "description": "A dedicated writing environment for Obsidian.",
+    "main": "main.js",
+    "scripts": {
+        "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:electron --platform=node",
+        "test": "jest"
+    },
+    "keywords": [],
+    "author": "David Golding",
+    "license": "ISC",
+    "packageManager": "pnpm@10.19.0",
+    "devDependencies": {
+        "esbuild": "^0.27.0",
+        "jest": "^30.2.0",
+        "jest-environment-jsdom": "^30.2.0"
+    },
+    "dependencies": {
+        "@tiptap/core": "^3.11.0",
+        "@tiptap/extension-document": "^3.11.0",
+        "@tiptap/extension-paragraph": "^3.11.0",
+        "@tiptap/extension-subscript": "^3.11.0",
+        "@tiptap/extension-superscript": "^3.11.0",
+        "@tiptap/extension-text": "^3.11.0",
+        "@tiptap/extension-text-style": "^3.11.0",
+        "@tiptap/extension-underline": "^3.11.0",
+        "@tiptap/starter-kit": "^3.11.0",
+        "docx": "^9.5.1",
+        "prosemirror-docx": "^0.6.1"
+    }
 }

@@ -264,10 +264,24 @@ class TiptapAdapter {
             const { from, to } = this.editor.state.selection;
             if (from !== to) {
                 e.preventDefault();
-                const rect = this.containerEl.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                this.popover.show(x, y);
+
+                // Get selection coordinates
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const selectionRect = range.getBoundingClientRect();
+                    const containerRect = this.containerEl.getBoundingClientRect();
+
+                    // Calculate target rect relative to container content
+                    const targetRect = {
+                        left: selectionRect.left - containerRect.left + this.containerEl.scrollLeft,
+                        top: selectionRect.top - containerRect.top + this.containerEl.scrollTop,
+                        width: selectionRect.width,
+                        height: selectionRect.height
+                    };
+
+                    this.popover.show(targetRect);
+                }
             }
         });
     }
