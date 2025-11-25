@@ -1,6 +1,7 @@
 {
   "textColumnWidth": 910,
-  "textColumnBottomPadding": 0,
+  "fixedFeedPosition": true,
+  "feedPadding": 50,
   "smartQuotes": true,
   "smartDashes": false,
   "doubleQuoteStyle": "“|”",
@@ -8,5 +9,6 @@
   "stylesFolder": "snippets",
   "enabledStyles": [
     "paragraph-styles.yaml"
-  ]
+  ],
+  "textColumnBottomPadding": 0
 }

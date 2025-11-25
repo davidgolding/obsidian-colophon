@@ -146,17 +146,14 @@ class TiptapAdapter {
     }
 
     updateSettings(newSettings) {
-        const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
 
         // Reload styles to reflect any changes in enabledStyles or stylesFolder
         this.loadStyles();
 
-        // Re-initialize editor to apply new input rules if needed
-        // For now, only settings that require re-init are handled.
-        // Padding does not, but we might want to trigger a scroll check.
-        if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
-            this.handleScroll(); // Re-check scroll on padding change
+        // Re-check scroll behavior
+        if (this.editor) {
+            this.handleScroll();
         }
     }
 
@@ -357,31 +354,66 @@ class TiptapAdapter {
         }
 
         const { state } = this.editor;
+        // Only scroll for cursor, not range selections (unless we want to force it)
         if (!state.selection.empty) {
-            return; // Only scroll for cursor, not range selections
+            return; 
         }
 
         const view = this.editor.view;
         const pos = state.selection.from;
 
-        // Get coordinates of the cursor
+        // Get coordinates of the cursor (Viewport Relative)
         const cursorCoords = view.coordsAtPos(pos);
-
-        // Get dimensions of the scrollable container
+        
+        // Get Container Rect (Viewport Relative)
         const containerRect = this.containerEl.getBoundingClientRect();
 
-        // Calculate the scroll threshold
-        // The setting is "padding from bottom", so 25% means the threshold is at 75% of the height
-        const paddingPercent = this.settings.textColumnBottomPadding || 0;
-        const thresholdPercent = 1 - (paddingPercent / 100);
-        const thresholdY = containerRect.top + (containerRect.height * thresholdPercent);
-
-        if (cursorCoords.bottom > thresholdY) {
-            const scrollAmount = cursorCoords.bottom - thresholdY;
-            this.containerEl.scrollBy({
-                top: scrollAmount,
-                behavior: 'smooth'
-            });
+        if (this.settings.fixedFeedPosition) {
+            // Typewriter Mode: Fixed position relative to bottom
+            // feedPadding = % from bottom.
+            // 0% = bottom, 50% = middle, 75% = top quarter.
+            
+            const paddingPercent = this.settings.feedPadding || 0;
+            // Calculate target Y from top of container
+            // If 0% (bottom), target is containerHeight.
+            // If 50%, target is containerHeight * 0.5.
+            // If 75%, target is containerHeight * 0.25.
+            
+            const ratioFromTop = 1 - (paddingPercent / 100);
+            const targetOffset = containerRect.height * ratioFromTop;
+            
+            // The target Y coordinate in the viewport
+            const targetViewportY = containerRect.top + targetOffset;
+            
+            // Calculate difference between current cursor Y (bottom) and target
+            const currentCursorY = cursorCoords.bottom; 
+            
+            const delta = currentCursorY - targetViewportY;
+            
+            // Apply scroll if delta is significant (e.g., > 2px to avoid jitter)
+            if (Math.abs(delta) > 2) {
+                this.containerEl.scrollBy({
+                    top: delta,
+                    behavior: 'smooth' // or 'auto' for instant
+                });
+            }
+            
+        } else {
+            // Standard Behavior: Ensure cursor is in view
+            // We need to check if cursor is above or below the visible area of container
+            
+            const margin = 20; // Padding for visibility
+            
+            // Check Top
+            if (cursorCoords.top < containerRect.top + margin) {
+                const delta = cursorCoords.top - (containerRect.top + margin);
+                this.containerEl.scrollBy({ top: delta, behavior: 'auto' });
+            }
+            // Check Bottom
+            else if (cursorCoords.bottom > containerRect.bottom - margin) {
+                const delta = cursorCoords.bottom - (containerRect.bottom - margin);
+                this.containerEl.scrollBy({ top: delta, behavior: 'auto' });
+            }
         }
     }
 
