@@ -12,9 +12,10 @@ const InternalLink = require('./extensions/internallink');
 const FOOTNOTE_VIEW_TYPE = 'colophon-footnote-view';
 
 class FootnoteView extends ItemView {
-    constructor(leaf, settings) {
+    constructor(leaf, settings, isSpellcheckEnabled) {
         super(leaf);
         this.settings = settings || { smartQuotes: true, smartDashes: true, doubleQuoteStyle: '“|”', singleQuoteStyle: '‘|’' };
+        this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.adapter = null;
         this.editors = new Map(); // Map<id, Editor>
         this.popover = null;
@@ -177,6 +178,7 @@ class FootnoteView extends ItemView {
                     editorProps: {
                         attributes: {
                             class: 'colophon-footnote-editor-content',
+                            spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                         },
                     },
                 });
