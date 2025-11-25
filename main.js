@@ -26292,7 +26292,7 @@ var require_default_styles = __commonJS({
         "line-spacing": "14pt",
         "before-paragraph": "0pt",
         "after-paragraph": "18pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular"
       },
       "title": {
@@ -26301,9 +26301,29 @@ var require_default_styles = __commonJS({
         "text-align": "center",
         "line-spacing": "18pt",
         "before-paragraph": "0pt",
-        "after-paragraph": "36pt",
-        "font-family": "Minion 3",
+        "after-paragraph": "4pt",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular"
+      },
+      "subtitle": {
+        "name": "Subtitle",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-variant": "Regular",
+        "font-size": "14pt",
+        "line-spacing": "18pt",
+        "after-paragraph": "28pt",
+        "text-align": "center"
+      },
+      "epigraph": {
+        "name": "Epigraph",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-variant": "Regular",
+        "font-size": "11.5pt",
+        "line-spacing": "16pt",
+        "left-indent": "1in",
+        "right-indent": "1in",
+        "before-paragraph": "0pt",
+        "after-paragraph": "56pt"
       },
       "body-first": {
         "name": "Body First",
@@ -26312,10 +26332,10 @@ var require_default_styles = __commonJS({
         "first-indent": "0in",
         "left-indent": "0in",
         "right-indent": "0in",
-        "line-spacing": "14pt",
+        "line-spacing": "16pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular",
         "following-style": "body"
       },
@@ -26326,23 +26346,23 @@ var require_default_styles = __commonJS({
         "first-indent": "0.3in",
         "left-indent": "0in",
         "right-indent": "0in",
-        "line-spacing": "14pt",
+        "line-spacing": "16pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular"
       },
       "footnote": {
         "name": "Footnote",
-        "font-size": "10pt",
+        "font-size": "7pt",
         "text-align": "left",
         "first-indent": "0in",
         "left-indent": "0in",
         "right-indent": "0in",
-        "line-spacing": "13pt",
+        "line-spacing": "9pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3 Caption",
+        "font-family": "Minion 3 Caption, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular",
         "space-between-notes": "10pt",
         "format": "1, 2, 3, \u2026",
@@ -26352,7 +26372,9 @@ var require_default_styles = __commonJS({
       "footnote-number": {
         "name": "Footnote Number",
         "font-weight": "bold",
-        "color": "var(--text-accent)"
+        "color": "var(--text-accent)",
+        "font-size": "7pt",
+        "line-spacing": "9pt"
       },
       "heading-1": {
         "name": "Heading 1",
@@ -26364,7 +26386,7 @@ var require_default_styles = __commonJS({
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Italic",
         "keep-with-next": true,
         "following-style": "body-first"
@@ -26379,7 +26401,7 @@ var require_default_styles = __commonJS({
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular",
         "capitalization": "small-caps",
         "character-spacing": "2%",
@@ -26396,7 +26418,7 @@ var require_default_styles = __commonJS({
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3",
+        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
         "font-variant": "Regular",
         "keep-with-next": true,
         "following-style": "body-first"
