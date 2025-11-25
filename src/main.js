@@ -11,6 +11,11 @@ const DEFAULT_SETTINGS = {
     singleQuoteStyle: '‘|’'
 };
 
+const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
+const { Packer } = require('docx');
+const fs = require('fs');
+const electron = require('electron');
+
 module.exports = class ColophonPlugin extends Plugin {
     async onload() {
         await this.loadSettings();
@@ -65,11 +70,30 @@ module.exports = class ColophonPlugin extends Plugin {
             })
         );
 
+        // Add Export to DOCX menu item
+        this.registerEvent(this.app.workspace.on('editor-menu', (menu, view) => {
+            menu.addItem((item) => {
+                item
+                    .setTitle('Export to DOCX')
+                    .setIcon('document')
+                    .onClick(async () => {
+                        this.exportToDocx(view);
+                    });
+            });
+        }));
+
         // COMMAND: Add "New manuscript" to command list
         this.addCommand({
             id: 'create-new-colophon-manuscript',
             name: 'New manuscript',
             callback: () => this.createNewManuscript()
+        });
+
+        // COMMAND: Export to DOCX
+        this.addCommand({
+            id: 'export-to-docx',
+            name: 'Export to DOCX',
+            callback: () => this.exportToDocx()
         });
 
         // COMMAND: Open Footnotes View
@@ -166,6 +190,84 @@ module.exports = class ColophonPlugin extends Plugin {
             patchCommand('editor:toggle-strikethrough', (editor) => editor.chain().focus().toggleStrike().run());
             // patchCommand('editor:toggle-code', (editor) => editor.chain().focus().toggleCode().run()); // If needed
         });
+    }
+
+    async exportToDocx(view) {
+        console.log(view);
+        if (!view || !(view instanceof ColophonView) || !view.adapter.editor) {
+            new Notice('No active Colophon editor found.');
+            return;
+        }
+
+        const editor = view.adapter.editor;
+        const prosemirrorDoc = editor.state.doc;
+        const defaultPath = (view.file?.basename || 'Untitled') + '.docx';
+
+        try {
+            // Define serializers for your document structure
+            const nodeSerializers = {
+                doc(state, node) {
+                    state.serializeContent(node);
+                },
+                paragraph(state, node) {
+                    state.createBlock({}, node);
+                    state.serializeContent(node);
+                },
+                heading(state, node) {
+                    state.createBlock({ heading: node.attrs.level });
+                    state.serializeContent(node);
+                },
+                text(state, node) {
+                    state.addText(node.text, state.marks);
+                },
+                hard_break(state) {
+                    state.addText('\n');
+                },
+                footnote() {
+                    // Ignore footnotes for now
+                },
+            };
+
+            const markSerializers = {
+                bold: { type: 'bold' },
+                italic: { type: 'italic' },
+                underline: { type: 'underline' },
+                strike: { type: 'strike' },
+                superscript: { type: 'superscript' },
+                subscript: { type: 'subscript' },
+                internallink: {}, // Ignore links for now
+                smallCaps: {}, // Ignore custom marks for now
+            };
+
+            const serializer = new DocxSerializer(nodeSerializers, markSerializers);
+            const doc = serializer.serialize(prosemirrorDoc);
+
+            const buffer = await Packer.toBuffer(doc);
+
+            const result = await electron.remote.dialog.showSaveDialog({
+                title: 'Export to DOCX',
+                defaultPath: defaultPath,
+                filters: [{ name: 'Word Document', extensions: ['docx'] }]
+            });
+
+            if (result.canceled || !result.filePath) {
+                new Notice('Export cancelled.');
+                return;
+            }
+
+            fs.writeFile(result.filePath, buffer, (err) => {
+                if (err) {
+                    console.error('Colophon: Failed to save DOCX file.', err);
+                    new Notice('Failed to save file. See console for details.');
+                } else {
+                    new Notice('File saved successfully!');
+                }
+            });
+
+        } catch (error) {
+            console.error('Colophon: Error exporting to DOCX.', error);
+            new Notice('An error occurred during DOCX export. See console for details.');
+        }
     }
 
     async activateFootnoteView() {
