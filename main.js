@@ -26540,10 +26540,9 @@ var require_tiptap_adapter = __commonJS({
         };
       }
       updateSettings(newSettings) {
-        const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
         this.loadStyles();
-        if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
+        if (this.editor) {
           this.handleScroll();
         }
       }
@@ -26703,15 +26702,29 @@ var require_tiptap_adapter = __commonJS({
         const pos = state2.selection.from;
         const cursorCoords = view.coordsAtPos(pos);
         const containerRect = this.containerEl.getBoundingClientRect();
-        const paddingPercent = this.settings.textColumnBottomPadding || 0;
-        const thresholdPercent = 1 - paddingPercent / 100;
-        const thresholdY = containerRect.top + containerRect.height * thresholdPercent;
-        if (cursorCoords.bottom > thresholdY) {
-          const scrollAmount = cursorCoords.bottom - thresholdY;
-          this.containerEl.scrollBy({
-            top: scrollAmount,
-            behavior: "smooth"
-          });
+        if (this.settings.fixedFeedPosition) {
+          const paddingPercent = this.settings.feedPadding || 0;
+          const ratioFromTop = 1 - paddingPercent / 100;
+          const targetOffset = containerRect.height * ratioFromTop;
+          const targetViewportY = containerRect.top + targetOffset;
+          const currentCursorY = cursorCoords.bottom;
+          const delta = currentCursorY - targetViewportY;
+          if (Math.abs(delta) > 2) {
+            this.containerEl.scrollBy({
+              top: delta,
+              behavior: "smooth"
+              // or 'auto' for instant
+            });
+          }
+        } else {
+          const margin = 20;
+          if (cursorCoords.top < containerRect.top + margin) {
+            const delta = cursorCoords.top - (containerRect.top + margin);
+            this.containerEl.scrollBy({ top: delta, behavior: "auto" });
+          } else if (cursorCoords.bottom > containerRect.bottom - margin) {
+            const delta = cursorCoords.bottom - (containerRect.bottom - margin);
+            this.containerEl.scrollBy({ top: delta, behavior: "auto" });
+          }
         }
       }
       triggerUpdate() {
@@ -70158,8 +70171,8 @@ var { ColophonView, VIEW_TYPE } = require_view2();
 var { FootnoteView, FOOTNOTE_VIEW_TYPE } = require_footnote_view();
 var DEFAULT_SETTINGS = {
   textColumnWidth: 1080,
-  textColumnBottomPadding: 25,
-  // Default to 25%
+  fixedFeedPosition: false,
+  feedPadding: 50,
   smartQuotes: true,
   smartDashes: true,
   doubleQuoteStyle: "\u201C|\u201D",
@@ -70626,17 +70639,21 @@ var ColophonSettingTab = class extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Colophon Settings" });
-    containerEl.createEl("h2", { text: "Layout" });
     new Setting(containerEl).setName("Text column width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.textColumnWidth = value;
       await this.plugin.saveSettings();
     }));
-    new Setting(containerEl).setName("Text column bottom padding").setDesc("Sets the distance the cursor stays from the bottom of the screen. 50% keeps the active line in the middle.").addSlider((slider) => slider.setLimits(0, 75, 1).setValue(this.plugin.settings.textColumnBottomPadding).setDynamicTooltip().onChange(async (value) => {
-      this.plugin.settings.textColumnBottomPadding = value;
+    new Setting(containerEl).setName("Fixed feed position").setDesc("Enforce a typewriter-style fixed active line position.").addToggle((toggle) => toggle.setValue(this.plugin.settings.fixedFeedPosition).onChange(async (value) => {
+      this.plugin.settings.fixedFeedPosition = value;
       await this.plugin.saveSettings();
+      this.display();
     }));
-    containerEl.createEl("h2", { text: "Substitutions" });
+    if (this.plugin.settings.fixedFeedPosition) {
+      new Setting(containerEl).setName("Feed padding").setDesc("Vertical position of the active line (0% = bottom, 75% = top quarter).").addSlider((slider) => slider.setLimits(0, 75, 1).setValue(this.plugin.settings.feedPadding).setDynamicTooltip().onChange(async (value) => {
+        this.plugin.settings.feedPadding = value;
+        await this.plugin.saveSettings();
+      }));
+    }
     new Setting(containerEl).setName("Smart quotes").setDesc("Automatically replace straight quotes with smart quotes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartQuotes).onChange(async (value) => {
       this.plugin.settings.smartQuotes = value;
       await this.plugin.saveSettings();
@@ -70656,7 +70673,6 @@ var ColophonSettingTab = class extends PluginSettingTab {
       this.plugin.settings.smartDashes = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Paragraph styles" });
     new Setting(containerEl).setName("Styles folder").setDesc("Folder containing YAML style definitions (relative to vault config directory).").addText((text) => text.setPlaceholder("snippets").setValue(this.plugin.settings.stylesFolder).onChange(async (value) => {
       this.plugin.settings.stylesFolder = value;
       await this.plugin.saveSettings();
@@ -70686,7 +70702,10 @@ var ColophonSettingTab = class extends PluginSettingTab {
       containerEl.createDiv({ text: "No YAML files found in this folder.", cls: "setting-item-description" });
       return;
     }
-    containerEl.createEl("h3", { text: "Enabled Styles" });
+    const headerDiv = containerEl.createDiv();
+    headerDiv.style.marginTop = "20px";
+    headerDiv.style.marginBottom = "10px";
+    headerDiv.createEl("strong", { text: "Enabled Styles" });
     for (const filePath of yamlFiles) {
       const fileName = filePath.split("/").pop();
       const isEnabled = settings.enabledStyles.includes(fileName);
