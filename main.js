@@ -26948,10 +26948,11 @@ var require_view2 = __commonJS({
         const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
       }
-      insertFootnote() {
+      async insertFootnote() {
         if (this.adapter) {
           const id = this.adapter.addFootnote();
           if (id) {
+            await this.plugin.activateFootnoteView();
             const leaves = this.app.workspace.getLeavesOfType("colophon-footnote-view");
             if (leaves.length > 0) {
               const view = leaves[0].view;
@@ -27002,7 +27003,7 @@ var require_footnote_view = __commonJS({
         return "Footnotes";
       }
       getIcon() {
-        return "list";
+        return "list-ordered";
       }
       async onOpen() {
         const container = this.contentEl;
