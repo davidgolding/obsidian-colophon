@@ -291,8 +291,16 @@ class TiptapAdapter {
                             const content = await this.app.vault.adapter.read(filePath);
                             const userStyles = parseYaml(content);
 
-                            // Merge: User styles override defaults (shallow merge at style key level)
-                            styles = { ...styles, ...userStyles };
+                            // Merge: User styles override defaults (deep merge)
+                            for (const [key, styleDef] of Object.entries(userStyles)) {
+                                if (styles[key] && typeof styles[key] === 'object' && typeof styleDef === 'object') {
+                                    // If style exists and both are objects, merge properties
+                                    styles[key] = { ...styles[key], ...styleDef };
+                                } else {
+                                    // If new style or primitive (like scale), overwrite it
+                                    styles[key] = styleDef;
+                                }
+                            }
                         } catch (err) {
                             console.error(`Colophon: Failed to load style file ${fileName}`, err);
                         }

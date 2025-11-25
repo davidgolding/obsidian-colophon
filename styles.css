@@ -360,10 +360,9 @@
 
 /* Footnote in text */
 .colophon-footnote {
-    vertical-align: super;
-    font-size: 0.8em;
+    vertical-align: 0.1rem;
+    font-size: 0.9rem;
     color: var(--text-accent);
-    cursor: pointer;
     line-height: 0;
 }
 

@@ -1,5 +1,6 @@
 
 const DEFAULT_STYLES = {
+    "scale": "100%",
     "supertitle": {
         "name": "Supertitle",
         "font-size": "11.5pt",
