@@ -4,5 +4,9 @@
   "smartQuotes": true,
   "smartDashes": false,
   "doubleQuoteStyle": "“|”",
-  "singleQuoteStyle": "‘|’"
+  "singleQuoteStyle": "‘|’",
+  "stylesFolder": "snippets",
+  "enabledStyles": [
+    "paragraph-styles.yaml"
+  ]
 }

@@ -1,0 +1,116 @@
+
+const DEFAULT_STYLES = {
+    "supertitle": {
+        "name": "Supertitle",
+        "font-size": "12pt",
+        "text-align": "center",
+        "line-spacing": 1,
+        "before-paragraph": "0pt",
+        "after-paragraph": "18pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+    },
+    "title": {
+        "name": "Title",
+        "font-size": "18pt",
+        "text-align": "center",
+        "line-spacing": 1,
+        "before-paragraph": "0pt",
+        "after-paragraph": "36pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+    },
+    "body-first": {
+        "name": "Body First",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "14pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "following-style": "body"
+    },
+    "body": {
+        "name": "Body",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0.3in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "14pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+    },
+    "footnote": {
+        "name": "Footnote",
+        "font-size": "10pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "13pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3 Caption",
+        "font-variant": "Regular",
+        "space-between-notes": "10pt",
+        "format": "1, 2, 3, …",
+        "numbering": "continuous",
+        "type": "footnotes"
+    },
+    "heading-1": {
+        "name": "Heading 1",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Italic",
+        "keep-with-next": true,
+        "following-style": "body-first"
+    },
+    "heading-2": {
+        "name": "Heading 2",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "capitalization": "small-caps",
+        "character-spacing": "2%",
+        "keep-with-next": true,
+        "following-style": "body-first"
+    },
+    "heading-3": {
+        "name": "Heading 3",
+        "font-size": "11.5pt",
+        "text-align": "center",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "keep-with-next": true,
+        "following-style": "body-first"
+    }
+};
+
+module.exports = DEFAULT_STYLES;

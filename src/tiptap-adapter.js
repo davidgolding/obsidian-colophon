@@ -12,6 +12,9 @@ const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
 const StandardLink = require('./extensions/standard-link');
+const StyleManager = require('./style-manager');
+const DEFAULT_STYLES = require('./default-styles');
+const { parseYaml } = require('obsidian');
 
 // Custom extension to handle the Enter key
 const EnterKeyHandler = Extension.create({
@@ -112,6 +115,8 @@ class TiptapAdapter {
         this.popover = null;
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
+        this.styleManager = new StyleManager();
+        this.styleOptions = [];
     }
 
     normalizeDoc(doc) {
@@ -148,7 +153,7 @@ class TiptapAdapter {
         // For now, only settings that require re-init are handled.
         // Padding does not, but we might want to trigger a scroll check.
         if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
-             this.handleScroll(); // Re-check scroll on padding change
+            this.handleScroll(); // Re-check scroll on padding change
         }
     }
 
@@ -197,6 +202,11 @@ class TiptapAdapter {
         // The editor is mounted in a child div to separate it from the scrollable container
         const editorHost = this.containerEl.createDiv('colophon-editor-host');
 
+        // Load styles asynchronously
+        this.loadStyles().then(() => {
+            // Styles loaded
+        });
+
         this.editor = new Editor({
             element: editorHost,
             extensions: [
@@ -242,8 +252,8 @@ class TiptapAdapter {
             }
         });
 
-        // Initialize Popover
-        this.popover = new PopoverMenu(this.editor, this.containerEl);
+        // Initialize Popover with empty options initially, updated by loadStyles
+        this.popover = new PopoverMenu(this.editor, this.containerEl, this.styleOptions || []);
         this.popover.setMode('default');
 
         // Add Context Menu Listener
@@ -258,7 +268,64 @@ class TiptapAdapter {
             }
         });
     }
-    
+
+    async loadStyles() {
+        try {
+            // Start with Default Styles
+            let styles = { ...DEFAULT_STYLES };
+
+            // Resolve Styles Folder
+            const stylesFolder = this.settings.stylesFolder || 'snippets';
+            const folderPath = `${this.app.vault.configDir}/${stylesFolder}`;
+
+            // Check if folder exists
+            if (await this.app.vault.adapter.exists(folderPath)) {
+                // Iterate over enabled styles
+                for (const fileName of (this.settings.enabledStyles || [])) {
+                    const filePath = `${folderPath}/${fileName}`;
+                    if (await this.app.vault.adapter.exists(filePath)) {
+                        try {
+                            const content = await this.app.vault.adapter.read(filePath);
+                            const userStyles = parseYaml(content);
+
+                            // Merge: User styles override defaults (shallow merge at style key level)
+                            styles = { ...styles, ...userStyles };
+                        } catch (err) {
+                            console.error(`Colophon: Failed to load style file ${fileName}`, err);
+                        }
+                    }
+                }
+            }
+
+            // Generate CSS
+            const css = this.styleManager.generateCSS(styles);
+            this.injectStyles(css);
+
+            // Get Options
+            this.styleOptions = this.styleManager.getStyleOptions(styles);
+
+            // Update Popover
+            if (this.popover) {
+                this.popover.updateStyleOptions(this.styleOptions);
+            }
+        } catch (e) {
+            console.error('Colophon: Failed to load styles', e);
+        }
+    }
+
+    injectStyles(css) {
+        const styleId = 'colophon-dynamic-styles';
+        let styleEl = document.getElementById(styleId);
+
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = styleId;
+            document.head.appendChild(styleEl);
+        }
+
+        styleEl.textContent = css;
+    }
+
     handleScroll() {
         if (!this.editor || !this.editor.view.hasFocus()) {
             return;
@@ -271,10 +338,10 @@ class TiptapAdapter {
 
         const view = this.editor.view;
         const pos = state.selection.from;
-        
+
         // Get coordinates of the cursor
         const cursorCoords = view.coordsAtPos(pos);
-        
+
         // Get dimensions of the scrollable container
         const containerRect = this.containerEl.getBoundingClientRect();
 
