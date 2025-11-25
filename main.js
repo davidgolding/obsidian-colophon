@@ -26870,8 +26870,9 @@ var require_view2 = __commonJS({
         this.data = null;
         this.markdownBody = "";
         this.frontmatter = "";
-        this.themeOverride = null;
+        this.themeToggleBtn = null;
         this.loaderEl = null;
+        this.isForcedLight = false;
         this.save = debounce(this.save.bind(this), 1e3, true);
       }
       getViewType() {
@@ -26886,9 +26887,8 @@ var require_view2 = __commonJS({
       async onOpen() {
         this.contentEl.empty();
         this.contentEl.addClass("colophon-workspace");
-        this.updateThemeClass();
         this.applySettings();
-        this.addAction("sun", "Toggle Canvas Theme", () => {
+        this.themeToggleBtn = this.addAction("sun-moon", "Enable white canvas mode for this note", () => {
           this.toggleTheme();
         });
         this.showLoader();
@@ -26897,6 +26897,11 @@ var require_view2 = __commonJS({
           this.data = newData;
           this.save();
         });
+        this.registerEvent(this.app.workspace.on("css-change", () => {
+          if (this.isForcedLight) {
+            this.updateCanvasTheme();
+          }
+        }));
       }
       onPaneMenu(menu, source) {
         super.onPaneMenu(menu, source);
@@ -26919,19 +26924,57 @@ var require_view2 = __commonJS({
         }
       }
       toggleTheme() {
-        if (this.themeOverride === null) {
-          const isSystemDark = document.body.classList.contains("theme-dark");
-          this.themeOverride = isSystemDark ? "light" : "dark";
-        } else {
-          this.themeOverride = this.themeOverride === "light" ? "dark" : "light";
+        this.isForcedLight = !this.isForcedLight;
+        if (this.themeToggleBtn) {
+          this.themeToggleBtn.classList.toggle("is-active", this.isForcedLight);
+          if (this.isForcedLight) {
+            this.themeToggleBtn.setAttribute("aria-label", "Disable white canvas mode for this note");
+          } else {
+            this.themeToggleBtn.setAttribute("aria-label", "Enable white canvas mode for this note");
+          }
         }
-        this.updateThemeClass();
+        this.updateCanvasTheme();
       }
-      updateThemeClass() {
-        this.contentEl.removeClass("colophon-theme-light", "colophon-theme-dark");
-        if (this.themeOverride) {
-          this.contentEl.addClass(`colophon-theme-${this.themeOverride}`);
+      updateCanvasTheme() {
+        const varsToHandle = [
+          "--background-primary",
+          "--text-normal",
+          "--text-muted",
+          "--text-accent",
+          "--text-selection",
+          "--background-modifier-border"
+        ];
+        if (this.isForcedLight) {
+          const themeVars = this.extractThemeVars("theme-light");
+          for (const [key, value] of Object.entries(themeVars)) {
+            if (value) {
+              this.contentEl.style.setProperty(key, value);
+            }
+          }
+          this.contentEl.classList.add("colophon-forced-theme");
+        } else {
+          for (const key of varsToHandle) {
+            this.contentEl.style.removeProperty(key);
+          }
+          this.contentEl.classList.remove("colophon-forced-theme");
         }
+      }
+      extractThemeVars(themeClass) {
+        const dummy = document.createElement("div");
+        dummy.classList.add(themeClass);
+        dummy.style.display = "none";
+        document.body.appendChild(dummy);
+        const style = window.getComputedStyle(dummy);
+        const vars = {
+          "--background-primary": style.getPropertyValue("--background-primary").trim(),
+          "--text-normal": style.getPropertyValue("--text-normal").trim(),
+          "--text-muted": style.getPropertyValue("--text-muted").trim(),
+          "--text-accent": style.getPropertyValue("--text-accent").trim(),
+          "--text-selection": style.getPropertyValue("--text-selection").trim(),
+          "--background-modifier-border": style.getPropertyValue("--background-modifier-border").trim()
+        };
+        document.body.removeChild(dummy);
+        return vars;
       }
       updateSettings(newSettings) {
         this.settings = newSettings;

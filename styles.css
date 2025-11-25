@@ -27,31 +27,6 @@
     --colophon-body-first-font: var(--colophon-default-font);
 }
 
-/* THEME OVERRIDES */
-/* Light Theme Override */
-.colophon-workspace.colophon-theme-light {
-    --background-primary: #ffffff;
-    --text-normal: #2e3338;
-    --text-muted: #888888;
-    --text-accent: #705dcf;
-    --text-selection: rgba(0, 0, 0, 0.15);
-    --background-modifier-border: #e0e0e0;
-
-    background-color: var(--background-primary);
-}
-
-/* Dark Theme Override */
-.colophon-workspace.colophon-theme-dark {
-    --background-primary: #202020;
-    --text-normal: #dcddde;
-    --text-muted: #999999;
-    --text-accent: #7d6fe3;
-    --text-selection: rgba(255, 255, 255, 0.15);
-    --background-modifier-border: #333333;
-
-    background-color: var(--background-primary);
-}
-
 
 /* 2. THE EDITOR CANVAS */
 .colophon-workspace .ProseMirror {

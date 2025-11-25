@@ -13,8 +13,9 @@ class ColophonView extends FileView {
         this.data = null; // Sidecar data
         this.markdownBody = ''; // Markdown body
         this.frontmatter = ''; // YAML Frontmatter
-        this.themeOverride = null; // null (auto), 'light', 'dark'
+        this.themeToggleBtn = null;
         this.loaderEl = null;
+        this.isForcedLight = false;
 
         // Debounce the save function to avoid excessive writes
         this.save = debounce(this.save.bind(this), 1000, true);
@@ -36,11 +37,10 @@ class ColophonView extends FileView {
         // Create the container for Tiptap
         this.contentEl.empty();
         this.contentEl.addClass('colophon-workspace');
-        this.updateThemeClass();
         this.applySettings();
 
         // Add Theme Toggle Action
-        this.addAction('sun', 'Toggle Canvas Theme', () => {
+        this.themeToggleBtn = this.addAction('sun-moon', 'Enable white canvas mode for this note', () => {
             this.toggleTheme();
         });
 
@@ -56,6 +56,13 @@ class ColophonView extends FileView {
             this.data = newData;
             this.save();
         });
+
+        // Listen for theme changes to re-apply overrides if needed
+        this.registerEvent(this.app.workspace.on('css-change', () => {
+            if (this.isForcedLight) {
+                this.updateCanvasTheme();
+            }
+        }));
     }
 
     onPaneMenu(menu, source) {
@@ -87,23 +94,72 @@ class ColophonView extends FileView {
     }
 
     toggleTheme() {
-        if (this.themeOverride === null) {
-            // Currently Auto. Switch to the opposite of the system theme.
-            const isSystemDark = document.body.classList.contains('theme-dark');
-            this.themeOverride = isSystemDark ? 'light' : 'dark';
-        } else {
-            // Currently manual. Flip it.
-            this.themeOverride = this.themeOverride === 'light' ? 'dark' : 'light';
+        this.isForcedLight = !this.isForcedLight;
+        
+        if (this.themeToggleBtn) {
+            this.themeToggleBtn.classList.toggle('is-active', this.isForcedLight);
+            if (this.isForcedLight) {
+                this.themeToggleBtn.setAttribute('aria-label', 'Disable white canvas mode for this note');
+            } else {
+                this.themeToggleBtn.setAttribute('aria-label', 'Enable white canvas mode for this note');
+            }
         }
-        this.updateThemeClass();
+
+        this.updateCanvasTheme();
     }
 
-    updateThemeClass() {
-        this.contentEl.removeClass('colophon-theme-light', 'colophon-theme-dark');
+    updateCanvasTheme() {
+        // List of variables to extract/reset
+        const varsToHandle = [
+            '--background-primary',
+            '--text-normal',
+            '--text-muted',
+            '--text-accent',
+            '--text-selection',
+            '--background-modifier-border'
+        ];
 
-        if (this.themeOverride) {
-            this.contentEl.addClass(`colophon-theme-${this.themeOverride}`);
+        if (this.isForcedLight) {
+            // We want to force "Light Mode" appearance.
+            // We attempt to fetch variables from the 'theme-light' class.
+            const themeVars = this.extractThemeVars('theme-light');
+            
+            // Apply them to the container
+            for (const [key, value] of Object.entries(themeVars)) {
+                if (value) {
+                    this.contentEl.style.setProperty(key, value);
+                }
+            }
+            this.contentEl.classList.add('colophon-forced-theme');
+        } else {
+            // Revert to default (inherited)
+            for (const key of varsToHandle) {
+                this.contentEl.style.removeProperty(key);
+            }
+            this.contentEl.classList.remove('colophon-forced-theme');
         }
+    }
+
+    extractThemeVars(themeClass) {
+        // Create a dummy element to simulate the theme class scope
+        const dummy = document.createElement('div');
+        dummy.classList.add(themeClass);
+        dummy.style.display = 'none';
+        document.body.appendChild(dummy);
+
+        const style = window.getComputedStyle(dummy);
+        
+        const vars = {
+            '--background-primary': style.getPropertyValue('--background-primary').trim(),
+            '--text-normal': style.getPropertyValue('--text-normal').trim(),
+            '--text-muted': style.getPropertyValue('--text-muted').trim(),
+            '--text-accent': style.getPropertyValue('--text-accent').trim(),
+            '--text-selection': style.getPropertyValue('--text-selection').trim(),
+            '--background-modifier-border': style.getPropertyValue('--background-modifier-border').trim()
+        };
+
+        document.body.removeChild(dummy);
+        return vars;
     }
 
     updateSettings(newSettings) {
