@@ -4,11 +4,17 @@ const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080,
+    textColumnBottomPadding: 25, // Default to 25%
     smartQuotes: true,
     smartDashes: true,
     doubleQuoteStyle: '“|”',
     singleQuoteStyle: '‘|’'
 };
+
+const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
+const { Packer, HeadingLevel } = require('docx');
+const fs = require('fs');
+const electron = require('electron');
 
 module.exports = class ColophonPlugin extends Plugin {
     async onload() {
@@ -64,11 +70,32 @@ module.exports = class ColophonPlugin extends Plugin {
             })
         );
 
+        // Add Export to DOCX menu item
+        this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor, view) => {
+            if (view instanceof ColophonView) {
+                menu.addItem((item) => {
+                    item
+                        .setTitle('Export to DOCX')
+                        .setIcon('document')
+                        .onClick(async () => {
+                            this.exportToDocx(view);
+                        });
+                });
+            }
+        }));
+
         // COMMAND: Add "New manuscript" to command list
         this.addCommand({
             id: 'create-new-colophon-manuscript',
             name: 'New manuscript',
             callback: () => this.createNewManuscript()
+        });
+
+        // COMMAND: Export to DOCX
+        this.addCommand({
+            id: 'export-to-docx',
+            name: 'Export to DOCX',
+            callback: () => this.exportToDocx()
         });
 
         // COMMAND: Open Footnotes View
@@ -109,17 +136,21 @@ module.exports = class ColophonPlugin extends Plugin {
                     const originalCheckCallback = originalCommand.checkCallback;
 
                     originalCommand.checkCallback = (checking) => {
-                        // Check if Colophon is active
-                        const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
-                        const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+                        // A Colophon view must exist, but doesn't have to be active
+                        const colophonLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
+                        const colophonView = colophonLeaves.length > 0 ? colophonLeaves[0].view : null;
 
                         // Check if we are in a Colophon context
                         if (colophonView) {
+                            const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
+
                             // Determine target editor
                             let targetEditor = null;
 
                             // 1. Check Footnote Sidebar Focus
-                            if (footnoteView && footnoteView instanceof FootnoteView) {
+                            // We need to check if the sidebar *itself* is the active leaf's view
+                            const activeLeaf = this.app.workspace.activeLeaf;
+                            if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
                                 const focusedFootnoteEditor = footnoteView.getFocusedEditor();
                                 if (focusedFootnoteEditor) {
                                     targetEditor = focusedFootnoteEditor;
@@ -161,6 +192,95 @@ module.exports = class ColophonPlugin extends Plugin {
             patchCommand('editor:toggle-strikethrough', (editor) => editor.chain().focus().toggleStrike().run());
             // patchCommand('editor:toggle-code', (editor) => editor.chain().focus().toggleCode().run()); // If needed
         });
+    }
+
+    async exportToDocx(view) {
+        if (!view) {
+            view = this.app.workspace.getActiveViewOfType(ColophonView);
+        }
+
+        if (!view || !(view instanceof ColophonView) || !view.adapter.editor) {
+            new Notice('No active Colophon editor found.');
+            return;
+        }
+
+        const editor = view.adapter.editor;
+        const prosemirrorDoc = editor.state.doc;
+        const defaultPath = (view.file?.basename || 'Untitled') + '.docx';
+
+        try {
+            // Define serializers for your document structure
+            const nodeSerializers = {
+
+                paragraph(state, node) {
+                    state.renderInline(node);
+                    state.closeBlock(node);
+                },
+                heading(state, node) {
+                    state.renderInline(node);
+                    const heading = [
+                        HeadingLevel.HEADING_1,
+                        HeadingLevel.HEADING_2,
+                        HeadingLevel.HEADING_3,
+                        HeadingLevel.HEADING_4,
+                        HeadingLevel.HEADING_5,
+                        HeadingLevel.HEADING_6,
+                    ][node.attrs.level - 1];
+                    state.closeBlock(node, { heading });
+                },
+                text(state, node) {
+                    state.text(node.text);
+                },
+                hard_break(state) {
+                    state.addRunOptions({ break: 1 });
+                },
+                footnote() {
+                    // Ignore footnotes for now
+                },
+            };
+
+            const markSerializers = {
+                bold() { return { bold: true }; },
+                italic() { return { italics: true }; },
+                underline() { return { underline: {} }; },
+                strike() { return { strike: true }; },
+                superscript() { return { superScript: true }; },
+                subscript() { return { subScript: true }; },
+                internallink() { return {}; }, // Ignore links for now
+                smallCaps() { return { smallCaps: true }; }, // Ignore custom marks for now
+            };
+
+            const serializer = new DocxSerializer(nodeSerializers, markSerializers);
+            const doc = serializer.serialize(prosemirrorDoc, {
+                sections: [{}]
+            });
+
+            const buffer = await Packer.toBuffer(doc);
+
+            const result = await electron.remote.dialog.showSaveDialog({
+                title: 'Export to DOCX',
+                defaultPath: defaultPath,
+                filters: [{ name: 'Word Document', extensions: ['docx'] }]
+            });
+
+            if (result.canceled || !result.filePath) {
+                new Notice('Export cancelled.');
+                return;
+            }
+
+            fs.writeFile(result.filePath, buffer, (err) => {
+                if (err) {
+                    console.error('Colophon: Failed to save DOCX file.', err);
+                    new Notice('Failed to save file. See console for details.');
+                } else {
+                    new Notice('File saved successfully!');
+                }
+            });
+
+        } catch (error) {
+            console.error('Colophon: Error exporting to DOCX.', error);
+            new Notice('An error occurred during DOCX export. See console for details.');
+        }
     }
 
     async activateFootnoteView() {
@@ -364,8 +484,10 @@ class ColophonSettingTab extends PluginSettingTab {
 
         containerEl.createEl('h2', { text: 'Colophon Settings' });
 
+        containerEl.createEl('h2', { text: 'Layout' });
+
         new Setting(containerEl)
-            .setName('Text Column Width')
+            .setName('Text column width')
             .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
             .addSlider(slider => slider
                 .setLimits(500, 1240, 10)
@@ -376,10 +498,22 @@ class ColophonSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        containerEl.createEl('h3', { text: 'Substitutions' });
+        new Setting(containerEl)
+            .setName('Text column bottom padding')
+            .setDesc('Sets the distance the cursor stays from the bottom of the screen. 50% keeps the active line in the middle.')
+            .addSlider(slider => slider
+                .setLimits(0, 75, 1)
+                .setValue(this.plugin.settings.textColumnBottomPadding)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.textColumnBottomPadding = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        containerEl.createEl('h2', { text: 'Substitutions' });
 
         new Setting(containerEl)
-            .setName('Smart Quotes')
+            .setName('Smart quotes')
             .setDesc('Automatically replace straight quotes with smart quotes.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.smartQuotes)
@@ -391,7 +525,7 @@ class ColophonSettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.smartQuotes) {
             new Setting(containerEl)
-                .setName('Double Quote Style')
+                .setName('Double quote style')
                 .setDesc('Choose the style for double quotes.')
                 .addDropdown(dropdown => dropdown
                     .addOption('“|”', '“abc”')
@@ -408,7 +542,7 @@ class ColophonSettingTab extends PluginSettingTab {
                     }));
 
             new Setting(containerEl)
-                .setName('Single Quote Style')
+                .setName('Single quote style')
                 .setDesc('Choose the style for single quotes.')
                 .addDropdown(dropdown => dropdown
                     .addOption('‘|’', '‘abc’')
@@ -426,7 +560,7 @@ class ColophonSettingTab extends PluginSettingTab {
         }
 
         new Setting(containerEl)
-            .setName('Smart Dashes')
+            .setName('Smart dashes')
             .setDesc('Replace -- with em-dash (—) and --- with en-dash (–).')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.smartDashes)
