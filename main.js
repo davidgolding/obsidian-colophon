@@ -26096,9 +26096,20 @@ var require_style_manager = __commonJS({
       generateCSS(stylesConfig) {
         this.styles = stylesConfig;
         let css = "";
+        let scale = 1;
+        if (stylesConfig["scale"]) {
+          const scaleStr = String(stylesConfig["scale"]);
+          if (scaleStr.endsWith("%")) {
+            scale = parseFloat(scaleStr) / 100;
+          } else {
+            scale = parseFloat(scaleStr);
+          }
+          if (isNaN(scale)) scale = 1;
+        }
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
+          if (key === "scale") continue;
           const selector = this.getSelector(key);
-          const rules = this.mapStyleToCSS(styleDef);
+          const rules = this.mapStyleToCSS(styleDef, scale);
           if (rules) {
             css += `${selector} {
 ${rules}
@@ -26135,34 +26146,34 @@ ${rules}
        * @param {Object} styleDef - The style definition object.
        * @returns {string} The CSS rules string.
        */
-      mapStyleToCSS(styleDef) {
+      mapStyleToCSS(styleDef, scale = 1) {
         const rules = [];
         if (styleDef["font-family"]) {
           rules.push(`    font-family: "${styleDef["font-family"]}", serif;`);
         }
         if (styleDef["font-size"]) {
-          rules.push(`    font-size: ${this.convertValue(styleDef["font-size"], "font-size")};`);
+          rules.push(`    font-size: ${this.convertValue(styleDef["font-size"], "font-size", scale)};`);
         }
         if (styleDef["text-align"]) {
           rules.push(`    text-align: ${styleDef["text-align"]};`);
         }
         if (styleDef["line-spacing"]) {
-          rules.push(`    line-height: ${this.convertValue(styleDef["line-spacing"], "line-spacing")};`);
+          rules.push(`    line-height: ${this.convertValue(styleDef["line-spacing"], "line-spacing", scale)};`);
         }
         if (styleDef["before-paragraph"]) {
-          rules.push(`    margin-top: ${this.convertValue(styleDef["before-paragraph"], "spacing")};`);
+          rules.push(`    margin-top: ${this.convertValue(styleDef["before-paragraph"], "spacing", scale)};`);
         }
         if (styleDef["after-paragraph"]) {
-          rules.push(`    margin-bottom: ${this.convertValue(styleDef["after-paragraph"], "spacing")};`);
+          rules.push(`    margin-bottom: ${this.convertValue(styleDef["after-paragraph"], "spacing", scale)};`);
         }
         if (styleDef["first-indent"]) {
-          rules.push(`    text-indent: ${this.convertValue(styleDef["first-indent"], "indent")};`);
+          rules.push(`    text-indent: ${this.convertValue(styleDef["first-indent"], "indent", scale)};`);
         }
         if (styleDef["left-indent"]) {
-          rules.push(`    margin-left: ${this.convertValue(styleDef["left-indent"], "indent")};`);
+          rules.push(`    margin-left: ${this.convertValue(styleDef["left-indent"], "indent", scale)};`);
         }
         if (styleDef["right-indent"]) {
-          rules.push(`    margin-right: ${this.convertValue(styleDef["right-indent"], "indent")};`);
+          rules.push(`    margin-right: ${this.convertValue(styleDef["right-indent"], "indent", scale)};`);
         }
         if (styleDef["font-variant"]) {
           const variant = styleDef["font-variant"].toLowerCase();
@@ -26200,29 +26211,30 @@ ${rules}
         }
         return rules.join("\n");
       }
-      convertValue(value, type2) {
+      convertValue(value, type2, scale = 1) {
         if (typeof value !== "string" && typeof value !== "number") return value;
         const strVal = String(value);
         const numVal = parseFloat(strVal);
         if (isNaN(numVal)) return value;
+        const scaledVal = numVal * scale;
         if (strVal.endsWith("in")) {
-          return `${(numVal * 6).toFixed(3)}rem`;
+          return `${(scaledVal * 6).toFixed(3)}rem`;
         }
         if (type2 === "font-size") {
           if (strVal.endsWith("pt")) {
-            return `${(numVal / 12).toFixed(3)}rem`;
+            return `${(scaledVal / 12).toFixed(3)}rem`;
           }
         } else if (type2 === "indent") {
         } else if (type2 === "line-spacing") {
           if (strVal.endsWith("pt")) {
-            return `${(numVal / 12).toFixed(3)}rem`;
+            return `${(scaledVal / 12).toFixed(3)}rem`;
           }
           if (!strVal.match(/[a-z%]/i)) {
             return strVal;
           }
         } else if (type2 === "spacing") {
           if (strVal.endsWith("pt")) {
-            return `${(numVal / 12).toFixed(3)}rem`;
+            return `${(scaledVal / 12).toFixed(3)}rem`;
           }
         }
         return value;
@@ -26235,7 +26247,9 @@ ${rules}
       getStyleOptions(stylesConfig) {
         const options = [];
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
+          if (key === "scale") continue;
           if (key === "footnote") continue;
+          if (key === "footnote-number") continue;
           options.push({
             label: styleDef.name || key,
             value: key
@@ -26254,11 +26268,12 @@ ${rules}
 var require_default_styles = __commonJS({
   "src/default-styles.js"(exports2, module2) {
     var DEFAULT_STYLES = {
+      "scale": "100%",
       "supertitle": {
         "name": "Supertitle",
-        "font-size": "12pt",
+        "font-size": "11.5pt",
         "text-align": "center",
-        "line-spacing": 1,
+        "line-spacing": "14pt",
         "before-paragraph": "0pt",
         "after-paragraph": "18pt",
         "font-family": "Minion 3",
@@ -26268,7 +26283,7 @@ var require_default_styles = __commonJS({
         "name": "Title",
         "font-size": "18pt",
         "text-align": "center",
-        "line-spacing": 1,
+        "line-spacing": "18pt",
         "before-paragraph": "0pt",
         "after-paragraph": "36pt",
         "font-family": "Minion 3",
@@ -26618,7 +26633,13 @@ var require_tiptap_adapter = __commonJS({
                 try {
                   const content = await this.app.vault.adapter.read(filePath);
                   const userStyles = parseYaml(content);
-                  styles2 = { ...styles2, ...userStyles };
+                  for (const [key, styleDef] of Object.entries(userStyles)) {
+                    if (styles2[key] && typeof styles2[key] === "object" && typeof styleDef === "object") {
+                      styles2[key] = { ...styles2[key], ...styleDef };
+                    } else {
+                      styles2[key] = styleDef;
+                    }
+                  }
                 } catch (err) {
                   console.error(`Colophon: Failed to load style file ${fileName}`, err);
                 }

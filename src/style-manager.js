@@ -13,9 +13,23 @@ class StyleManager {
         this.styles = stylesConfig;
         let css = '';
 
+        // Extract scale factor (default 100%)
+        let scale = 1.0;
+        if (stylesConfig['scale']) {
+            const scaleStr = String(stylesConfig['scale']);
+            if (scaleStr.endsWith('%')) {
+                scale = parseFloat(scaleStr) / 100;
+            } else {
+                scale = parseFloat(scaleStr);
+            }
+            if (isNaN(scale)) scale = 1.0;
+        }
+
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
+            if (key === 'scale') continue; // Skip scale definition itself
+
             const selector = this.getSelector(key);
-            const rules = this.mapStyleToCSS(styleDef);
+            const rules = this.mapStyleToCSS(styleDef, scale);
             if (rules) {
                 css += `${selector} {\n${rules}\n}\n`;
             }
@@ -62,7 +76,7 @@ class StyleManager {
      * @param {Object} styleDef - The style definition object.
      * @returns {string} The CSS rules string.
      */
-    mapStyleToCSS(styleDef) {
+    mapStyleToCSS(styleDef, scale = 1.0) {
         const rules = [];
 
         if (styleDef['font-family']) {
@@ -70,7 +84,7 @@ class StyleManager {
         }
 
         if (styleDef['font-size']) {
-            rules.push(`    font-size: ${this.convertValue(styleDef['font-size'], 'font-size')};`);
+            rules.push(`    font-size: ${this.convertValue(styleDef['font-size'], 'font-size', scale)};`);
         }
 
         if (styleDef['text-align']) {
@@ -78,27 +92,27 @@ class StyleManager {
         }
 
         if (styleDef['line-spacing']) {
-            rules.push(`    line-height: ${this.convertValue(styleDef['line-spacing'], 'line-spacing')};`);
+            rules.push(`    line-height: ${this.convertValue(styleDef['line-spacing'], 'line-spacing', scale)};`);
         }
 
         if (styleDef['before-paragraph']) {
-            rules.push(`    margin-top: ${this.convertValue(styleDef['before-paragraph'], 'spacing')};`);
+            rules.push(`    margin-top: ${this.convertValue(styleDef['before-paragraph'], 'spacing', scale)};`);
         }
 
         if (styleDef['after-paragraph']) {
-            rules.push(`    margin-bottom: ${this.convertValue(styleDef['after-paragraph'], 'spacing')};`);
+            rules.push(`    margin-bottom: ${this.convertValue(styleDef['after-paragraph'], 'spacing', scale)};`);
         }
 
         if (styleDef['first-indent']) {
-            rules.push(`    text-indent: ${this.convertValue(styleDef['first-indent'], 'indent')};`);
+            rules.push(`    text-indent: ${this.convertValue(styleDef['first-indent'], 'indent', scale)};`);
         }
 
         if (styleDef['left-indent']) {
-            rules.push(`    margin-left: ${this.convertValue(styleDef['left-indent'], 'indent')};`);
+            rules.push(`    margin-left: ${this.convertValue(styleDef['left-indent'], 'indent', scale)};`);
         }
 
         if (styleDef['right-indent']) {
-            rules.push(`    margin-right: ${this.convertValue(styleDef['right-indent'], 'indent')};`);
+            rules.push(`    margin-right: ${this.convertValue(styleDef['right-indent'], 'indent', scale)};`);
         }
 
         // Font Variant / Style / Weight handling
@@ -145,7 +159,7 @@ class StyleManager {
         return rules.join('\n');
     }
 
-    convertValue(value, type) {
+    convertValue(value, type, scale = 1.0) {
         if (typeof value !== 'string' && typeof value !== 'number') return value;
         const strVal = String(value);
         const numVal = parseFloat(strVal);
@@ -156,29 +170,34 @@ class StyleManager {
         // pt -> rem: value * (1/12)
         // in -> rem: value * 6
 
+        // Apply global scale factor to the numeric value before conversion
+        // Or after? Usually scale applies to the final size.
+        // Let's apply it to the numeric value.
+        const scaledVal = numVal * scale;
+
         if (strVal.endsWith('in')) {
-            return `${(numVal * 6).toFixed(3)}rem`;
+            return `${(scaledVal * 6).toFixed(3)}rem`;
         }
 
         if (type === 'font-size') {
             if (strVal.endsWith('pt')) {
-                return `${(numVal / 12).toFixed(3)}rem`;
+                return `${(scaledVal / 12).toFixed(3)}rem`;
             }
         } else if (type === 'indent') {
             // Indents are now handled by the generic 'in' check above if they use inches.
             // If they use other units, we leave them alone.
         } else if (type === 'line-spacing') {
             if (strVal.endsWith('pt')) {
-                return `${(numVal / 12).toFixed(3)}rem`;
+                return `${(scaledVal / 12).toFixed(3)}rem`;
             }
-            // If unitless (e.g. "1"), treat as multiplier
+            // If unitless (e.g. "1"), treat as multiplier - DO NOT SCALE MULTIPLIERS
             if (!strVal.match(/[a-z%]/i)) {
                 return strVal;
             }
         } else if (type === 'spacing') {
             // For margins (before/after paragraph)
             if (strVal.endsWith('pt')) {
-                return `${(numVal / 12).toFixed(3)}rem`;
+                return `${(scaledVal / 12).toFixed(3)}rem`;
             }
         }
 
@@ -197,11 +216,13 @@ class StyleManager {
         // For now, Object.entries usually preserves insertion order in modern JS for non-integer keys.
 
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
+            if (key === 'scale') continue; // Skip scale
             // Skip footnote style for the main paragraph picker usually?
             // The user requested: "the list of paragraph styles to expose in the popover menu"
             // Footnote is usually special, but let's include it if it's in the list, 
             // though usually you don't convert a paragraph TO a footnote this way.
             if (key === 'footnote') continue;
+            if (key === 'footnote-number') continue; // Also skip footnote-number
 
             options.push({
                 label: styleDef.name || key,
