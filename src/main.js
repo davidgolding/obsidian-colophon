@@ -4,6 +4,7 @@ const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080,
+    textColumnBottomPadding: 25, // Default to 25%
     smartQuotes: true,
     smartDashes: true,
     doubleQuoteStyle: '“|”',
@@ -368,6 +369,8 @@ class ColophonSettingTab extends PluginSettingTab {
 
         containerEl.createEl('h2', { text: 'Colophon Settings' });
 
+        containerEl.createEl('h2', { text: 'Layout' });
+
         new Setting(containerEl)
             .setName('Text column width')
             .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
@@ -377,6 +380,18 @@ class ColophonSettingTab extends PluginSettingTab {
                 .setDynamicTooltip()
                 .onChange(async (value) => {
                     this.plugin.settings.textColumnWidth = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Text column bottom padding')
+            .setDesc('Sets the distance the cursor stays from the bottom of the screen. 50% keeps the active line in the middle.')
+            .addSlider(slider => slider
+                .setLimits(0, 75, 1)
+                .setValue(this.plugin.settings.textColumnBottomPadding)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.textColumnBottomPadding = value;
                     await this.plugin.saveSettings();
                 }));
 
