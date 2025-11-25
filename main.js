@@ -25396,13 +25396,43 @@ var require_popover_menu = __commonJS({
   "src/popover-menu.js"(exports2, module2) {
     var { setIcon } = require("obsidian");
     var PopoverMenu = class {
-      constructor(editor, containerEl) {
+      constructor(editor, containerEl, styleOptions = []) {
         this.editor = editor;
         this.containerEl = containerEl;
+        this.styleOptions = styleOptions;
         this.el = null;
         this.isVisible = false;
         this.currentMode = "default";
         this.handleClickOutside = this.handleClickOutside.bind(this);
+      }
+      updateStyleOptions(newOptions) {
+        this.styleOptions = newOptions;
+        if (this.el && this.sections && this.sections[0]) {
+          this.sections[0].empty();
+          const options = (this.styleOptions || []).map((opt) => ({
+            label: opt.label,
+            value: opt.value,
+            action: () => this.applyStyle(opt.value)
+          }));
+          this.styleSelect = this.createSelectMenu(this.sections[0], options);
+        }
+      }
+      applyStyle(value) {
+        if (!this.editor) return;
+        let isHeading = false;
+        let level = 1;
+        if (value.startsWith("heading-")) {
+          isHeading = true;
+          level = parseInt(value.split("-")[1], 10);
+        } else if (value === "title") {
+          isHeading = true;
+          level = 1;
+        }
+        if (isHeading) {
+          this.editor.chain().focus().toggleHeading({ level }).updateAttributes("heading", { class: value }).run();
+        } else {
+          this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: value }).run();
+        }
       }
       create() {
         this.el = document.createElement("div");
@@ -25410,18 +25440,12 @@ var require_popover_menu = __commonJS({
         this.containerEl.appendChild(this.el);
         this.sections = [];
         const styleSection = this.el.createDiv("colophon-popover-section");
-        this.styleSelect = this.createSelectMenu(styleSection, [
-          { label: "Supertitle", value: "supertitle", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "supertitle" }).run() },
-          { label: "Title", value: "title", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: "title" }).run() },
-          { label: "Heading 1", value: "h1", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: "heading-1" }).run() },
-          { label: "Heading 2", value: "h2", action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes("heading", { class: "heading-2" }).run() },
-          { label: "Heading 3", value: "h3", action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes("heading", { class: "heading-3" }).run() },
-          { label: "Heading 4", value: "h4", action: () => this.editor.chain().focus().toggleHeading({ level: 4 }).updateAttributes("heading", { class: "heading-4" }).run() },
-          { label: "Heading 5", value: "h5", action: () => this.editor.chain().focus().toggleHeading({ level: 5 }).updateAttributes("heading", { class: "heading-5" }).run() },
-          { label: "Heading 6", value: "h6", action: () => this.editor.chain().focus().toggleHeading({ level: 6 }).updateAttributes("heading", { class: "heading-6" }).run() },
-          { label: "Body First", value: "body-first", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "body-first" }).run() },
-          { label: "Body", value: "paragraph", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "body" }).run() }
-        ]);
+        const options = (this.styleOptions || []).map((opt) => ({
+          label: opt.label,
+          value: opt.value,
+          action: () => this.applyStyle(opt.value)
+        }));
+        this.styleSelect = this.createSelectMenu(styleSection, options);
         this.sections.push(styleSection);
         const formatSection = this.el.createDiv("colophon-popover-section");
         this.createIconButton(formatSection, "bold", () => this.editor.chain().focus().toggleBold().run(), "isActive", "bold");
@@ -25465,19 +25489,23 @@ var require_popover_menu = __commonJS({
       }
       updateSelectMenu() {
         if (!this.styleSelect || !this.editor) return;
-        let activeValue = "paragraph";
-        if (this.editor.isActive("heading", { level: 1 })) {
-          if (this.editor.isActive({ class: "title" })) activeValue = "title";
-          else activeValue = "h1";
-        } else if (this.editor.isActive("heading", { level: 2 })) activeValue = "h2";
-        else if (this.editor.isActive("heading", { level: 3 })) activeValue = "h3";
-        else if (this.editor.isActive("heading", { level: 4 })) activeValue = "h4";
-        else if (this.editor.isActive("heading", { level: 5 })) activeValue = "h5";
-        else if (this.editor.isActive("heading", { level: 6 })) activeValue = "h6";
-        else if (this.editor.isActive("paragraph")) {
-          if (this.editor.isActive({ class: "supertitle" })) activeValue = "supertitle";
-          else if (this.editor.isActive({ class: "body-first" })) activeValue = "body-first";
-          else activeValue = "paragraph";
+        let activeValue = "body";
+        for (const opt of this.styleOptions || []) {
+          const value = opt.value;
+          let isMatch = false;
+          if (value.startsWith("heading-") || value === "title") {
+            if (this.editor.isActive("heading", { class: value })) {
+              isMatch = true;
+            }
+          } else {
+            if (this.editor.isActive("paragraph", { class: value })) {
+              isMatch = true;
+            }
+          }
+          if (isMatch) {
+            activeValue = value;
+            break;
+          }
         }
         const activeOption = this.styleSelect.options.find((o) => o.value === activeValue);
         this.styleSelect.labelSpan.innerText = activeOption ? activeOption.label : "Select Style";
@@ -26053,6 +26081,315 @@ var require_standard_link = __commonJS({
   }
 });
 
+// src/style-manager.js
+var require_style_manager = __commonJS({
+  "src/style-manager.js"(exports2, module2) {
+    var StyleManager = class {
+      constructor() {
+        this.styles = {};
+      }
+      /**
+       * Parses the style configuration and generates CSS.
+       * @param {Object} stylesConfig - The configuration object (parsed YAML).
+       * @returns {string} The generated CSS string.
+       */
+      generateCSS(stylesConfig) {
+        this.styles = stylesConfig;
+        let css = "";
+        let scale = 1;
+        if (stylesConfig["scale"]) {
+          const scaleStr = String(stylesConfig["scale"]);
+          if (scaleStr.endsWith("%")) {
+            scale = parseFloat(scaleStr) / 100;
+          } else {
+            scale = parseFloat(scaleStr);
+          }
+          if (isNaN(scale)) scale = 1;
+        }
+        for (const [key, styleDef] of Object.entries(stylesConfig)) {
+          if (key === "scale") continue;
+          const selector = this.getSelector(key);
+          const rules = this.mapStyleToCSS(styleDef, scale);
+          if (rules) {
+            css += `${selector} {
+${rules}
+}
+`;
+          }
+        }
+        return css;
+      }
+      /**
+       * Returns the CSS selector for a given style key.
+       * @param {string} key - The style key (e.g., 'heading-1', 'body').
+       * @returns {string} The CSS selector.
+       */
+      getSelector(key) {
+        const base = ".colophon-workspace .ProseMirror";
+        if (key.startsWith("heading-")) {
+          const level = key.split("-")[1];
+          return `${base} h${level}.${key}`;
+        } else if (key === "title") {
+          return `${base} h1.title`;
+        } else if (key === "supertitle") {
+          return `${base} p.supertitle`;
+        } else if (key === "footnote") {
+          return `.colophon-footnote-editor-content p`;
+        } else if (key === "footnote-number") {
+          return `span.colophon-footnote-number`;
+        } else {
+          return `${base} p.${key}`;
+        }
+      }
+      /**
+       * Maps a single style definition to CSS rules.
+       * @param {Object} styleDef - The style definition object.
+       * @returns {string} The CSS rules string.
+       */
+      mapStyleToCSS(styleDef, scale = 1) {
+        const rules = [];
+        if (styleDef["font-family"]) {
+          rules.push(`    font-family: "${styleDef["font-family"]}", serif;`);
+        }
+        if (styleDef["font-size"]) {
+          rules.push(`    font-size: ${this.convertValue(styleDef["font-size"], "font-size", scale)};`);
+        }
+        if (styleDef["text-align"]) {
+          rules.push(`    text-align: ${styleDef["text-align"]};`);
+        }
+        if (styleDef["line-spacing"]) {
+          rules.push(`    line-height: ${this.convertValue(styleDef["line-spacing"], "line-spacing", scale)};`);
+        }
+        if (styleDef["before-paragraph"]) {
+          rules.push(`    margin-top: ${this.convertValue(styleDef["before-paragraph"], "spacing", scale)};`);
+        }
+        if (styleDef["after-paragraph"]) {
+          rules.push(`    margin-bottom: ${this.convertValue(styleDef["after-paragraph"], "spacing", scale)};`);
+        }
+        if (styleDef["first-indent"]) {
+          rules.push(`    text-indent: ${this.convertValue(styleDef["first-indent"], "indent", scale)};`);
+        }
+        if (styleDef["left-indent"]) {
+          rules.push(`    margin-left: ${this.convertValue(styleDef["left-indent"], "indent", scale)};`);
+        }
+        if (styleDef["right-indent"]) {
+          rules.push(`    margin-right: ${this.convertValue(styleDef["right-indent"], "indent", scale)};`);
+        }
+        if (styleDef["font-variant"]) {
+          const variant = styleDef["font-variant"].toLowerCase();
+          if (variant === "italic") {
+            rules.push(`    font-style: italic;`);
+          } else if (variant === "bold") {
+            rules.push(`    font-weight: bold;`);
+          } else if (variant === "small-caps") {
+            rules.push(`    font-variant: small-caps;`);
+          } else {
+            rules.push(`    font-style: normal;`);
+            rules.push(`    font-weight: normal;`);
+            rules.push(`    font-variant: normal;`);
+          }
+        }
+        if (styleDef["capitalization"]) {
+          if (styleDef["capitalization"] === "small-caps") {
+            rules.push(`    font-variant: small-caps;`);
+          } else {
+            rules.push(`    text-transform: ${styleDef["capitalization"]};`);
+          }
+        }
+        if (styleDef["character-spacing"]) {
+          rules.push(`    letter-spacing: ${styleDef["character-spacing"]};`);
+        }
+        if (styleDef["keep-with-next"]) {
+          rules.push(`    page-break-after: avoid;`);
+          rules.push(`    break-after: avoid;`);
+        }
+        if (styleDef["color"]) {
+          rules.push(`    color: ${styleDef["color"]};`);
+        }
+        if (styleDef["font-weight"]) {
+          rules.push(`    font-weight: ${styleDef["font-weight"]};`);
+        }
+        return rules.join("\n");
+      }
+      convertValue(value, type2, scale = 1) {
+        if (typeof value !== "string" && typeof value !== "number") return value;
+        const strVal = String(value);
+        const numVal = parseFloat(strVal);
+        if (isNaN(numVal)) return value;
+        const scaledVal = numVal * scale;
+        if (strVal.endsWith("in")) {
+          return `${(scaledVal * 6).toFixed(3)}rem`;
+        }
+        if (type2 === "font-size") {
+          if (strVal.endsWith("pt")) {
+            return `${(scaledVal / 12).toFixed(3)}rem`;
+          }
+        } else if (type2 === "indent") {
+        } else if (type2 === "line-spacing") {
+          if (strVal.endsWith("pt")) {
+            return `${(scaledVal / 12).toFixed(3)}rem`;
+          }
+          if (!strVal.match(/[a-z%]/i)) {
+            return strVal;
+          }
+        } else if (type2 === "spacing") {
+          if (strVal.endsWith("pt")) {
+            return `${(scaledVal / 12).toFixed(3)}rem`;
+          }
+        }
+        return value;
+      }
+      /**
+       * Returns a list of options for the UI select menu.
+       * @param {Object} stylesConfig 
+       * @returns {Array} Array of { label, value, action? }
+       */
+      getStyleOptions(stylesConfig) {
+        const options = [];
+        for (const [key, styleDef] of Object.entries(stylesConfig)) {
+          if (key === "scale") continue;
+          if (key === "footnote") continue;
+          if (key === "footnote-number") continue;
+          options.push({
+            label: styleDef.name || key,
+            value: key
+            // We don't define the action here, the UI component should handle the action based on the value
+            // because it needs access to the editor instance.
+          });
+        }
+        return options;
+      }
+    };
+    module2.exports = StyleManager;
+  }
+});
+
+// src/default-styles.js
+var require_default_styles = __commonJS({
+  "src/default-styles.js"(exports2, module2) {
+    var DEFAULT_STYLES = {
+      "scale": "100%",
+      "supertitle": {
+        "name": "Supertitle",
+        "font-size": "11.5pt",
+        "text-align": "center",
+        "line-spacing": "14pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "18pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+      },
+      "title": {
+        "name": "Title",
+        "font-size": "18pt",
+        "text-align": "center",
+        "line-spacing": "18pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "36pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+      },
+      "body-first": {
+        "name": "Body First",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "14pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "following-style": "body"
+      },
+      "body": {
+        "name": "Body",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0.3in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "14pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular"
+      },
+      "footnote": {
+        "name": "Footnote",
+        "font-size": "10pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "13pt",
+        "before-paragraph": "0pt",
+        "after-paragraph": "0pt",
+        "font-family": "Minion 3 Caption",
+        "font-variant": "Regular",
+        "space-between-notes": "10pt",
+        "format": "1, 2, 3, \u2026",
+        "numbering": "continuous",
+        "type": "footnotes"
+      },
+      "footnote-number": {
+        "name": "Footnote Number",
+        "font-weight": "bold",
+        "color": "var(--text-accent)"
+      },
+      "heading-1": {
+        "name": "Heading 1",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Italic",
+        "keep-with-next": true,
+        "following-style": "body-first"
+      },
+      "heading-2": {
+        "name": "Heading 2",
+        "font-size": "11.5pt",
+        "text-align": "left",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "capitalization": "small-caps",
+        "character-spacing": "2%",
+        "keep-with-next": true,
+        "following-style": "body-first"
+      },
+      "heading-3": {
+        "name": "Heading 3",
+        "font-size": "11.5pt",
+        "text-align": "center",
+        "first-indent": "0in",
+        "left-indent": "0in",
+        "right-indent": "0in",
+        "line-spacing": "28pt",
+        "before-paragraph": "28pt",
+        "after-paragraph": "14pt",
+        "font-family": "Minion 3",
+        "font-variant": "Regular",
+        "keep-with-next": true,
+        "following-style": "body-first"
+      }
+    };
+    module2.exports = DEFAULT_STYLES;
+  }
+});
+
 // src/tiptap-adapter.js
 var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
@@ -26070,6 +26407,9 @@ var require_tiptap_adapter = __commonJS({
     var Substitutions = require_substitutions();
     var InternalLink = require_internallink();
     var StandardLink = require_standard_link();
+    var StyleManager = require_style_manager();
+    var DEFAULT_STYLES = require_default_styles();
+    var { parseYaml } = require("obsidian");
     var EnterKeyHandler = Extension.create({
       name: "enterKeyHandler",
       addKeyboardShortcuts() {
@@ -26156,6 +26496,8 @@ var require_tiptap_adapter = __commonJS({
         this.popover = null;
         this.footnotes = [];
         this.listeners = [];
+        this.styleManager = new StyleManager();
+        this.styleOptions = [];
       }
       normalizeDoc(doc) {
         if (!doc || !doc.content) {
@@ -26184,6 +26526,7 @@ var require_tiptap_adapter = __commonJS({
       updateSettings(newSettings) {
         const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
+        this.loadStyles();
         if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
           this.handleScroll();
         }
@@ -26219,6 +26562,8 @@ var require_tiptap_adapter = __commonJS({
       }
       initEditor(content) {
         const editorHost = this.containerEl.createDiv("colophon-editor-host");
+        this.loadStyles().then(() => {
+        });
         this.editor = new Editor({
           element: editorHost,
           extensions: [
@@ -26263,7 +26608,7 @@ var require_tiptap_adapter = __commonJS({
             this.handleScroll();
           }
         });
-        this.popover = new PopoverMenu(this.editor, this.containerEl);
+        this.popover = new PopoverMenu(this.editor, this.containerEl, this.styleOptions || []);
         this.popover.setMode("default");
         this.editor.view.dom.addEventListener("contextmenu", (e) => {
           const { from, to } = this.editor.state.selection;
@@ -26275,6 +26620,51 @@ var require_tiptap_adapter = __commonJS({
             this.popover.show(x, y);
           }
         });
+      }
+      async loadStyles() {
+        try {
+          let styles2 = { ...DEFAULT_STYLES };
+          const stylesFolder = this.settings.stylesFolder || "snippets";
+          const folderPath = `${this.app.vault.configDir}/${stylesFolder}`;
+          if (await this.app.vault.adapter.exists(folderPath)) {
+            for (const fileName of this.settings.enabledStyles || []) {
+              const filePath = `${folderPath}/${fileName}`;
+              if (await this.app.vault.adapter.exists(filePath)) {
+                try {
+                  const content = await this.app.vault.adapter.read(filePath);
+                  const userStyles = parseYaml(content);
+                  for (const [key, styleDef] of Object.entries(userStyles)) {
+                    if (styles2[key] && typeof styles2[key] === "object" && typeof styleDef === "object") {
+                      styles2[key] = { ...styles2[key], ...styleDef };
+                    } else {
+                      styles2[key] = styleDef;
+                    }
+                  }
+                } catch (err) {
+                  console.error(`Colophon: Failed to load style file ${fileName}`, err);
+                }
+              }
+            }
+          }
+          const css = this.styleManager.generateCSS(styles2);
+          this.injectStyles(css);
+          this.styleOptions = this.styleManager.getStyleOptions(styles2);
+          if (this.popover) {
+            this.popover.updateStyleOptions(this.styleOptions);
+          }
+        } catch (e) {
+          console.error("Colophon: Failed to load styles", e);
+        }
+      }
+      injectStyles(css) {
+        const styleId = "colophon-dynamic-styles";
+        let styleEl = document.getElementById(styleId);
+        if (!styleEl) {
+          styleEl = document.createElement("style");
+          styleEl.id = styleId;
+          document.head.appendChild(styleEl);
+        }
+        styleEl.textContent = css;
       }
       handleScroll() {
         if (!this.editor || !this.editor.view.hasFocus()) {
@@ -69693,7 +70083,9 @@ var DEFAULT_SETTINGS = {
   smartQuotes: true,
   smartDashes: true,
   doubleQuoteStyle: "\u201C|\u201D",
-  singleQuoteStyle: "\u2018|\u2019"
+  singleQuoteStyle: "\u2018|\u2019",
+  stylesFolder: "snippets",
+  enabledStyles: []
 };
 var { DocxSerializer: DocxSerializer2 } = (init_esm(), __toCommonJS(esm_exports));
 var { Packer: Packer2, HeadingLevel: HeadingLevel2, Paragraph: Paragraph2, TextRun: TextRun2, FootnoteReferenceRun: FootnoteReferenceRun2, StyleLevel } = require_dist34();
@@ -70183,6 +70575,51 @@ var ColophonSettingTab = class extends PluginSettingTab {
       this.plugin.settings.smartDashes = value;
       await this.plugin.saveSettings();
     }));
+    containerEl.createEl("h2", { text: "Paragraph styles" });
+    new Setting(containerEl).setName("Styles folder").setDesc("Folder containing YAML style definitions (relative to vault config directory).").addText((text) => text.setPlaceholder("snippets").setValue(this.plugin.settings.stylesFolder).onChange(async (value) => {
+      this.plugin.settings.stylesFolder = value;
+      await this.plugin.saveSettings();
+      this.display();
+    })).addExtraButton((btn) => btn.setIcon("folder-open").setTooltip("Open folder").onClick(() => {
+      const path = this.plugin.app.vault.adapter.getBasePath() + "/" + this.plugin.app.vault.configDir + "/" + this.plugin.settings.stylesFolder;
+      electron.shell.openPath(path);
+    }));
+    this.displayStyleFiles(containerEl);
+  }
+  async displayStyleFiles(containerEl) {
+    const { app, settings } = this.plugin;
+    const adapter = app.vault.adapter;
+    const configDir = app.vault.configDir;
+    const stylesFolder = settings.stylesFolder || "snippets";
+    const folderPath = `${configDir}/${stylesFolder}`;
+    if (!await adapter.exists(folderPath)) {
+      new Setting(containerEl).setName("Folder not found").setDesc(`The folder "${folderPath}" does not exist.`).addButton((btn) => btn.setButtonText("Create folder").onClick(async () => {
+        await adapter.mkdir(folderPath);
+        this.display();
+      }));
+      return;
+    }
+    const files = await adapter.list(folderPath);
+    const yamlFiles = files.files.filter((path) => path.endsWith(".yaml") || path.endsWith(".yml"));
+    if (yamlFiles.length === 0) {
+      containerEl.createDiv({ text: "No YAML files found in this folder.", cls: "setting-item-description" });
+      return;
+    }
+    containerEl.createEl("h3", { text: "Enabled Styles" });
+    for (const filePath of yamlFiles) {
+      const fileName = filePath.split("/").pop();
+      const isEnabled = settings.enabledStyles.includes(fileName);
+      new Setting(containerEl).setName(fileName).addToggle((toggle) => toggle.setValue(isEnabled).onChange(async (value) => {
+        if (value) {
+          if (!settings.enabledStyles.includes(fileName)) {
+            settings.enabledStyles.push(fileName);
+          }
+        } else {
+          settings.enabledStyles = settings.enabledStyles.filter((f) => f !== fileName);
+        }
+        await this.plugin.saveSettings();
+      }));
+    }
   }
 };
 /*! Bundled license information:
