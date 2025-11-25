@@ -369,7 +369,7 @@ class ColophonSettingTab extends PluginSettingTab {
         containerEl.createEl('h2', { text: 'Colophon Settings' });
 
         new Setting(containerEl)
-            .setName('Text Column Width')
+            .setName('Text column width')
             .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
             .addSlider(slider => slider
                 .setLimits(500, 1240, 10)
@@ -380,10 +380,10 @@ class ColophonSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        containerEl.createEl('h3', { text: 'Substitutions' });
+        containerEl.createEl('h2', { text: 'Substitutions' });
 
         new Setting(containerEl)
-            .setName('Smart Quotes')
+            .setName('Smart quotes')
             .setDesc('Automatically replace straight quotes with smart quotes.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.smartQuotes)
@@ -395,7 +395,7 @@ class ColophonSettingTab extends PluginSettingTab {
 
         if (this.plugin.settings.smartQuotes) {
             new Setting(containerEl)
-                .setName('Double Quote Style')
+                .setName('Double quote style')
                 .setDesc('Choose the style for double quotes.')
                 .addDropdown(dropdown => dropdown
                     .addOption('“|”', '“abc”')
@@ -412,7 +412,7 @@ class ColophonSettingTab extends PluginSettingTab {
                     }));
 
             new Setting(containerEl)
-                .setName('Single Quote Style')
+                .setName('Single quote style')
                 .setDesc('Choose the style for single quotes.')
                 .addDropdown(dropdown => dropdown
                     .addOption('‘|’', '‘abc’')
@@ -430,7 +430,7 @@ class ColophonSettingTab extends PluginSettingTab {
         }
 
         new Setting(containerEl)
-            .setName('Smart Dashes')
+            .setName('Smart dashes')
             .setDesc('Replace -- with em-dash (—) and --- with en-dash (–).')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.smartDashes)
