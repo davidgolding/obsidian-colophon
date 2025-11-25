@@ -26989,9 +26989,10 @@ var require_footnote_view = __commonJS({
     var InternalLink = require_internallink();
     var FOOTNOTE_VIEW_TYPE2 = "colophon-footnote-view";
     var FootnoteView2 = class extends ItemView {
-      constructor(leaf, settings) {
+      constructor(leaf, settings, isSpellcheckEnabled) {
         super(leaf);
         this.settings = settings || { smartQuotes: true, smartDashes: true, doubleQuoteStyle: "\u201C|\u201D", singleQuoteStyle: "\u2018|\u2019" };
+        this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.adapter = null;
         this.editors = /* @__PURE__ */ new Map();
         this.popover = null;
@@ -27111,7 +27112,8 @@ var require_footnote_view = __commonJS({
               },
               editorProps: {
                 attributes: {
-                  class: "colophon-footnote-editor-content"
+                  class: "colophon-footnote-editor-content",
+                  spellcheck: this.isSpellcheckEnabled ? "true" : "false"
                 }
               }
             });
@@ -70099,9 +70101,10 @@ module.exports = class ColophonPlugin extends Plugin {
       VIEW_TYPE,
       (leaf) => new ColophonView(leaf, this.settings, this)
     );
+    const isSpellcheckEnabledForFootnotes = this.app.vault.getConfig("spellcheck");
     this.registerView(
       FOOTNOTE_VIEW_TYPE,
-      (leaf) => new FootnoteView(leaf, this.settings)
+      (leaf) => new FootnoteView(leaf, this.settings, isSpellcheckEnabledForFootnotes)
     );
     this.addSettingTab(new ColophonSettingTab(this.app, this));
     this.patchOpenFile();
