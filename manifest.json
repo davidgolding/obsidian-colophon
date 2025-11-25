@@ -1,7 +1,7 @@
 {
     "id": "colophon-writer",
     "name": "Colophon",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "minAppVersion": "1.7.5",
     "description": "A dedicated writing environment for Obsidian.",
     "author": "David Golding",
