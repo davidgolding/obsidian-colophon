@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
-const { Packer, HeadingLevel } = require('docx');
+const { Packer, HeadingLevel, Paragraph, TextRun, FootnoteReferenceRun, StyleLevel } = require('docx');
 const fs = require('fs');
 const electron = require('electron');
 
@@ -23,7 +23,7 @@ module.exports = class ColophonPlugin extends Plugin {
         // Register the custom view
         this.registerView(
             VIEW_TYPE,
-            (leaf) => new ColophonView(leaf, this.settings)
+            (leaf) => new ColophonView(leaf, this.settings, this)
         );
 
         // Register Footnote View
@@ -69,20 +69,6 @@ module.exports = class ColophonPlugin extends Plugin {
                 });
             })
         );
-
-        // Add Export to DOCX menu item
-        this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor, view) => {
-            if (view instanceof ColophonView) {
-                menu.addItem((item) => {
-                    item
-                        .setTitle('Export to DOCX')
-                        .setIcon('document')
-                        .onClick(async () => {
-                            this.exportToDocx(view);
-                        });
-                });
-            }
-        }));
 
         // COMMAND: Add "New manuscript" to command list
         this.addCommand({
@@ -234,9 +220,24 @@ module.exports = class ColophonPlugin extends Plugin {
                 hard_break(state) {
                     state.addRunOptions({ break: 1 });
                 },
-                footnote() {
-                    // Ignore footnotes for now
-                },
+                footnote(state, node) {
+                    const id = node.attrs.id;
+                    const footnotes = view.adapter ? view.adapter.footnotes : [];
+                    const fnData = footnotes.find(f => f.id === id);
+                    const content = fnData ? fnData.content : '';
+
+                    // Manually handle footnote registration
+                    state.$footnoteCounter = (state.$footnoteCounter || 0) + 1;
+                    const refId = state.$footnoteCounter;
+
+                    state.footnotes[refId] = {
+                        children: [new Paragraph({
+                            children: [new TextRun(content)]
+                        })]
+                    };
+
+                    state.current.push(new FootnoteReferenceRun(refId));
+                }
             };
 
             const markSerializers = {
@@ -252,7 +253,89 @@ module.exports = class ColophonPlugin extends Plugin {
 
             const serializer = new DocxSerializer(nodeSerializers, markSerializers);
             const doc = serializer.serialize(prosemirrorDoc, {
-                sections: [{}]
+                sections: [{
+                    properties: {},
+                    children: []
+                }],
+                styles: {
+                    default: {
+                        document: {
+                            run: {
+                                font: "Minion 3",
+                                size: 24, // 12pt
+                            },
+                            paragraph: {
+                                spacing: {
+                                    line: 360, // 1.5 lines
+                                },
+                            },
+                        },
+                    },
+                    paragraphStyles: [
+                        {
+                            id: "Normal",
+                            name: "Normal",
+                            basedOn: "Normal",
+                            next: "Normal",
+                            quickFormat: true,
+                            run: {
+                                font: "Minion 3",
+                                size: 24,
+                            },
+                            paragraph: {
+                                spacing: { line: 360 },
+                                indent: { firstLine: 720 }, // 0.5 inch
+                            },
+                        },
+                        {
+                            id: "Heading1",
+                            name: "Heading 1",
+                            basedOn: "Normal",
+                            next: "Normal",
+                            quickFormat: true,
+                            run: {
+                                font: "Minion 3",
+                                size: 36, // 18pt
+                                italics: true,
+                            },
+                            paragraph: {
+                                spacing: { before: 480, after: 240 },
+                            },
+                        },
+                        {
+                            id: "Heading2",
+                            name: "Heading 2",
+                            basedOn: "Normal",
+                            next: "Normal",
+                            quickFormat: true,
+                            run: {
+                                font: "Minion 3",
+                                size: 28, // 14pt
+                                smallCaps: true,
+                                tracking: 100, // Letter spacing
+                            },
+                            paragraph: {
+                                spacing: { before: 360, after: 240 },
+                            },
+                        },
+                        {
+                            id: "Heading3",
+                            name: "Heading 3",
+                            basedOn: "Normal",
+                            next: "Normal",
+                            quickFormat: true,
+                            run: {
+                                font: "Minion 3",
+                                size: 24, // 12pt
+                                italics: true,
+                            },
+                            paragraph: {
+                                alignment: "center",
+                                spacing: { before: 360, after: 240 },
+                            },
+                        }
+                    ]
+                }
             });
 
             const buffer = await Packer.toBuffer(doc);

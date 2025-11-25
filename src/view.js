@@ -5,8 +5,9 @@ const { parseFile, serializeFile } = require('./io');
 const VIEW_TYPE = 'colophon-view';
 
 class ColophonView extends FileView {
-    constructor(leaf, settings) {
+    constructor(leaf, settings, plugin) {
         super(leaf);
+        this.plugin = plugin;
         this.settings = settings || { textColumnWidth: 1080 }; // Fallback
         this.adapter = null;
         this.data = null; // Sidecar data
@@ -54,6 +55,19 @@ class ColophonView extends FileView {
         this.adapter = new TiptapAdapter(this.app, this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
             this.data = newData;
             this.save();
+        });
+    }
+
+    onPaneMenu(menu, source) {
+        super.onPaneMenu(menu, source);
+
+        menu.addItem((item) => {
+            item
+                .setTitle('Export to DOCX')
+                .setIcon('document')
+                .onClick(async () => {
+                    this.plugin.exportToDocx(this);
+                });
         });
     }
 

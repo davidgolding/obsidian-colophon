@@ -22826,12 +22826,12 @@ var require_dist21 = __commonJS({
     var __toCommonJS2 = (mod) => __copyProps2(__defProp3({}, "__esModule", { value: true }), mod);
     var index_exports = {};
     __export2(index_exports, {
-      Paragraph: () => Paragraph2,
+      Paragraph: () => Paragraph3,
       default: () => index_default
     });
     module2.exports = __toCommonJS2(index_exports);
     var import_core = require_dist9();
-    var Paragraph2 = import_core.Node.create({
+    var Paragraph3 = import_core.Node.create({
       name: "paragraph",
       priority: 1e3,
       addOptions() {
@@ -22878,7 +22878,7 @@ var require_dist21 = __commonJS({
         };
       }
     });
-    var index_default = Paragraph2;
+    var index_default = Paragraph3;
   }
 });
 
@@ -26058,7 +26058,7 @@ var require_tiptap_adapter = __commonJS({
   "src/tiptap-adapter.js"(exports2, module2) {
     var { Editor, Mark, Extension, mergeAttributes } = require_dist9();
     var { StarterKit } = require_dist30();
-    var { Paragraph: Paragraph2 } = require_dist21();
+    var { Paragraph: Paragraph3 } = require_dist21();
     var { Heading } = require_dist16();
     var Underline2 = require_dist24();
     var Subscript = require_dist31();
@@ -26086,7 +26086,7 @@ var require_tiptap_adapter = __commonJS({
         };
       }
     });
-    var CustomParagraph = Paragraph2.extend({
+    var CustomParagraph = Paragraph3.extend({
       addAttributes() {
         return {
           class: {
@@ -26447,8 +26447,9 @@ var require_view2 = __commonJS({
     var { parseFile, serializeFile } = require_io();
     var VIEW_TYPE2 = "colophon-view";
     var ColophonView2 = class extends FileView {
-      constructor(leaf, settings) {
+      constructor(leaf, settings, plugin) {
         super(leaf);
+        this.plugin = plugin;
         this.settings = settings || { textColumnWidth: 1080 };
         this.adapter = null;
         this.data = null;
@@ -26480,6 +26481,14 @@ var require_view2 = __commonJS({
         this.adapter = new TiptapAdapter(this.app, this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
           this.data = newData;
           this.save();
+        });
+      }
+      onPaneMenu(menu, source) {
+        super.onPaneMenu(menu, source);
+        menu.addItem((item) => {
+          item.setTitle("Export to DOCX").setIcon("document").onClick(async () => {
+            this.plugin.exportToDocx(this);
+          });
         });
       }
       showLoader() {
@@ -58163,7 +58172,7 @@ var require_dist34 = __commonJS({
         }
       }
     };
-    var TextRun2 = class extends Run2 {
+    var TextRun3 = class extends Run2 {
       constructor(options) {
         super(typeof options === "string" ? { text: options } : options);
       }
@@ -60823,7 +60832,7 @@ var require_dist34 = __commonJS({
         super("w:fldSimple");
         this.root.push(new FldSimpleAttrs2({ instr: instruction }));
         if (cachedValue !== void 0) {
-          this.root.push(new TextRun2(cachedValue));
+          this.root.push(new TextRun3(cachedValue));
         }
       }
     };
@@ -61851,7 +61860,7 @@ var require_dist34 = __commonJS({
         this.root.push(component);
       }
       createSectionParagraph(section) {
-        const paragraph = new Paragraph2({});
+        const paragraph = new Paragraph3({});
         const properties = new ParagraphProperties2({});
         properties.push(section);
         paragraph.addChildElement(properties);
@@ -62223,20 +62232,20 @@ var require_dist34 = __commonJS({
         return super.prepForXml(context);
       }
     };
-    var Paragraph2 = class extends FileChild2 {
+    var Paragraph3 = class extends FileChild2 {
       constructor(options) {
         super("w:p");
         __publicField2(this, "properties");
         if (typeof options === "string") {
           this.properties = new ParagraphProperties2({});
           this.root.push(this.properties);
-          this.root.push(new TextRun2(options));
+          this.root.push(new TextRun3(options));
           return this;
         }
         this.properties = new ParagraphProperties2(options);
         this.root.push(this.properties);
         if (options.text) {
-          this.root.push(new TextRun2(options.text));
+          this.root.push(new TextRun3(options.text));
         }
         if (options.children) {
           for (const child of options.children) {
@@ -62798,8 +62807,8 @@ var require_dist34 = __commonJS({
         }
       }
       prepForXml(context) {
-        if (!(this.root[this.root.length - 1] instanceof Paragraph2)) {
-          this.root.push(new Paragraph2({}));
+        if (!(this.root[this.root.length - 1] instanceof Paragraph3)) {
+          this.root.push(new Paragraph3({}));
         }
         return super.prepForXml(context);
       }
@@ -63749,7 +63758,7 @@ var require_dist34 = __commonJS({
           id: -1,
           type: FootnoteType2.SEPERATOR,
           children: [
-            new Paragraph2({
+            new Paragraph3({
               spacing: {
                 after: 0,
                 line: 240,
@@ -63764,7 +63773,7 @@ var require_dist34 = __commonJS({
           id: 0,
           type: FootnoteType2.CONTINUATION_SEPERATOR,
           children: [
-            new Paragraph2({
+            new Paragraph3({
               spacing: {
                 after: 0,
                 line: 240,
@@ -65362,7 +65371,7 @@ var require_dist34 = __commonJS({
         super("w:sdt");
         this.root.push(new StructuredDocumentTagProperties(alias));
         const content = new StructuredDocumentTagContent();
-        const beginParagraph = new Paragraph2({
+        const beginParagraph = new Paragraph3({
           children: [
             new Run2({
               children: [new Begin2(true), new FieldInstruction(properties), new Separate2()]
@@ -65370,7 +65379,7 @@ var require_dist34 = __commonJS({
           ]
         });
         content.addChildElement(beginParagraph);
-        const endParagraph = new Paragraph2({
+        const endParagraph = new Paragraph3({
           children: [
             new Run2({
               children: [new End2()]
@@ -65381,7 +65390,7 @@ var require_dist34 = __commonJS({
         this.root.push(content);
       }
     };
-    var StyleLevel = class {
+    var StyleLevel2 = class {
       constructor(styleName, level) {
         __publicField2(this, "styleName");
         __publicField2(this, "level");
@@ -65419,7 +65428,7 @@ var require_dist34 = __commonJS({
         );
       }
     };
-    var FootnoteReferenceRun2 = class extends Run2 {
+    var FootnoteReferenceRun3 = class extends Run2 {
       constructor(id) {
         super({ style: "FootnoteReference" });
         this.root.push(new FootnoteReference2(id));
@@ -65435,7 +65444,7 @@ var require_dist34 = __commonJS({
             date: options.date
           })
         );
-        this.addChildElement(new TextRun2(options));
+        this.addChildElement(new TextRun3(options));
       }
     };
     var DeletedPage = class extends XmlComponent2 {
@@ -69443,7 +69452,7 @@ var require_dist34 = __commonJS({
     exports2.FooterWrapper = FooterWrapper2;
     exports2.FootnoteReference = FootnoteReference2;
     exports2.FootnoteReferenceElement = FootnoteReferenceElement;
-    exports2.FootnoteReferenceRun = FootnoteReferenceRun2;
+    exports2.FootnoteReferenceRun = FootnoteReferenceRun3;
     exports2.FrameAnchorType = FrameAnchorType;
     exports2.FrameWrap = FrameWrap;
     exports2.GridSpan = GridSpan2;
@@ -69530,7 +69539,7 @@ var require_dist34 = __commonJS({
     exports2.PageReference = PageReference;
     exports2.PageTextDirection = PageTextDirection2;
     exports2.PageTextDirectionType = PageTextDirectionType;
-    exports2.Paragraph = Paragraph2;
+    exports2.Paragraph = Paragraph3;
     exports2.ParagraphProperties = ParagraphProperties2;
     exports2.ParagraphPropertiesDefaults = ParagraphPropertiesDefaults2;
     exports2.PatchType = PatchType;
@@ -69564,7 +69573,7 @@ var require_dist34 = __commonJS({
     exports2.Style = Style$12;
     exports2.StyleForCharacter = StyleForCharacter2;
     exports2.StyleForParagraph = StyleForParagraph2;
-    exports2.StyleLevel = StyleLevel;
+    exports2.StyleLevel = StyleLevel2;
     exports2.Styles = Styles2;
     exports2.SymbolRun = SymbolRun;
     exports2.TDirection = TDirection2;
@@ -69591,7 +69600,7 @@ var require_dist34 = __commonJS({
     exports2.TableWidthElement = TableWidthElement2;
     exports2.TextDirection = TextDirection;
     exports2.TextEffect = TextEffect;
-    exports2.TextRun = TextRun2;
+    exports2.TextRun = TextRun3;
     exports2.TextWrappingSide = TextWrappingSide2;
     exports2.TextWrappingType = TextWrappingType2;
     exports2.Textbox = Textbox;
@@ -69687,7 +69696,7 @@ var DEFAULT_SETTINGS = {
   singleQuoteStyle: "\u2018|\u2019"
 };
 var { DocxSerializer: DocxSerializer2 } = (init_esm(), __toCommonJS(esm_exports));
-var { Packer: Packer2, HeadingLevel: HeadingLevel2 } = require_dist34();
+var { Packer: Packer2, HeadingLevel: HeadingLevel2, Paragraph: Paragraph2, TextRun: TextRun2, FootnoteReferenceRun: FootnoteReferenceRun2, StyleLevel } = require_dist34();
 var fs = require("fs");
 var electron = require("electron");
 module.exports = class ColophonPlugin extends Plugin {
@@ -69695,7 +69704,7 @@ module.exports = class ColophonPlugin extends Plugin {
     await this.loadSettings();
     this.registerView(
       VIEW_TYPE,
-      (leaf) => new ColophonView(leaf, this.settings)
+      (leaf) => new ColophonView(leaf, this.settings, this)
     );
     this.registerView(
       FOOTNOTE_VIEW_TYPE,
@@ -69723,15 +69732,6 @@ module.exports = class ColophonPlugin extends Plugin {
         });
       })
     );
-    this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor, view) => {
-      if (view instanceof ColophonView) {
-        menu.addItem((item) => {
-          item.setTitle("Export to DOCX").setIcon("document").onClick(async () => {
-            this.exportToDocx(view);
-          });
-        });
-      }
-    }));
     this.addCommand({
       id: "create-new-colophon-manuscript",
       name: "New manuscript",
@@ -69842,7 +69842,19 @@ module.exports = class ColophonPlugin extends Plugin {
         hard_break(state2) {
           state2.addRunOptions({ break: 1 });
         },
-        footnote() {
+        footnote(state2, node) {
+          const id = node.attrs.id;
+          const footnotes = view.adapter ? view.adapter.footnotes : [];
+          const fnData = footnotes.find((f) => f.id === id);
+          const content = fnData ? fnData.content : "";
+          state2.$footnoteCounter = (state2.$footnoteCounter || 0) + 1;
+          const refId = state2.$footnoteCounter;
+          state2.footnotes[refId] = {
+            children: [new Paragraph2({
+              children: [new TextRun2(content)]
+            })]
+          };
+          state2.current.push(new FootnoteReferenceRun2(refId));
         }
       };
       const markSerializers = {
@@ -69875,7 +69887,96 @@ module.exports = class ColophonPlugin extends Plugin {
       };
       const serializer = new DocxSerializer2(nodeSerializers, markSerializers);
       const doc = serializer.serialize(prosemirrorDoc, {
-        sections: [{}]
+        sections: [{
+          properties: {},
+          children: []
+        }],
+        styles: {
+          default: {
+            document: {
+              run: {
+                font: "Minion 3",
+                size: 24
+                // 12pt
+              },
+              paragraph: {
+                spacing: {
+                  line: 360
+                  // 1.5 lines
+                }
+              }
+            }
+          },
+          paragraphStyles: [
+            {
+              id: "Normal",
+              name: "Normal",
+              basedOn: "Normal",
+              next: "Normal",
+              quickFormat: true,
+              run: {
+                font: "Minion 3",
+                size: 24
+              },
+              paragraph: {
+                spacing: { line: 360 },
+                indent: { firstLine: 720 }
+                // 0.5 inch
+              }
+            },
+            {
+              id: "Heading1",
+              name: "Heading 1",
+              basedOn: "Normal",
+              next: "Normal",
+              quickFormat: true,
+              run: {
+                font: "Minion 3",
+                size: 36,
+                // 18pt
+                italics: true
+              },
+              paragraph: {
+                spacing: { before: 480, after: 240 }
+              }
+            },
+            {
+              id: "Heading2",
+              name: "Heading 2",
+              basedOn: "Normal",
+              next: "Normal",
+              quickFormat: true,
+              run: {
+                font: "Minion 3",
+                size: 28,
+                // 14pt
+                smallCaps: true,
+                tracking: 100
+                // Letter spacing
+              },
+              paragraph: {
+                spacing: { before: 360, after: 240 }
+              }
+            },
+            {
+              id: "Heading3",
+              name: "Heading 3",
+              basedOn: "Normal",
+              next: "Normal",
+              quickFormat: true,
+              run: {
+                font: "Minion 3",
+                size: 24,
+                // 12pt
+                italics: true
+              },
+              paragraph: {
+                alignment: "center",
+                spacing: { before: 360, after: 240 }
+              }
+            }
+          ]
+        }
       });
       const buffer2 = await Packer2.toBuffer(doc);
       const result = await electron.remote.dialog.showSaveDialog({
