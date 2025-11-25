@@ -1,15 +1,60 @@
 const { setIcon } = require('obsidian');
 
 class PopoverMenu {
-    constructor(editor, containerEl) {
+    constructor(editor, containerEl, styleOptions = []) {
         this.editor = editor;
         this.containerEl = containerEl;
+        this.styleOptions = styleOptions;
         this.el = null;
         this.isVisible = false;
         this.currentMode = 'default'; // Store mode
 
         // Bind methods
         this.handleClickOutside = this.handleClickOutside.bind(this);
+    }
+
+    updateStyleOptions(newOptions) {
+        this.styleOptions = newOptions;
+        // If the menu is already created, we need to rebuild the select menu
+        if (this.el && this.sections && this.sections[0]) {
+            // Clear the existing select menu container
+            this.sections[0].empty();
+
+            // Re-create the select menu
+            const options = (this.styleOptions || []).map(opt => ({
+                label: opt.label,
+                value: opt.value,
+                action: () => this.applyStyle(opt.value)
+            }));
+
+            this.styleSelect = this.createSelectMenu(this.sections[0], options);
+        }
+    }
+
+    applyStyle(value) {
+        if (!this.editor) return;
+
+        // Determine if it's a heading or paragraph based on value
+        // Convention: heading-X or title -> Heading
+        // Others -> Paragraph
+
+        let isHeading = false;
+        let level = 1;
+
+        if (value.startsWith('heading-')) {
+            isHeading = true;
+            level = parseInt(value.split('-')[1], 10);
+        } else if (value === 'title') {
+            isHeading = true;
+            level = 1;
+        }
+
+        if (isHeading) {
+            this.editor.chain().focus().toggleHeading({ level }).updateAttributes('heading', { class: value }).run();
+        } else {
+            // Assume paragraph
+            this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: value }).run();
+        }
     }
 
     create() {
@@ -21,18 +66,15 @@ class PopoverMenu {
 
         // Section 1: Styles (Select Menu) - Index 0
         const styleSection = this.el.createDiv('colophon-popover-section');
-        this.styleSelect = this.createSelectMenu(styleSection, [
-            { label: 'Supertitle', value: 'supertitle', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'supertitle' }).run() },
-            { label: 'Title', value: 'title', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: 'title' }).run() },
-            { label: 'Heading 1', value: 'h1', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: 'heading-1' }).run() },
-            { label: 'Heading 2', value: 'h2', action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes('heading', { class: 'heading-2' }).run() },
-            { label: 'Heading 3', value: 'h3', action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes('heading', { class: 'heading-3' }).run() },
-            { label: 'Heading 4', value: 'h4', action: () => this.editor.chain().focus().toggleHeading({ level: 4 }).updateAttributes('heading', { class: 'heading-4' }).run() },
-            { label: 'Heading 5', value: 'h5', action: () => this.editor.chain().focus().toggleHeading({ level: 5 }).updateAttributes('heading', { class: 'heading-5' }).run() },
-            { label: 'Heading 6', value: 'h6', action: () => this.editor.chain().focus().toggleHeading({ level: 6 }).updateAttributes('heading', { class: 'heading-6' }).run() },
-            { label: 'Body First', value: 'body-first', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'body-first' }).run() },
-            { label: 'Body', value: 'paragraph', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'body' }).run() }
-        ]);
+
+        // Generate options with actions
+        const options = (this.styleOptions || []).map(opt => ({
+            label: opt.label,
+            value: opt.value,
+            action: () => this.applyStyle(opt.value)
+        }));
+
+        this.styleSelect = this.createSelectMenu(styleSection, options);
         this.sections.push(styleSection);
 
         // Section 2: Formatting - Index 1
@@ -95,22 +137,30 @@ class PopoverMenu {
     updateSelectMenu() {
         if (!this.styleSelect || !this.editor) return;
 
-        let activeValue = 'paragraph';
+        let activeValue = 'body'; // Default fallback
 
-        // Check attributes
-        if (this.editor.isActive('heading', { level: 1 })) {
-            if (this.editor.isActive({ class: 'title' })) activeValue = 'title';
-            else activeValue = 'h1';
-        }
-        else if (this.editor.isActive('heading', { level: 2 })) activeValue = 'h2';
-        else if (this.editor.isActive('heading', { level: 3 })) activeValue = 'h3';
-        else if (this.editor.isActive('heading', { level: 4 })) activeValue = 'h4';
-        else if (this.editor.isActive('heading', { level: 5 })) activeValue = 'h5';
-        else if (this.editor.isActive('heading', { level: 6 })) activeValue = 'h6';
-        else if (this.editor.isActive('paragraph')) {
-            if (this.editor.isActive({ class: 'supertitle' })) activeValue = 'supertitle';
-            else if (this.editor.isActive({ class: 'body-first' })) activeValue = 'body-first';
-            else activeValue = 'paragraph';
+        // Iterate through options to find the active one
+        // We prioritize specific classes over generic ones if any
+        for (const opt of (this.styleOptions || [])) {
+            const value = opt.value;
+            let isMatch = false;
+
+            if (value.startsWith('heading-') || value === 'title') {
+                // It's a heading
+                if (this.editor.isActive('heading', { class: value })) {
+                    isMatch = true;
+                }
+            } else {
+                // It's a paragraph
+                if (this.editor.isActive('paragraph', { class: value })) {
+                    isMatch = true;
+                }
+            }
+
+            if (isMatch) {
+                activeValue = value;
+                break;
+            }
         }
 
         // Update Label

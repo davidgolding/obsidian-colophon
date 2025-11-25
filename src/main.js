@@ -8,7 +8,9 @@ const DEFAULT_SETTINGS = {
     smartQuotes: true,
     smartDashes: true,
     doubleQuoteStyle: '“|”',
-    singleQuoteStyle: '‘|’'
+    singleQuoteStyle: '‘|’',
+    stylesFolder: 'snippets',
+    enabledStyles: []
 };
 
 const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
@@ -651,5 +653,96 @@ class ColophonSettingTab extends PluginSettingTab {
                     this.plugin.settings.smartDashes = value;
                     await this.plugin.saveSettings();
                 }));
+
+        containerEl.createEl('h2', { text: 'Paragraph styles' });
+
+        new Setting(containerEl)
+            .setName('Styles folder')
+            .setDesc('Folder containing YAML style definitions (relative to vault config directory).')
+            .addText(text => text
+                .setPlaceholder('snippets')
+                .setValue(this.plugin.settings.stylesFolder)
+                .onChange(async (value) => {
+                    this.plugin.settings.stylesFolder = value;
+                    await this.plugin.saveSettings();
+                    // Debounce refresh? Or just refresh on blur?
+                    // For now, let's refresh the list on change (might be jumpy)
+                    // Better: refresh on blur or have a reload button.
+                    // Let's just re-display for now.
+                    this.display();
+                }))
+            .addExtraButton(btn => btn
+                .setIcon('folder-open')
+                .setTooltip('Open folder')
+                .onClick(() => {
+                    // Open folder in system explorer
+                    // Path: .obsidian/snippets (or whatever configDir is)
+                    const path = this.plugin.app.vault.adapter.getBasePath() + '/' + this.plugin.app.vault.configDir + '/' + this.plugin.settings.stylesFolder;
+                    // Ensure folder exists?
+                    // electron.shell.openPath(path);
+                    // We can use app.openWithDefaultApp(path) or similar?
+                    // Obsidian API doesn't expose openPath directly easily for folders outside vault root sometimes?
+                    // Actually, getBasePath gives absolute path.
+                    // We can use `electron` module if available, or just try to open it.
+                    // Since we are in a plugin, we can use `require('electron').shell.openPath(path)`.
+                    // We already require electron at top of file.
+                    electron.shell.openPath(path);
+                }));
+
+        // List files in the folder
+        this.displayStyleFiles(containerEl);
+    }
+
+    async displayStyleFiles(containerEl) {
+        const { app, settings } = this.plugin;
+        const adapter = app.vault.adapter;
+        const configDir = app.vault.configDir;
+        const stylesFolder = settings.stylesFolder || 'snippets';
+        const folderPath = `${configDir}/${stylesFolder}`;
+
+        if (!(await adapter.exists(folderPath))) {
+            // Create folder if it doesn't exist? Or just warn?
+            // Let's just show a message.
+            new Setting(containerEl)
+                .setName('Folder not found')
+                .setDesc(`The folder "${folderPath}" does not exist.`)
+                .addButton(btn => btn
+                    .setButtonText('Create folder')
+                    .onClick(async () => {
+                        await adapter.mkdir(folderPath);
+                        this.display();
+                    }));
+            return;
+        }
+
+        const files = await adapter.list(folderPath);
+        const yamlFiles = files.files.filter(path => path.endsWith('.yaml') || path.endsWith('.yml'));
+
+        if (yamlFiles.length === 0) {
+            containerEl.createDiv({ text: 'No YAML files found in this folder.', cls: 'setting-item-description' });
+            return;
+        }
+
+        containerEl.createEl('h3', { text: 'Enabled Styles' });
+
+        for (const filePath of yamlFiles) {
+            const fileName = filePath.split('/').pop();
+            const isEnabled = settings.enabledStyles.includes(fileName);
+
+            new Setting(containerEl)
+                .setName(fileName)
+                .addToggle(toggle => toggle
+                    .setValue(isEnabled)
+                    .onChange(async (value) => {
+                        if (value) {
+                            if (!settings.enabledStyles.includes(fileName)) {
+                                settings.enabledStyles.push(fileName);
+                            }
+                        } else {
+                            settings.enabledStyles = settings.enabledStyles.filter(f => f !== fileName);
+                        }
+                        await this.plugin.saveSettings();
+                    }));
+        }
     }
 }
