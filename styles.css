@@ -5,14 +5,16 @@
 
 /* 1. WORKSPACE CONTAINER */
 .colophon-workspace {
-    width: 100%;
-    height: 100%;
-    overflow-y: auto;
-    display: flex;
-    justify-content: center;
     background-color: var(--background-primary);
+    display: flex;
+    height: 100%;
+    justify-content: center;
+    overflow-y: auto;
     position: relative;
-    /* For absolute positioning of loader if needed */
+    width: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
 
     /* Typography Variables */
     --colophon-default-font: "Minion 3", "Minion Pro", "Charter", "Iowan Old Style", "Sitka Text", "Palatino", "Georgia", "Times New Roman", serif;
