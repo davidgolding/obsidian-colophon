@@ -149,6 +149,9 @@ class TiptapAdapter {
         const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
 
+        // Reload styles to reflect any changes in enabledStyles or stylesFolder
+        this.loadStyles();
+
         // Re-initialize editor to apply new input rules if needed
         // For now, only settings that require re-init are handled.
         // Padding does not, but we might want to trigger a scroll check.

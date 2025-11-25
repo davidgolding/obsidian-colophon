@@ -26122,6 +26122,10 @@ ${rules}
           return `${base} h1.title`;
         } else if (key === "supertitle") {
           return `${base} p.supertitle`;
+        } else if (key === "footnote") {
+          return `.colophon-footnote-editor-content p`;
+        } else if (key === "footnote-number") {
+          return `span.colophon-footnote-number`;
         } else {
           return `${base} p.${key}`;
         }
@@ -26137,28 +26141,28 @@ ${rules}
           rules.push(`    font-family: "${styleDef["font-family"]}", serif;`);
         }
         if (styleDef["font-size"]) {
-          rules.push(`    font-size: ${styleDef["font-size"]};`);
+          rules.push(`    font-size: ${this.convertValue(styleDef["font-size"], "font-size")};`);
         }
         if (styleDef["text-align"]) {
           rules.push(`    text-align: ${styleDef["text-align"]};`);
         }
         if (styleDef["line-spacing"]) {
-          rules.push(`    line-height: ${styleDef["line-spacing"]};`);
+          rules.push(`    line-height: ${this.convertValue(styleDef["line-spacing"], "line-spacing")};`);
         }
         if (styleDef["before-paragraph"]) {
-          rules.push(`    margin-top: ${styleDef["before-paragraph"]};`);
+          rules.push(`    margin-top: ${this.convertValue(styleDef["before-paragraph"], "spacing")};`);
         }
         if (styleDef["after-paragraph"]) {
-          rules.push(`    margin-bottom: ${styleDef["after-paragraph"]};`);
+          rules.push(`    margin-bottom: ${this.convertValue(styleDef["after-paragraph"], "spacing")};`);
         }
         if (styleDef["first-indent"]) {
-          rules.push(`    text-indent: ${styleDef["first-indent"]};`);
+          rules.push(`    text-indent: ${this.convertValue(styleDef["first-indent"], "indent")};`);
         }
         if (styleDef["left-indent"]) {
-          rules.push(`    margin-left: ${styleDef["left-indent"]};`);
+          rules.push(`    margin-left: ${this.convertValue(styleDef["left-indent"], "indent")};`);
         }
         if (styleDef["right-indent"]) {
-          rules.push(`    margin-right: ${styleDef["right-indent"]};`);
+          rules.push(`    margin-right: ${this.convertValue(styleDef["right-indent"], "indent")};`);
         }
         if (styleDef["font-variant"]) {
           const variant = styleDef["font-variant"].toLowerCase();
@@ -26188,7 +26192,40 @@ ${rules}
           rules.push(`    page-break-after: avoid;`);
           rules.push(`    break-after: avoid;`);
         }
+        if (styleDef["color"]) {
+          rules.push(`    color: ${styleDef["color"]};`);
+        }
+        if (styleDef["font-weight"]) {
+          rules.push(`    font-weight: ${styleDef["font-weight"]};`);
+        }
         return rules.join("\n");
+      }
+      convertValue(value, type2) {
+        if (typeof value !== "string" && typeof value !== "number") return value;
+        const strVal = String(value);
+        const numVal = parseFloat(strVal);
+        if (isNaN(numVal)) return value;
+        if (strVal.endsWith("in")) {
+          return `${(numVal * 6).toFixed(3)}rem`;
+        }
+        if (type2 === "font-size") {
+          if (strVal.endsWith("pt")) {
+            return `${(numVal / 12).toFixed(3)}rem`;
+          }
+        } else if (type2 === "indent") {
+        } else if (type2 === "line-spacing") {
+          if (strVal.endsWith("pt")) {
+            return `${(numVal / 12).toFixed(3)}rem`;
+          }
+          if (!strVal.match(/[a-z%]/i)) {
+            return strVal;
+          }
+        } else if (type2 === "spacing") {
+          if (strVal.endsWith("pt")) {
+            return `${(numVal / 12).toFixed(3)}rem`;
+          }
+        }
+        return value;
       }
       /**
        * Returns a list of options for the UI select menu.
@@ -26280,6 +26317,11 @@ var require_default_styles = __commonJS({
         "format": "1, 2, 3, \u2026",
         "numbering": "continuous",
         "type": "footnotes"
+      },
+      "footnote-number": {
+        "name": "Footnote Number",
+        "font-weight": "bold",
+        "color": "var(--text-accent)"
       },
       "heading-1": {
         "name": "Heading 1",
@@ -26469,6 +26511,7 @@ var require_tiptap_adapter = __commonJS({
       updateSettings(newSettings) {
         const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
+        this.loadStyles();
         if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
           this.handleScroll();
         }
