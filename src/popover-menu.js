@@ -223,7 +223,7 @@ class PopoverMenu {
         });
     }
 
-    show(x, y) {
+    show(targetRect) {
         // Check if el exists and is connected to DOM
         if (!this.el || !this.el.isConnected) {
             if (this.el) this.el.remove(); // Cleanup detached element
@@ -235,11 +235,41 @@ class PopoverMenu {
         this.updateSelectMenu();
         this.updateButtonStates();
 
-        // Position
-        this.el.style.left = `${x}px`;
-        this.el.style.top = `${y}px`;
+        // Ensure element is visible to measure dimensions
         this.el.addClass('is-visible');
         this.isVisible = true;
+
+        // Measure dimensions
+        const popoverWidth = this.el.offsetWidth;
+        const popoverHeight = this.el.offsetHeight;
+        const containerWidth = this.containerEl.offsetWidth;
+
+        // Calculate centered position
+        // Center horizontally relative to selection center
+        let left = targetRect.left + (targetRect.width / 2) - (popoverWidth / 2);
+
+        // Position above by default
+        let top = targetRect.top - popoverHeight - 10; // 10px padding above
+
+        // Boundary Checks (Inward from edges of VISIBLE viewport)
+        const padding = 10; // Minimum distance from edge
+        const scrollTop = this.containerEl.scrollTop;
+        const scrollLeft = this.containerEl.scrollLeft;
+
+        // Check Left/Right
+        if (left < scrollLeft + padding) {
+            left = scrollLeft + padding;
+        } else if (left + popoverWidth > scrollLeft + containerWidth - padding) {
+            left = scrollLeft + containerWidth - popoverWidth - padding;
+        }
+
+        // Check Top (If it goes off top of visible area, flip to below)
+        if (top < scrollTop + padding) {
+            top = targetRect.top + targetRect.height + 10;
+        }
+
+        this.el.style.left = `${left}px`;
+        this.el.style.top = `${top}px`;
 
         // Add global click listener to close
         document.addEventListener('click', this.handleClickOutside);

@@ -1,6 +1,6 @@
 {
-  "textColumnWidth": 950,
-  "textColumnBottomPadding": 25,
+  "textColumnWidth": 910,
+  "textColumnBottomPadding": 0,
   "smartQuotes": true,
   "smartDashes": false,
   "doubleQuoteStyle": "“|”",
