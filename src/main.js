@@ -29,9 +29,11 @@ module.exports = class ColophonPlugin extends Plugin {
         );
 
         // Register Footnote View
+        // Get Spellcheck Setting for Footnote View
+        const isSpellcheckEnabledForFootnotes = this.app.vault.getConfig('spellcheck');
         this.registerView(
             FOOTNOTE_VIEW_TYPE,
-            (leaf) => new FootnoteView(leaf, this.settings)
+            (leaf) => new FootnoteView(leaf, this.settings, isSpellcheckEnabledForFootnotes)
         );
 
         // Add Settings Tab
