@@ -2,9 +2,9 @@
 const DEFAULT_STYLES = {
     "supertitle": {
         "name": "Supertitle",
-        "font-size": "12pt",
+        "font-size": "11.5pt",
         "text-align": "center",
-        "line-spacing": 1,
+        "line-spacing": "14pt",
         "before-paragraph": "0pt",
         "after-paragraph": "18pt",
         "font-family": "Minion 3",
@@ -14,7 +14,7 @@ const DEFAULT_STYLES = {
         "name": "Title",
         "font-size": "18pt",
         "text-align": "center",
-        "line-spacing": 1,
+        "line-spacing": "18pt",
         "before-paragraph": "0pt",
         "after-paragraph": "36pt",
         "font-family": "Minion 3",
@@ -63,6 +63,11 @@ const DEFAULT_STYLES = {
         "format": "1, 2, 3, …",
         "numbering": "continuous",
         "type": "footnotes"
+    },
+    "footnote-number": {
+        "name": "Footnote Number",
+        "font-weight": "bold",
+        "color": "var(--text-accent)"
     },
     "heading-1": {
         "name": "Heading 1",

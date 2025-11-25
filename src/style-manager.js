@@ -47,6 +47,10 @@ class StyleManager {
             return `${base} h1.title`;
         } else if (key === 'supertitle') {
             return `${base} p.supertitle`;
+        } else if (key === 'footnote') {
+            return `.colophon-footnote-editor-content p`;
+        } else if (key === 'footnote-number') {
+            return `span.colophon-footnote-number`;
         } else {
             // Default to paragraph with class
             return `${base} p.${key}`;
@@ -66,7 +70,7 @@ class StyleManager {
         }
 
         if (styleDef['font-size']) {
-            rules.push(`    font-size: ${styleDef['font-size']};`);
+            rules.push(`    font-size: ${this.convertValue(styleDef['font-size'], 'font-size')};`);
         }
 
         if (styleDef['text-align']) {
@@ -74,29 +78,27 @@ class StyleManager {
         }
 
         if (styleDef['line-spacing']) {
-            // If unitless, it's a multiplier. If pt/px, it's fixed.
-            // CSS line-height handles both, but let's be safe.
-            rules.push(`    line-height: ${styleDef['line-spacing']};`);
+            rules.push(`    line-height: ${this.convertValue(styleDef['line-spacing'], 'line-spacing')};`);
         }
 
         if (styleDef['before-paragraph']) {
-            rules.push(`    margin-top: ${styleDef['before-paragraph']};`);
+            rules.push(`    margin-top: ${this.convertValue(styleDef['before-paragraph'], 'spacing')};`);
         }
 
         if (styleDef['after-paragraph']) {
-            rules.push(`    margin-bottom: ${styleDef['after-paragraph']};`);
+            rules.push(`    margin-bottom: ${this.convertValue(styleDef['after-paragraph'], 'spacing')};`);
         }
 
         if (styleDef['first-indent']) {
-            rules.push(`    text-indent: ${styleDef['first-indent']};`);
+            rules.push(`    text-indent: ${this.convertValue(styleDef['first-indent'], 'indent')};`);
         }
 
         if (styleDef['left-indent']) {
-            rules.push(`    margin-left: ${styleDef['left-indent']};`);
+            rules.push(`    margin-left: ${this.convertValue(styleDef['left-indent'], 'indent')};`);
         }
 
         if (styleDef['right-indent']) {
-            rules.push(`    margin-right: ${styleDef['right-indent']};`);
+            rules.push(`    margin-right: ${this.convertValue(styleDef['right-indent'], 'indent')};`);
         }
 
         // Font Variant / Style / Weight handling
@@ -132,10 +134,55 @@ class StyleManager {
             rules.push(`    break-after: avoid;`);
         }
 
-        // Color - default to variable if not specified, but usually handled by theme
-        // We can add specific color overrides if needed later.
+        if (styleDef['color']) {
+            rules.push(`    color: ${styleDef['color']};`);
+        }
+
+        if (styleDef['font-weight']) {
+            rules.push(`    font-weight: ${styleDef['font-weight']};`);
+        }
 
         return rules.join('\n');
+    }
+
+    convertValue(value, type) {
+        if (typeof value !== 'string' && typeof value !== 'number') return value;
+        const strVal = String(value);
+        const numVal = parseFloat(strVal);
+
+        if (isNaN(numVal)) return value;
+
+        // Scaling Factors based on user request:
+        // pt -> rem: value * (1/12)
+        // in -> rem: value * 6
+
+        if (strVal.endsWith('in')) {
+            return `${(numVal * 6).toFixed(3)}rem`;
+        }
+
+        if (type === 'font-size') {
+            if (strVal.endsWith('pt')) {
+                return `${(numVal / 12).toFixed(3)}rem`;
+            }
+        } else if (type === 'indent') {
+            // Indents are now handled by the generic 'in' check above if they use inches.
+            // If they use other units, we leave them alone.
+        } else if (type === 'line-spacing') {
+            if (strVal.endsWith('pt')) {
+                return `${(numVal / 12).toFixed(3)}rem`;
+            }
+            // If unitless (e.g. "1"), treat as multiplier
+            if (!strVal.match(/[a-z%]/i)) {
+                return strVal;
+            }
+        } else if (type === 'spacing') {
+            // For margins (before/after paragraph)
+            if (strVal.endsWith('pt')) {
+                return `${(numVal / 12).toFixed(3)}rem`;
+            }
+        }
+
+        return value;
     }
 
     /**
