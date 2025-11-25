@@ -25394,11 +25394,14 @@ var require_popover_menu = __commonJS({
         this.styleSelect = this.createSelectMenu(styleSection, [
           { label: "Supertitle", value: "supertitle", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "supertitle" }).run() },
           { label: "Title", value: "title", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: "title" }).run() },
-          { label: "Heading 1", value: "h1", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: null }).run() },
-          { label: "Heading 2", value: "h2", action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes("heading", { class: null }).run() },
-          { label: "Heading 3", value: "h3", action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes("heading", { class: null }).run() },
+          { label: "Heading 1", value: "h1", action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes("heading", { class: "heading-1" }).run() },
+          { label: "Heading 2", value: "h2", action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes("heading", { class: "heading-2" }).run() },
+          { label: "Heading 3", value: "h3", action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes("heading", { class: "heading-3" }).run() },
+          { label: "Heading 4", value: "h4", action: () => this.editor.chain().focus().toggleHeading({ level: 4 }).updateAttributes("heading", { class: "heading-4" }).run() },
+          { label: "Heading 5", value: "h5", action: () => this.editor.chain().focus().toggleHeading({ level: 5 }).updateAttributes("heading", { class: "heading-5" }).run() },
+          { label: "Heading 6", value: "h6", action: () => this.editor.chain().focus().toggleHeading({ level: 6 }).updateAttributes("heading", { class: "heading-6" }).run() },
           { label: "Body First", value: "body-first", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "body-first" }).run() },
-          { label: "Body", value: "paragraph", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: null }).run() }
+          { label: "Body", value: "paragraph", action: () => this.editor.chain().focus().setParagraph().updateAttributes("paragraph", { class: "body" }).run() }
         ]);
         this.sections.push(styleSection);
         const formatSection = this.el.createDiv("colophon-popover-section");
@@ -25449,6 +25452,9 @@ var require_popover_menu = __commonJS({
           else activeValue = "h1";
         } else if (this.editor.isActive("heading", { level: 2 })) activeValue = "h2";
         else if (this.editor.isActive("heading", { level: 3 })) activeValue = "h3";
+        else if (this.editor.isActive("heading", { level: 4 })) activeValue = "h4";
+        else if (this.editor.isActive("heading", { level: 5 })) activeValue = "h5";
+        else if (this.editor.isActive("heading", { level: 6 })) activeValue = "h6";
         else if (this.editor.isActive("paragraph")) {
           if (this.editor.isActive({ class: "supertitle" })) activeValue = "supertitle";
           else if (this.editor.isActive({ class: "body-first" })) activeValue = "body-first";
@@ -26045,11 +26051,27 @@ var require_tiptap_adapter = __commonJS({
     var Substitutions = require_substitutions();
     var InternalLink = require_internallink();
     var StandardLink = require_standard_link();
+    var EnterKeyHandler = Extension.create({
+      name: "enterKeyHandler",
+      addKeyboardShortcuts() {
+        return {
+          "Enter": () => {
+            const { state } = this.editor;
+            const { $from } = state.selection;
+            const currentNode = $from.parent;
+            if (currentNode.attrs.class !== "body") {
+              return this.editor.chain().focus().splitBlock().setNode("paragraph", { class: "body" }).run();
+            }
+            return this.editor.commands.splitBlock();
+          }
+        };
+      }
+    });
     var CustomParagraph = Paragraph.extend({
       addAttributes() {
         return {
           class: {
-            default: null,
+            default: "body",
             parseHTML: (element) => element.getAttribute("class"),
             renderHTML: (attributes) => {
               if (!attributes.class) {
@@ -26070,7 +26092,7 @@ var require_tiptap_adapter = __commonJS({
             keepOnSplit: false
           },
           class: {
-            default: null,
+            default: "heading-1",
             parseHTML: (element) => element.getAttribute("class"),
             renderHTML: (attributes) => {
               if (!attributes.class) {
@@ -26116,6 +26138,24 @@ var require_tiptap_adapter = __commonJS({
         this.footnotes = [];
         this.listeners = [];
       }
+      normalizeDoc(doc) {
+        if (!doc || !doc.content) {
+          return doc;
+        }
+        doc.content.forEach((node) => {
+          if (node.type === "paragraph") {
+            if (!node.attrs || node.attrs.class === null || node.attrs.class === void 0) {
+              node.attrs = { ...node.attrs, class: "body" };
+            }
+          } else if (node.type === "heading") {
+            if (!node.attrs || node.attrs.class === null || node.attrs.class === void 0) {
+              const level = node.attrs?.level || 1;
+              node.attrs = { ...node.attrs, class: `heading-${level}` };
+            }
+          }
+        });
+        return doc;
+      }
       subscribe(callback) {
         this.listeners.push(callback);
         return () => {
@@ -26156,6 +26196,7 @@ var require_tiptap_adapter = __commonJS({
           };
           this.footnotes = [];
         }
+        content = this.normalizeDoc(content);
         this.initEditor(content);
         this.isLoaded = true;
       }
@@ -26167,6 +26208,7 @@ var require_tiptap_adapter = __commonJS({
               paragraph: false,
               heading: false
             }),
+            EnterKeyHandler,
             CustomParagraph,
             CustomHeading,
             Underline,
@@ -26945,27 +26987,27 @@ var ColophonSettingTab = class extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Colophon Settings" });
-    new Setting(containerEl).setName("Text Column Width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
+    new Setting(containerEl).setName("Text column width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.textColumnWidth = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Substitutions" });
-    new Setting(containerEl).setName("Smart Quotes").setDesc("Automatically replace straight quotes with smart quotes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartQuotes).onChange(async (value) => {
+    containerEl.createEl("h2", { text: "Substitutions" });
+    new Setting(containerEl).setName("Smart quotes").setDesc("Automatically replace straight quotes with smart quotes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartQuotes).onChange(async (value) => {
       this.plugin.settings.smartQuotes = value;
       await this.plugin.saveSettings();
       this.display();
     }));
     if (this.plugin.settings.smartQuotes) {
-      new Setting(containerEl).setName("Double Quote Style").setDesc("Choose the style for double quotes.").addDropdown((dropdown) => dropdown.addOption("\u201C|\u201D", "\u201Cabc\u201D").addOption("\u201E|\u201C", "\u201Eabc\u201C").addOption("\u201E|\u201D", "\u201Eabc\u201D").addOption("\u201D|\u201D", "\u201Dabc\u201D").addOption("\xAB|\xBB", "\xABabc\xBB").addOption("\xBB|\xAB", "\xBBabc\xAB").addOption('"|"', '"abc"').setValue(this.plugin.settings.doubleQuoteStyle).onChange(async (value) => {
+      new Setting(containerEl).setName("Double quote style").setDesc("Choose the style for double quotes.").addDropdown((dropdown) => dropdown.addOption("\u201C|\u201D", "\u201Cabc\u201D").addOption("\u201E|\u201C", "\u201Eabc\u201C").addOption("\u201E|\u201D", "\u201Eabc\u201D").addOption("\u201D|\u201D", "\u201Dabc\u201D").addOption("\xAB|\xBB", "\xABabc\xBB").addOption("\xBB|\xAB", "\xBBabc\xAB").addOption('"|"', '"abc"').setValue(this.plugin.settings.doubleQuoteStyle).onChange(async (value) => {
         this.plugin.settings.doubleQuoteStyle = value;
         await this.plugin.saveSettings();
       }));
-      new Setting(containerEl).setName("Single Quote Style").setDesc("Choose the style for single quotes.").addDropdown((dropdown) => dropdown.addOption("\u2018|\u2019", "\u2018abc\u2019").addOption("\u201A|\u2018", "\u201Aabc\u2018").addOption("\u201A|\u2019", "\u201Aabc\u2019").addOption("\u2019|\u2019", "\u2019abc\u2019").addOption("\u2039|\u203A", "\u2039abc\u203A").addOption("\u203A|\u2039", "\u203Aabc\u2039").addOption("'|'", "'abc'").setValue(this.plugin.settings.singleQuoteStyle).onChange(async (value) => {
+      new Setting(containerEl).setName("Single quote style").setDesc("Choose the style for single quotes.").addDropdown((dropdown) => dropdown.addOption("\u2018|\u2019", "\u2018abc\u2019").addOption("\u201A|\u2018", "\u201Aabc\u2018").addOption("\u201A|\u2019", "\u201Aabc\u2019").addOption("\u2019|\u2019", "\u2019abc\u2019").addOption("\u2039|\u203A", "\u2039abc\u203A").addOption("\u203A|\u2039", "\u203Aabc\u2039").addOption("'|'", "'abc'").setValue(this.plugin.settings.singleQuoteStyle).onChange(async (value) => {
         this.plugin.settings.singleQuoteStyle = value;
         await this.plugin.saveSettings();
       }));
     }
-    new Setting(containerEl).setName("Smart Dashes").setDesc("Replace -- with em-dash (\u2014) and --- with en-dash (\u2013).").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartDashes).onChange(async (value) => {
+    new Setting(containerEl).setName("Smart dashes").setDesc("Replace -- with em-dash (\u2014) and --- with en-dash (\u2013).").addToggle((toggle) => toggle.setValue(this.plugin.settings.smartDashes).onChange(async (value) => {
       this.plugin.settings.smartDashes = value;
       await this.plugin.saveSettings();
     }));

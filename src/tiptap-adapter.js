@@ -13,12 +13,35 @@ const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
 const StandardLink = require('./extensions/standard-link');
 
+// Custom extension to handle the Enter key
+const EnterKeyHandler = Extension.create({
+    name: 'enterKeyHandler',
+
+    addKeyboardShortcuts() {
+        return {
+            'Enter': () => {
+                const { state } = this.editor;
+                const { $from } = state.selection;
+                const currentNode = $from.parent;
+
+                if (currentNode.attrs.class !== 'body') {
+                    // If so, split the block and set the new one to be a default paragraph
+                    return this.editor.chain().focus().splitBlock().setNode('paragraph', { class: 'body' }).run();
+                }
+
+                // For all other cases, use the default behavior
+                return this.editor.commands.splitBlock();
+            },
+        };
+    },
+});
+
 // Custom Paragraph with Class Support
 const CustomParagraph = Paragraph.extend({
     addAttributes() {
         return {
             class: {
-                default: null,
+                default: "body",
                 parseHTML: element => element.getAttribute('class'),
                 renderHTML: attributes => {
                     if (!attributes.class) {
@@ -41,7 +64,7 @@ const CustomHeading = Heading.extend({
                 keepOnSplit: false,
             },
             class: {
-                default: null,
+                default: "heading-1",
                 parseHTML: element => element.getAttribute('class'),
                 renderHTML: attributes => {
                     if (!attributes.class) {
@@ -89,6 +112,25 @@ class TiptapAdapter {
         this.popover = null;
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
+    }
+
+    normalizeDoc(doc) {
+        if (!doc || !doc.content) {
+            return doc;
+        }
+        doc.content.forEach(node => {
+            if (node.type === 'paragraph') {
+                if (!node.attrs || node.attrs.class === null || node.attrs.class === undefined) {
+                    node.attrs = { ...node.attrs, class: 'body' };
+                }
+            } else if (node.type === 'heading') {
+                if (!node.attrs || node.attrs.class === null || node.attrs.class === undefined) {
+                    const level = node.attrs?.level || 1;
+                    node.attrs = { ...node.attrs, class: `heading-${level}` };
+                }
+            }
+        });
+        return doc;
     }
 
     subscribe(callback) {
@@ -146,6 +188,9 @@ class TiptapAdapter {
             this.footnotes = [];
         }
 
+        // Normalize content to ensure all nodes have a class
+        content = this.normalizeDoc(content);
+
         this.initEditor(content);
         this.isLoaded = true;
     }
@@ -158,6 +203,7 @@ class TiptapAdapter {
                     paragraph: false,
                     heading: false,
                 }),
+                EnterKeyHandler,
                 CustomParagraph,
                 CustomHeading,
                 Underline,

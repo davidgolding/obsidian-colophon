@@ -121,10 +121,7 @@
 }
 
 /* Body First (No indent) */
-.colophon-workspace .ProseMirror p.body-first,
-.colophon-workspace .ProseMirror h1+p,
-.colophon-workspace .ProseMirror h2+p,
-.colophon-workspace .ProseMirror h3+p {
+.colophon-workspace .ProseMirror p.body-first {
     text-indent: 0;
 }
 

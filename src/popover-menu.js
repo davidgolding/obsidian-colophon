@@ -24,11 +24,14 @@ class PopoverMenu {
         this.styleSelect = this.createSelectMenu(styleSection, [
             { label: 'Supertitle', value: 'supertitle', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'supertitle' }).run() },
             { label: 'Title', value: 'title', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: 'title' }).run() },
-            { label: 'Heading 1', value: 'h1', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: null }).run() },
-            { label: 'Heading 2', value: 'h2', action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes('heading', { class: null }).run() },
-            { label: 'Heading 3', value: 'h3', action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes('heading', { class: null }).run() },
+            { label: 'Heading 1', value: 'h1', action: () => this.editor.chain().focus().toggleHeading({ level: 1 }).updateAttributes('heading', { class: 'heading-1' }).run() },
+            { label: 'Heading 2', value: 'h2', action: () => this.editor.chain().focus().toggleHeading({ level: 2 }).updateAttributes('heading', { class: 'heading-2' }).run() },
+            { label: 'Heading 3', value: 'h3', action: () => this.editor.chain().focus().toggleHeading({ level: 3 }).updateAttributes('heading', { class: 'heading-3' }).run() },
+            { label: 'Heading 4', value: 'h4', action: () => this.editor.chain().focus().toggleHeading({ level: 4 }).updateAttributes('heading', { class: 'heading-4' }).run() },
+            { label: 'Heading 5', value: 'h5', action: () => this.editor.chain().focus().toggleHeading({ level: 5 }).updateAttributes('heading', { class: 'heading-5' }).run() },
+            { label: 'Heading 6', value: 'h6', action: () => this.editor.chain().focus().toggleHeading({ level: 6 }).updateAttributes('heading', { class: 'heading-6' }).run() },
             { label: 'Body First', value: 'body-first', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'body-first' }).run() },
-            { label: 'Body', value: 'paragraph', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: null }).run() }
+            { label: 'Body', value: 'paragraph', action: () => this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: 'body' }).run() }
         ]);
         this.sections.push(styleSection);
 
@@ -101,6 +104,9 @@ class PopoverMenu {
         }
         else if (this.editor.isActive('heading', { level: 2 })) activeValue = 'h2';
         else if (this.editor.isActive('heading', { level: 3 })) activeValue = 'h3';
+        else if (this.editor.isActive('heading', { level: 4 })) activeValue = 'h4';
+        else if (this.editor.isActive('heading', { level: 5 })) activeValue = 'h5';
+        else if (this.editor.isActive('heading', { level: 6 })) activeValue = 'h6';
         else if (this.editor.isActive('paragraph')) {
             if (this.editor.isActive({ class: 'supertitle' })) activeValue = 'supertitle';
             else if (this.editor.isActive({ class: 'body-first' })) activeValue = 'body-first';
