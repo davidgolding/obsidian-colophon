@@ -61196,7 +61196,7 @@ var require_dist34 = __commonJS({
         this.root.push(new SpacingAttributes2(options));
       }
     };
-    var HeadingLevel2 = {
+    var HeadingLevel3 = {
       HEADING_1: "Heading1",
       HEADING_2: "Heading2",
       HEADING_3: "Heading3",
@@ -69452,7 +69452,7 @@ var require_dist34 = __commonJS({
     exports2.HeaderFooterReferenceType = HeaderFooterReferenceType2;
     exports2.HeaderFooterType = HeaderFooterType2;
     exports2.HeaderWrapper = HeaderWrapper2;
-    exports2.HeadingLevel = HeadingLevel2;
+    exports2.HeadingLevel = HeadingLevel3;
     exports2.HeightRule = HeightRule;
     exports2.HighlightColor = HighlightColor;
     exports2.HorizontalPositionAlign = HorizontalPositionAlign;
@@ -69687,7 +69687,7 @@ var DEFAULT_SETTINGS = {
   singleQuoteStyle: "\u2018|\u2019"
 };
 var { DocxSerializer: DocxSerializer2 } = (init_esm(), __toCommonJS(esm_exports));
-var { Packer: Packer2 } = require_dist34();
+var { Packer: Packer2, HeadingLevel: HeadingLevel2 } = require_dist34();
 var fs = require("fs");
 var electron = require("electron");
 module.exports = class ColophonPlugin extends Plugin {
@@ -69723,12 +69723,14 @@ module.exports = class ColophonPlugin extends Plugin {
         });
       })
     );
-    this.registerEvent(this.app.workspace.on("editor-menu", (menu, view) => {
-      menu.addItem((item) => {
-        item.setTitle("Export to DOCX").setIcon("document").onClick(async () => {
-          this.exportToDocx(view);
+    this.registerEvent(this.app.workspace.on("editor-menu", (menu, editor, view) => {
+      if (view instanceof ColophonView) {
+        menu.addItem((item) => {
+          item.setTitle("Export to DOCX").setIcon("document").onClick(async () => {
+            this.exportToDocx(view);
+          });
         });
-      });
+      }
     }));
     this.addCommand({
       id: "create-new-colophon-manuscript",
@@ -69806,7 +69808,9 @@ module.exports = class ColophonPlugin extends Plugin {
     });
   }
   async exportToDocx(view) {
-    console.log(view);
+    if (!view) {
+      view = this.app.workspace.getActiveViewOfType(ColophonView);
+    }
     if (!view || !(view instanceof ColophonView) || !view.adapter.editor) {
       new Notice("No active Colophon editor found.");
       return;
@@ -69816,40 +69820,63 @@ module.exports = class ColophonPlugin extends Plugin {
     const defaultPath = (view.file?.basename || "Untitled") + ".docx";
     try {
       const nodeSerializers = {
-        doc(state2, node) {
-          state2.serializeContent(node);
-        },
         paragraph(state2, node) {
-          state2.createBlock({}, node);
-          state2.serializeContent(node);
+          state2.renderInline(node);
+          state2.closeBlock(node);
         },
         heading(state2, node) {
-          state2.createBlock({ heading: node.attrs.level });
-          state2.serializeContent(node);
+          state2.renderInline(node);
+          const heading = [
+            HeadingLevel2.HEADING_1,
+            HeadingLevel2.HEADING_2,
+            HeadingLevel2.HEADING_3,
+            HeadingLevel2.HEADING_4,
+            HeadingLevel2.HEADING_5,
+            HeadingLevel2.HEADING_6
+          ][node.attrs.level - 1];
+          state2.closeBlock(node, { heading });
         },
         text(state2, node) {
-          state2.addText(node.text, state2.marks);
+          state2.text(node.text);
         },
         hard_break(state2) {
-          state2.addText("\n");
+          state2.addRunOptions({ break: 1 });
         },
         footnote() {
         }
       };
       const markSerializers = {
-        bold: { type: "bold" },
-        italic: { type: "italic" },
-        underline: { type: "underline" },
-        strike: { type: "strike" },
-        superscript: { type: "superscript" },
-        subscript: { type: "subscript" },
-        internallink: {},
+        bold() {
+          return { bold: true };
+        },
+        italic() {
+          return { italics: true };
+        },
+        underline() {
+          return { underline: {} };
+        },
+        strike() {
+          return { strike: true };
+        },
+        superscript() {
+          return { superScript: true };
+        },
+        subscript() {
+          return { subScript: true };
+        },
+        internallink() {
+          return {};
+        },
         // Ignore links for now
-        smallCaps: {}
+        smallCaps() {
+          return { smallCaps: true };
+        }
         // Ignore custom marks for now
       };
       const serializer = new DocxSerializer2(nodeSerializers, markSerializers);
-      const doc = serializer.serialize(prosemirrorDoc);
+      const doc = serializer.serialize(prosemirrorDoc, {
+        sections: [{}]
+      });
       const buffer2 = await Packer2.toBuffer(doc);
       const result = await electron.remote.dialog.showSaveDialog({
         title: "Export to DOCX",

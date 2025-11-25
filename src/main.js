@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
-const { Packer } = require('docx');
+const { Packer, HeadingLevel } = require('docx');
 const fs = require('fs');
 const electron = require('electron');
 
@@ -71,15 +71,17 @@ module.exports = class ColophonPlugin extends Plugin {
         );
 
         // Add Export to DOCX menu item
-        this.registerEvent(this.app.workspace.on('editor-menu', (menu, view) => {
-            menu.addItem((item) => {
-                item
-                    .setTitle('Export to DOCX')
-                    .setIcon('document')
-                    .onClick(async () => {
-                        this.exportToDocx(view);
-                    });
-            });
+        this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor, view) => {
+            if (view instanceof ColophonView) {
+                menu.addItem((item) => {
+                    item
+                        .setTitle('Export to DOCX')
+                        .setIcon('document')
+                        .onClick(async () => {
+                            this.exportToDocx(view);
+                        });
+                });
+            }
         }));
 
         // COMMAND: Add "New manuscript" to command list
@@ -193,7 +195,10 @@ module.exports = class ColophonPlugin extends Plugin {
     }
 
     async exportToDocx(view) {
-        console.log(view);
+        if (!view) {
+            view = this.app.workspace.getActiveViewOfType(ColophonView);
+        }
+
         if (!view || !(view instanceof ColophonView) || !view.adapter.editor) {
             new Notice('No active Colophon editor found.');
             return;
@@ -206,22 +211,28 @@ module.exports = class ColophonPlugin extends Plugin {
         try {
             // Define serializers for your document structure
             const nodeSerializers = {
-                doc(state, node) {
-                    state.serializeContent(node);
-                },
+
                 paragraph(state, node) {
-                    state.createBlock({}, node);
-                    state.serializeContent(node);
+                    state.renderInline(node);
+                    state.closeBlock(node);
                 },
                 heading(state, node) {
-                    state.createBlock({ heading: node.attrs.level });
-                    state.serializeContent(node);
+                    state.renderInline(node);
+                    const heading = [
+                        HeadingLevel.HEADING_1,
+                        HeadingLevel.HEADING_2,
+                        HeadingLevel.HEADING_3,
+                        HeadingLevel.HEADING_4,
+                        HeadingLevel.HEADING_5,
+                        HeadingLevel.HEADING_6,
+                    ][node.attrs.level - 1];
+                    state.closeBlock(node, { heading });
                 },
                 text(state, node) {
-                    state.addText(node.text, state.marks);
+                    state.text(node.text);
                 },
                 hard_break(state) {
-                    state.addText('\n');
+                    state.addRunOptions({ break: 1 });
                 },
                 footnote() {
                     // Ignore footnotes for now
@@ -229,18 +240,20 @@ module.exports = class ColophonPlugin extends Plugin {
             };
 
             const markSerializers = {
-                bold: { type: 'bold' },
-                italic: { type: 'italic' },
-                underline: { type: 'underline' },
-                strike: { type: 'strike' },
-                superscript: { type: 'superscript' },
-                subscript: { type: 'subscript' },
-                internallink: {}, // Ignore links for now
-                smallCaps: {}, // Ignore custom marks for now
+                bold() { return { bold: true }; },
+                italic() { return { italics: true }; },
+                underline() { return { underline: {} }; },
+                strike() { return { strike: true }; },
+                superscript() { return { superScript: true }; },
+                subscript() { return { subScript: true }; },
+                internallink() { return {}; }, // Ignore links for now
+                smallCaps() { return { smallCaps: true }; }, // Ignore custom marks for now
             };
 
             const serializer = new DocxSerializer(nodeSerializers, markSerializers);
-            const doc = serializer.serialize(prosemirrorDoc);
+            const doc = serializer.serialize(prosemirrorDoc, {
+                sections: [{}]
+            });
 
             const buffer = await Packer.toBuffer(doc);
 
