@@ -26163,12 +26163,10 @@ var require_tiptap_adapter = __commonJS({
         };
       }
       updateSettings(newSettings) {
+        const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
-        if (this.editor) {
-          const content = this.editor.getJSON();
-          const selection = this.editor.state.selection;
-          this.editor.destroy();
-          this.initEditor(content);
+        if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
+          this.handleScroll();
         }
       }
       load(markdown2, data, filePath) {
@@ -26201,8 +26199,9 @@ var require_tiptap_adapter = __commonJS({
         this.isLoaded = true;
       }
       initEditor(content) {
+        const editorHost = this.containerEl.createDiv("colophon-editor-host");
         this.editor = new Editor({
-          element: this.containerEl,
+          element: editorHost,
           extensions: [
             StarterKit.configure({
               paragraph: false,
@@ -26240,6 +26239,9 @@ var require_tiptap_adapter = __commonJS({
           content,
           onUpdate: ({ editor }) => {
             this.triggerUpdate();
+          },
+          onSelectionUpdate: ({ editor }) => {
+            this.handleScroll();
           }
         });
         this.popover = new PopoverMenu(this.editor, this.containerEl);
@@ -26254,6 +26256,29 @@ var require_tiptap_adapter = __commonJS({
             this.popover.show(x, y);
           }
         });
+      }
+      handleScroll() {
+        if (!this.editor || !this.editor.view.hasFocus()) {
+          return;
+        }
+        const { state } = this.editor;
+        if (!state.selection.empty) {
+          return;
+        }
+        const view = this.editor.view;
+        const pos = state.selection.from;
+        const cursorCoords = view.coordsAtPos(pos);
+        const containerRect = this.containerEl.getBoundingClientRect();
+        const paddingPercent = this.settings.textColumnBottomPadding || 0;
+        const thresholdPercent = 1 - paddingPercent / 100;
+        const thresholdY = containerRect.top + containerRect.height * thresholdPercent;
+        if (cursorCoords.bottom > thresholdY) {
+          const scrollAmount = cursorCoords.bottom - thresholdY;
+          this.containerEl.scrollBy({
+            top: scrollAmount,
+            behavior: "smooth"
+          });
+        }
       }
       triggerUpdate() {
         if (!this.editor) return;
@@ -26726,6 +26751,8 @@ var { ColophonView, VIEW_TYPE } = require_view2();
 var { FootnoteView, FOOTNOTE_VIEW_TYPE } = require_footnote_view();
 var DEFAULT_SETTINGS = {
   textColumnWidth: 1080,
+  textColumnBottomPadding: 25,
+  // Default to 25%
   smartQuotes: true,
   smartDashes: true,
   doubleQuoteStyle: "\u201C|\u201D",
@@ -26987,8 +27014,13 @@ var ColophonSettingTab = class extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "Colophon Settings" });
+    containerEl.createEl("h2", { text: "Layout" });
     new Setting(containerEl).setName("Text column width").setDesc("Adjust the width of the writing canvas (500px - 1240px).").addSlider((slider) => slider.setLimits(500, 1240, 10).setValue(this.plugin.settings.textColumnWidth).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.textColumnWidth = value;
+      await this.plugin.saveSettings();
+    }));
+    new Setting(containerEl).setName("Text column bottom padding").setDesc("Sets the distance the cursor stays from the bottom of the screen. 50% keeps the active line in the middle.").addSlider((slider) => slider.setLimits(0, 75, 1).setValue(this.plugin.settings.textColumnBottomPadding).setDynamicTooltip().onChange(async (value) => {
+      this.plugin.settings.textColumnBottomPadding = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "Substitutions" });

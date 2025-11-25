@@ -103,7 +103,7 @@ const SmallCaps = Mark.create({
 class TiptapAdapter {
     constructor(app, containerEl, isSpellcheckEnabled, settings, onUpdate) {
         this.app = app;
-        this.containerEl = containerEl;
+        this.containerEl = containerEl; // This is the scrollable container
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.settings = settings;
         this.onUpdate = onUpdate; // Callback when editor content changes
@@ -141,16 +141,14 @@ class TiptapAdapter {
     }
 
     updateSettings(newSettings) {
+        const oldPadding = this.settings.textColumnBottomPadding;
         this.settings = newSettings;
-        // Re-initialize editor to apply new input rules
-        // We need to save current state first
-        if (this.editor) {
-            const content = this.editor.getJSON();
-            const selection = this.editor.state.selection;
-            this.editor.destroy();
-            this.initEditor(content);
-            // Restore selection? Might be tricky with new editor instance
-            // For now, just reloading is safer for settings changes
+
+        // Re-initialize editor to apply new input rules if needed
+        // For now, only settings that require re-init are handled.
+        // Padding does not, but we might want to trigger a scroll check.
+        if (this.editor && oldPadding !== newSettings.textColumnBottomPadding) {
+             this.handleScroll(); // Re-check scroll on padding change
         }
     }
 
@@ -196,8 +194,11 @@ class TiptapAdapter {
     }
 
     initEditor(content) {
+        // The editor is mounted in a child div to separate it from the scrollable container
+        const editorHost = this.containerEl.createDiv('colophon-editor-host');
+
         this.editor = new Editor({
-            element: this.containerEl,
+            element: editorHost,
             extensions: [
                 StarterKit.configure({
                     paragraph: false,
@@ -236,6 +237,9 @@ class TiptapAdapter {
             onUpdate: ({ editor }) => {
                 this.triggerUpdate();
             },
+            onSelectionUpdate: ({ editor }) => {
+                this.handleScroll();
+            }
         });
 
         // Initialize Popover
@@ -244,17 +248,49 @@ class TiptapAdapter {
 
         // Add Context Menu Listener
         this.editor.view.dom.addEventListener('contextmenu', (e) => {
-            // Check if there is a selection
             const { from, to } = this.editor.state.selection;
             if (from !== to) {
                 e.preventDefault();
                 const rect = this.containerEl.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
-
                 this.popover.show(x, y);
             }
         });
+    }
+    
+    handleScroll() {
+        if (!this.editor || !this.editor.view.hasFocus()) {
+            return;
+        }
+
+        const { state } = this.editor;
+        if (!state.selection.empty) {
+            return; // Only scroll for cursor, not range selections
+        }
+
+        const view = this.editor.view;
+        const pos = state.selection.from;
+        
+        // Get coordinates of the cursor
+        const cursorCoords = view.coordsAtPos(pos);
+        
+        // Get dimensions of the scrollable container
+        const containerRect = this.containerEl.getBoundingClientRect();
+
+        // Calculate the scroll threshold
+        // The setting is "padding from bottom", so 25% means the threshold is at 75% of the height
+        const paddingPercent = this.settings.textColumnBottomPadding || 0;
+        const thresholdPercent = 1 - (paddingPercent / 100);
+        const thresholdY = containerRect.top + (containerRect.height * thresholdPercent);
+
+        if (cursorCoords.bottom > thresholdY) {
+            const scrollAmount = cursorCoords.bottom - thresholdY;
+            this.containerEl.scrollBy({
+                top: scrollAmount,
+                behavior: 'smooth'
+            });
+        }
     }
 
     triggerUpdate() {
@@ -273,30 +309,13 @@ class TiptapAdapter {
                     number: number,
                     pos: pos
                 });
-
-                // If the number in the node doesn't match the calculated number, we need to update it.
-                // However, updating the document inside onUpdate can cause infinite loops if not careful.
-                // We should only update if it's different.
                 if (node.attrs.number !== number) {
-                    // We can't dispatch a transaction synchronously inside onUpdate if it triggers another update immediately?
-                    // Tiptap's onUpdate is called after the transaction. Dispatching a new one is fine usually.
-                    // But to avoid infinite loops, we should check if we are already processing.
-                    // Let's collect changes and apply them in a separate transaction if needed, 
-                    // OR just rely on the view to render the number if we used decorations.
-                    // Since we are using attributes, we MUST update the node.
-
-                    // We'll defer the update to avoid conflict or use a flag.
-                    // Actually, let's just store the need to update and do it.
-                    // But wait, if we update the node, onUpdate fires again.
-                    // We need to ensure we don't update if it's already correct.
-                    // The check `node.attrs.number !== number` handles that.
                     hasChanges = true;
                 }
             }
         });
 
         // 2. Sync with sidecar data
-        // We want to keep the content from existing footnotes if IDs match
         const newFootnotesList = footnotesInDoc.map(fn => {
             const existing = this.footnotes.find(f => f.id === fn.id);
             return {
@@ -310,18 +329,10 @@ class TiptapAdapter {
 
         // 3. Apply Numbering Updates to Document if needed
         if (hasChanges) {
-            // We need to schedule this update to happen after the current cycle to avoid issues?
-            // Or just do it. Tiptap/ProseMirror allows dispatching new transactions.
-            // We just need to be careful about mapping positions if we do multiple.
-            // But since we are just setting attributes, positions shouldn't change.
-
-            // Let's try to do it in a microtask to be safe and avoid "applying transaction during dispatch" errors.
             Promise.resolve().then(() => {
                 if (!this.editor || this.editor.isDestroyed) return;
-
                 const tr = this.editor.state.tr;
                 let modified = false;
-
                 this.editor.state.doc.descendants((node, pos) => {
                     if (node.type.name === 'footnote') {
                         const targetNumber = footnotesInDoc.find(f => f.id === node.attrs.id)?.number;
@@ -331,7 +342,6 @@ class TiptapAdapter {
                         }
                     }
                 });
-
                 if (modified) {
                     this.editor.view.dispatch(tr);
                 }
@@ -356,8 +366,6 @@ class TiptapAdapter {
                 type: 'footnote',
                 attrs: { id, number: '#' }
             }).run();
-
-            // The onUpdate will trigger and fix the numbering
             return id;
         }
     }
@@ -366,8 +374,6 @@ class TiptapAdapter {
         const fn = this.footnotes.find(f => f.id === id);
         if (fn) {
             fn.content = content;
-            // We don't need to update the editor doc for content changes, just the sidecar data
-            // But we do need to trigger the onUpdate callback to save to disk
             if (this.onUpdate) {
                 this.onUpdate({
                     doc: this.editor.getJSON(),

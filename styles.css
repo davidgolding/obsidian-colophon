@@ -59,7 +59,7 @@
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 0 2rem 4rem 2rem;
+    padding: 0 2rem 75vh 2rem;
     /* Top padding 0, Bottom 4rem, Sides 2rem */
 
     /* Appearance */
