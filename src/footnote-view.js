@@ -29,7 +29,7 @@ class FootnoteView extends ItemView {
     }
 
     getIcon() {
-        return 'list';
+        return 'list-ordered';
     }
 
     async onOpen() {

@@ -164,10 +164,13 @@ class ColophonView extends FileView {
         await this.app.vault.modify(this.file, newContent);
     }
 
-    insertFootnote() {
+    async insertFootnote() {
         if (this.adapter) {
             const id = this.adapter.addFootnote();
             if (id) {
+                // Ensure footnote view is open
+                await this.plugin.activateFootnoteView();
+
                 // Auto-focus the sidebar
                 // We need to find the FootnoteView and call focusFootnote(id)
                 // But we might need to wait for the view to update?
