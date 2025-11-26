@@ -31,6 +31,9 @@ class StyleManager {
             if (styleDef.type === 'list') {
                 const rules = this.generateListCSS(key, styleDef, scale);
                 if (rules) css += rules;
+            } else if (styleDef.type === 'footnote') {
+                const rules = this.generateFootnoteCSS(key, styleDef, scale);
+                if (rules) css += rules;
             } else {
                 const selector = this.getSelector(key);
                 const rules = this.mapStyleToCSS(styleDef, scale);
@@ -265,6 +268,52 @@ class StyleManager {
         }
 
         return css;
+    }
+
+    /**
+     * Generates CSS for footnote symbols.
+     * @param {string} key - The style key.
+     * @param {Object} styleDef - The style definition.
+     * @param {number} scale - The scale factor.
+     * @returns {string} The CSS string.
+     */
+    generateFootnoteCSS(key, styleDef, scale = 1.0) {
+        // Target the .footnote-symbol class (applied to sup)
+        const selector = `.colophon-workspace .ProseMirror .footnote-symbol`;
+        let rules = [];
+
+        if (styleDef['font-family']) {
+            rules.push(`    font-family: ${styleDef['font-family']};`);
+        }
+
+        if (styleDef['font-size']) {
+            const val = this.convertValue(styleDef['font-size'], 'font-size', scale);
+            rules.push(`    font-size: ${val};`);
+        }
+
+        if (styleDef['color']) {
+            rules.push(`    color: ${styleDef['color']};`);
+        }
+
+        if (styleDef['font-weight']) {
+            rules.push(`    font-weight: ${styleDef['font-weight']};`);
+        }
+
+        // Force line-height 0
+        rules.push(`    line-height: 0;`);
+
+        // Vertical Alignment
+        // User requested 'align' in points (e.g. 4pt).
+        // Positive moves up.
+        // We use position: relative and top: calc(-1 * align).
+        if (styleDef['align']) {
+            const alignVal = this.convertValue(styleDef['align'], 'indent', scale);
+            rules.push(`    position: relative;`);
+            rules.push(`    top: calc(-1 * ${alignVal});`);
+            rules.push(`    vertical-align: baseline;`); // Reset default sup alignment
+        }
+
+        return `${selector} {\n${rules.join('\n')}\n}\n`;
     }
 
     convertValue(value, type, scale = 1.0) {

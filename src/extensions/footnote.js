@@ -41,7 +41,7 @@ const Footnote = Node.create({
 
     renderHTML({ HTMLAttributes }) {
         return ['span', mergeAttributes(HTMLAttributes, { 'data-type': 'footnote', class: 'colophon-footnote' }),
-            ['sup', HTMLAttributes.number || '#']
+            ['sup', { class: 'footnote-symbol' }, HTMLAttributes.number || '#']
         ]
     },
 

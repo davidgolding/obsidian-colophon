@@ -96,7 +96,6 @@ const DEFAULT_STYLES = {
         "type": "pararaph",
         "font-weight": "bold",
         "font-family": "var(--font-text-theme), var(--font-text-override)",
-        "color": "var(--text-accent)",
         "font-size": "7pt",
         "line-spacing": "9pt"
     },
@@ -176,6 +175,16 @@ const DEFAULT_STYLES = {
             "marker-indent": "0in",
             "text-indent": "0.25in"
         }
+    },
+    "footnote-symbol": {
+        "name": "Footnote Symbol",
+        "type": "footnote",
+        "format": "integer",
+        "align": "4pt",
+        "font-size": "7pt",
+        "line-height": "0",
+        "font-family": "var(--font-text-theme), var(--font-text-override)",
+        "color": "var(--text-normal)"
     }
 };
 
