@@ -55,6 +55,15 @@
 - **Standard Links**:
   - **Support**: `[Text](Link)` syntax is detected and treated as an internal link if no protocol is present.
   - **Implementation**: Custom Tiptap extension (`src/extensions/standard-link.js`).
+- **List Support**:
+  - **Features**: Bulleted and Numbered lists with rich customization (markers, indentation, alignment).
+  - **Styling**: "Apple Pages" style logic (separate `text-indent` and `marker-indent`).
+  - **Implementation**: Custom Tiptap extensions (`CustomBulletList`, `CustomOrderedList`) and `StyleManager` generation.
+  - **UI**: Dedicated "List Style" menu in Popover with "None" option to lift list items.
+- **Footnote Customization**:
+  - **Features**: Configurable footnote symbols (integer, roman, alpha, custom chars).
+  - **Styling**: Control over font size, vertical alignment (`align`), and color via `footnote-symbol` style.
+  - **Implementation**: `TiptapAdapter.getFootnoteSymbol` and `StyleManager.generateFootnoteCSS`.
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.

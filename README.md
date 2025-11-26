@@ -10,6 +10,8 @@
 - **DOCX Export**: Export your manuscript to a properly formatted Word document, complete with styles and footnotes, ready for sharing or publication.
 - **Wikilink Support**: Full support for standard Obsidian `[[Wikilinks]]` to keep your manuscript connected to your research.
 - **Theme Support**: Seamlessly adapts to Light and Dark modes, with an optional independent theme toggle for the writing canvas.
+- **Advanced Lists**: Create bulleted and numbered lists with professional styling options (custom markers, indentation, alignment).
+- **Customizable Footnotes**: Choose your preferred footnote symbol format (1, i, A, etc.) and fine-tune their appearance.
 
 ## Usage
 
