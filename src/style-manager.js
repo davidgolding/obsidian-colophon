@@ -62,7 +62,7 @@ class StyleManager {
         } else if (key === 'supertitle') {
             return `${base} p.supertitle`;
         } else if (key === 'footnote') {
-            return `.colophon-footnote-editor-content p`;
+            return `.colophon-footnote-view .colophon-footnote-editor-content p`;
         } else if (key === 'footnote-number') {
             return `span.colophon-footnote-number`;
         } else {
@@ -80,7 +80,7 @@ class StyleManager {
         const rules = [];
 
         if (styleDef['font-family']) {
-            rules.push(`    font-family: ${styleDef['font-family']};`);
+            rules.push(`    font-family: ${this.formatFontFamily(styleDef['font-family'])};`);
         }
 
         if (styleDef['font-size']) {
@@ -202,6 +202,15 @@ class StyleManager {
         }
 
         return value;
+    }
+
+    formatFontFamily(value) {
+        const str = String(value).trim();
+        if (str.includes('var(')) return str;
+        if (str.includes(',')) return str;
+        if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) return str;
+        if (str.includes(' ')) return `"${str}"`;
+        return str;
     }
 
     /**

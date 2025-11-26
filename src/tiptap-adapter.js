@@ -304,7 +304,12 @@ class TiptapAdapter {
 
                             // Merge: User styles override defaults (deep merge)
                             for (const [key, styleDef] of Object.entries(userStyles)) {
-                                if (styles[key] && typeof styles[key] === 'object' && typeof styleDef === 'object') {
+                                if (styles[key] && 
+                                    typeof styles[key] === 'object' && 
+                                    !Array.isArray(styles[key]) &&
+                                    styleDef && 
+                                    typeof styleDef === 'object' && 
+                                    !Array.isArray(styleDef)) {
                                     // If style exists and both are objects, merge properties
                                     styles[key] = { ...styles[key], ...styleDef };
                                 } else {
