@@ -80,7 +80,7 @@ class StyleManager {
         const rules = [];
 
         if (styleDef['font-family']) {
-            rules.push(`    font-family: "${styleDef['font-family']}", serif;`);
+            rules.push(`    font-family: ${styleDef['font-family']};`);
         }
 
         if (styleDef['font-size']) {
