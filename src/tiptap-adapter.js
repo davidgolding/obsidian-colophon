@@ -380,6 +380,10 @@ class TiptapAdapter {
             if (this.popover) {
                 this.popover.updateStyleOptions(this.paragraphOptions, this.listOptions);
             }
+
+            // Force update of footnote numbers based on new styles
+            this.triggerUpdate();
+
         } catch (e) {
             console.error('Colophon: Failed to load styles', e);
         }
@@ -477,7 +481,7 @@ class TiptapAdapter {
 
         this.editor.state.doc.descendants((node, pos) => {
             if (node.type.name === 'footnote') {
-                const number = String(index++);
+                const number = this.getFootnoteSymbol(index++);
                 footnotesInDoc.push({
                     id: node.attrs.id,
                     number: number,
@@ -575,6 +579,60 @@ class TiptapAdapter {
         if (this.editor) {
             this.editor.commands.focus();
         }
+    }
+    getFootnoteSymbol(index) {
+        const style = this.styleManager.styles['footnote-symbol'];
+        const format = style ? style.format : 'integer';
+
+        if (Array.isArray(format)) {
+            // Custom characters
+            if (format.length === 0) return String(index);
+            // Cycle through: 1->0, 2->1, etc.
+            // If index > length, repeat chars? Or just cycle.
+            // Standard convention: *, †, ‡, **, ††, ... or just cycle.
+            // Let's implement simple cycling for now as per "array of individual characters".
+            // Actually, usually it's *, †, ‡, §, ||, ¶...
+            // If we run out, we can double them up or just loop.
+            // Let's loop for simplicity unless user specified otherwise.
+            return format[(index - 1) % format.length];
+        }
+
+        switch (format) {
+            case 'lower-roman':
+                return this.toRoman(index).toLowerCase();
+            case 'upper-roman':
+                return this.toRoman(index);
+            case 'lower-alpha':
+                return this.toAlpha(index).toLowerCase();
+            case 'upper-alpha':
+                return this.toAlpha(index);
+            case 'integer':
+            default:
+                return String(index);
+        }
+    }
+
+    toRoman(num) {
+        const lookup = { M: 1000, CM: 900, D: 500, CD: 400, C: 100, XC: 90, L: 50, XL: 40, X: 10, IX: 9, V: 5, IV: 4, I: 1 };
+        let roman = '';
+        for (let i in lookup) {
+            while (num >= lookup[i]) {
+                roman += i;
+                num -= lookup[i];
+            }
+        }
+        return roman;
+    }
+
+    toAlpha(num) {
+        // 1 -> A, 26 -> Z, 27 -> AA
+        let s = '';
+        while (num > 0) {
+            let t = (num - 1) % 26;
+            s = String.fromCharCode(65 + t) + s;
+            num = (num - t) / 26 | 0;
+        }
+        return s;
     }
 }
 
