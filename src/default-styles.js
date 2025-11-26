@@ -38,7 +38,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "16pt",
         "left-indent": "1in",
         "right-indent": "1in",
-        "before-paragraph": "0pt",
+        "before-paragraph": "48pt",
         "after-paragraph": "56pt"
     },
     "body-first": {
