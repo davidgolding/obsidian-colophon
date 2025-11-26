@@ -1,7 +1,7 @@
 {
   "textColumnWidth": 910,
   "fixedFeedPosition": true,
-  "feedPadding": 50,
+  "feedPadding": 33,
   "smartQuotes": true,
   "smartDashes": false,
   "doubleQuoteStyle": "“|”",
