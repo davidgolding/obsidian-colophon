@@ -1,10 +1,11 @@
 const { setIcon } = require('obsidian');
 
 class PopoverMenu {
-    constructor(editor, containerEl, styleOptions = []) {
+    constructor(editor, containerEl, paragraphOptions = [], listOptions = []) {
         this.editor = editor;
         this.containerEl = containerEl;
-        this.styleOptions = styleOptions;
+        this.paragraphOptions = paragraphOptions;
+        this.listOptions = listOptions;
         this.el = null;
         this.isVisible = false;
         this.currentMode = 'default'; // Store mode
@@ -13,26 +14,51 @@ class PopoverMenu {
         this.handleClickOutside = this.handleClickOutside.bind(this);
     }
 
-    updateStyleOptions(newOptions) {
-        this.styleOptions = newOptions;
-        // If the menu is already created, we need to rebuild the select menu
+    updateStyleOptions(paragraphOptions, listOptions) {
+        this.paragraphOptions = paragraphOptions;
+        this.listOptions = listOptions;
+
+        // If the menu is already created, we need to rebuild the select menus
         if (this.el && this.sections && this.sections[0]) {
             // Clear the existing select menu container
             this.sections[0].empty();
 
-            // Re-create the select menu
-            const options = (this.styleOptions || []).map(opt => ({
+            // Re-create Paragraph Select
+            this.sections[0].createDiv({ cls: 'colophon-popover-label', text: 'Paragraph Style' });
+            const pOptions = (this.paragraphOptions || []).map(opt => ({
                 label: opt.label,
                 value: opt.value,
-                action: () => this.applyStyle(opt.value)
+                action: () => this.applyStyle(opt.value, opt.type, opt.listType)
             }));
+            this.paragraphSelect = this.createSelectMenu(this.sections[0], pOptions, 'Paragraph Style');
 
-            this.styleSelect = this.createSelectMenu(this.sections[0], options);
+            // Re-create List Select
+            this.sections[0].createDiv({ cls: 'colophon-popover-label', text: 'List Style' });
+            const lOptions = (this.listOptions || []).map(opt => ({
+                label: opt.label,
+                value: opt.value,
+                action: () => this.applyStyle(opt.value, opt.type, opt.listType)
+            }));
+            this.listSelect = this.createSelectMenu(this.sections[0], lOptions, 'List Style');
         }
     }
 
-    applyStyle(value) {
+    applyStyle(value, type, listType) {
         if (!this.editor) return;
+
+        if (type === 'list') {
+            if (value === 'none') {
+                this.editor.chain().focus().liftListItem('listItem').run();
+                return;
+            }
+
+            if (listType === 'ordered') {
+                this.editor.chain().focus().toggleOrderedList().updateAttributes('orderedList', { class: value }).run();
+            } else {
+                this.editor.chain().focus().toggleBulletList().updateAttributes('bulletList', { class: value }).run();
+            }
+            return;
+        }
 
         // Determine if it's a heading or paragraph based on value
         // Convention: heading-X or title -> Heading
@@ -64,17 +90,28 @@ class PopoverMenu {
 
         this.sections = [];
 
-        // Section 1: Styles (Select Menu) - Index 0
+        // Section 1: Styles (Select Menus) - Index 0
         const styleSection = this.el.createDiv('colophon-popover-section');
+        styleSection.addClass('colophon-style-section'); // Add class for styling if needed
 
-        // Generate options with actions
-        const options = (this.styleOptions || []).map(opt => ({
+        // Paragraph Options
+        styleSection.createDiv({ cls: 'colophon-popover-label', text: 'Paragraph Style' });
+        const pOptions = (this.paragraphOptions || []).map(opt => ({
             label: opt.label,
             value: opt.value,
-            action: () => this.applyStyle(opt.value)
+            action: () => this.applyStyle(opt.value, opt.type, opt.listType)
         }));
+        this.paragraphSelect = this.createSelectMenu(styleSection, pOptions, 'Paragraph Style');
 
-        this.styleSelect = this.createSelectMenu(styleSection, options);
+        // List Options
+        styleSection.createDiv({ cls: 'colophon-popover-label', text: 'List Style' });
+        const lOptions = (this.listOptions || []).map(opt => ({
+            label: opt.label,
+            value: opt.value,
+            action: () => this.applyStyle(opt.value, opt.type, opt.listType)
+        }));
+        this.listSelect = this.createSelectMenu(styleSection, lOptions, 'List Style');
+
         this.sections.push(styleSection);
 
         // Section 2: Formatting - Index 1
@@ -95,12 +132,12 @@ class PopoverMenu {
         this.sections.push(advancedSection);
     }
 
-    createSelectMenu(parent, options) {
+    createSelectMenu(parent, options, defaultLabel = 'Select Style') {
         const container = parent.createDiv('colophon-select-container');
 
         // Trigger Button
         const trigger = container.createEl('button', { cls: 'colophon-select-trigger' });
-        const labelSpan = trigger.createSpan({ cls: 'colophon-select-label', text: 'Select Style' });
+        const labelSpan = trigger.createSpan({ cls: 'colophon-select-label', text: defaultLabel });
         const iconSpan = trigger.createSpan({ cls: 'colophon-select-icon' });
         setIcon(iconSpan, 'chevron-down');
 
@@ -135,23 +172,25 @@ class PopoverMenu {
     }
 
     updateSelectMenu() {
-        if (!this.styleSelect || !this.editor) return;
+        if (!this.editor) return;
+        this.updateParagraphSelect();
+        this.updateListSelect();
+    }
+
+    updateParagraphSelect() {
+        if (!this.paragraphSelect) return;
 
         let activeValue = 'body'; // Default fallback
 
-        // Iterate through options to find the active one
-        // We prioritize specific classes over generic ones if any
-        for (const opt of (this.styleOptions || [])) {
+        for (const opt of (this.paragraphOptions || [])) {
             const value = opt.value;
             let isMatch = false;
 
             if (value.startsWith('heading-') || value === 'title') {
-                // It's a heading
                 if (this.editor.isActive('heading', { class: value })) {
                     isMatch = true;
                 }
             } else {
-                // It's a paragraph
                 if (this.editor.isActive('paragraph', { class: value })) {
                     isMatch = true;
                 }
@@ -163,12 +202,43 @@ class PopoverMenu {
             }
         }
 
-        // Update Label
-        const activeOption = this.styleSelect.options.find(o => o.value === activeValue);
-        this.styleSelect.labelSpan.innerText = activeOption ? activeOption.label : 'Select Style';
+        const activeOption = this.paragraphSelect.options.find(o => o.value === activeValue);
+        this.paragraphSelect.labelSpan.innerText = activeOption ? activeOption.label : 'Paragraph Style';
 
         // Update Selection State
-        const items = this.styleSelect.dropdown.querySelectorAll('.colophon-select-item');
+        const items = this.paragraphSelect.dropdown.querySelectorAll('.colophon-select-item');
+        items.forEach(item => {
+            if (item.dataset.value === activeValue) {
+                item.addClass('is-selected');
+            } else {
+                item.removeClass('is-selected');
+            }
+        });
+    }
+
+    updateListSelect() {
+        if (!this.listSelect) return;
+
+        let activeValue = 'none';
+
+        for (const opt of (this.listOptions || [])) {
+            const value = opt.value;
+            if (value === 'none') continue;
+
+            const listType = opt.listType || 'unordered';
+            const nodeType = listType === 'ordered' ? 'orderedList' : 'bulletList';
+
+            if (this.editor.isActive(nodeType, { class: value })) {
+                activeValue = value;
+                break;
+            }
+        }
+
+        const activeOption = this.listSelect.options.find(o => o.value === activeValue);
+        this.listSelect.labelSpan.innerText = activeOption ? activeOption.label : 'List Style';
+
+        // Update Selection State
+        const items = this.listSelect.dropdown.querySelectorAll('.colophon-select-item');
         items.forEach(item => {
             if (item.dataset.value === activeValue) {
                 item.addClass('is-selected');
@@ -281,9 +351,12 @@ class PopoverMenu {
             this.isVisible = false;
             document.removeEventListener('click', this.handleClickOutside);
 
-            // Close dropdown if open
-            if (this.styleSelect && this.styleSelect.dropdown) {
-                this.styleSelect.dropdown.style.display = 'none';
+            // Close dropdowns if open
+            if (this.paragraphSelect && this.paragraphSelect.dropdown) {
+                this.paragraphSelect.dropdown.style.display = 'none';
+            }
+            if (this.listSelect && this.listSelect.dropdown) {
+                this.listSelect.dropdown.style.display = 'none';
             }
         }
     }

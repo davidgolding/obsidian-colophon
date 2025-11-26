@@ -28,10 +28,15 @@ class StyleManager {
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
             if (key === 'scale') continue; // Skip scale definition itself
 
-            const selector = this.getSelector(key);
-            const rules = this.mapStyleToCSS(styleDef, scale);
-            if (rules) {
-                css += `${selector} {\n${rules}\n}\n`;
+            if (styleDef.type === 'list') {
+                const rules = this.generateListCSS(key, styleDef, scale);
+                if (rules) css += rules;
+            } else {
+                const selector = this.getSelector(key);
+                const rules = this.mapStyleToCSS(styleDef, scale);
+                if (rules) {
+                    css += `${selector} {\n${rules}\n}\n`;
+                }
             }
         }
 
@@ -159,6 +164,109 @@ class StyleManager {
         return rules.join('\n');
     }
 
+    /**
+     * Generates CSS for list styles.
+     * @param {string} key - The style key.
+     * @param {Object} styleDef - The style definition.
+     * @param {number} scale - The scale factor.
+     * @returns {string} The CSS string.
+     */
+    generateListCSS(key, styleDef, scale = 1.0) {
+        let css = '';
+        const defaults = styleDef.defaults || {};
+        const levels = styleDef.levels || {};
+
+        // Generate styles for levels 1-9
+        for (let level = 1; level <= 9; level++) {
+            const levelConfig = { ...defaults, ...(levels[level] || {}) };
+
+            // Build selector for this level using :is() for nesting
+            // Level 1: .colophon-workspace .ProseMirror :is(ul, ol).key
+            // Level 2: .colophon-workspace .ProseMirror :is(ul, ol).key > li > :is(ul, ol)
+
+            let currentSelector = `.colophon-workspace .ProseMirror :is(ul, ol).${key}`;
+            if (level > 1) {
+                const repeat = level - 1;
+                for (let i = 0; i < repeat; i++) {
+                    currentSelector += ` > li > :is(ul, ol)`;
+                }
+            }
+
+            // 1. List Container Styles
+            let containerRules = `    list-style-type: none;\n    padding-left: 0;\n    margin-left: 0;\n    margin-top: 0;\n    margin-bottom: 0;\n`;
+
+            if (levelConfig['list-type'] === 'ordered' || levelConfig['type'] === 'ordered') {
+                containerRules += `    counter-reset: colophon-list-item;\n`;
+            }
+
+            css += `${currentSelector} {\n${containerRules}}\n`;
+
+            // 2. List Item Styles (li)
+            const liSelector = `${currentSelector} > li`;
+            const textIndent = this.convertValue(levelConfig['text-indent'], 'indent', scale);
+            const markerIndent = this.convertValue(levelConfig['marker-indent'], 'indent', scale);
+
+            let liRules = `    position: relative;\n`;
+            liRules += `    padding-left: ${textIndent};\n`;
+            liRules += `    margin-left: 0;\n`;
+
+            css += `${liSelector} {\n${liRules}}\n`;
+
+            // 3. Paragraph inside LI (The anchor for the marker)
+            // We set position relative here so the marker (absolute) is relative to the P
+            // We reset text-indent because the LI handles the block indent
+            css += `${liSelector} > p {\n    position: relative;\n    text-indent: 0;\n    margin: 0;\n}\n`;
+
+            // 4. Marker Styles (::before on the P)
+            // Attaching to P ensures we inherit font-size, line-height, and font-family from the paragraph style
+            let markerRules = `    position: absolute;\n`;
+
+            // Calculate left relative to P. 
+            // P starts at textIndent. Marker wants to be at markerIndent.
+            // So relative left = markerIndent - textIndent.
+            markerRules += `    left: calc(${markerIndent} - ${textIndent});\n`;
+            markerRules += `    top: 0;\n`;
+
+            // Alignment (vertical shift)
+            if (levelConfig['align']) {
+                const alignVal = this.convertValue(levelConfig['align'], 'indent', scale);
+                markerRules += `    transform: translateY(calc(-1 * ${alignVal}));\n`;
+            }
+
+            if (levelConfig['color'] && levelConfig['color'] !== 'inherit') {
+                markerRules += `    color: ${levelConfig['color']};\n`;
+            }
+
+            if (levelConfig['size']) {
+                markerRules += `    font-size: ${levelConfig['size']};\n`;
+            }
+
+            if (levelConfig['font-weight']) {
+                markerRules += `    font-weight: ${levelConfig['font-weight']};\n`;
+            }
+
+            // Content
+            const isOrdered = levelConfig['list-type'] === 'ordered' || levelConfig['type'] === 'ordered';
+
+            if (isOrdered) {
+                const markerType = levelConfig['marker'] || 'decimal';
+                const suffix = levelConfig['suffix'] || '.';
+                markerRules += `    counter-increment: colophon-list-item;\n`;
+                markerRules += `    content: counter(colophon-list-item, ${markerType}) "${suffix}";\n`;
+            } else {
+                const markerChar = levelConfig['marker'] || '•';
+                // Escape double quotes in markerChar if needed
+                const safeMarker = markerChar.replace(/"/g, '\\"');
+                markerRules += `    content: "${safeMarker}";\n`;
+            }
+
+            // Apply to the first paragraph in the list item
+            css += `${liSelector} > p:first-child::before {\n${markerRules}}\n`;
+        }
+
+        return css;
+    }
+
     convertValue(value, type, scale = 1.0) {
         if (typeof value !== 'string' && typeof value !== 'number') return value;
         const strVal = String(value);
@@ -219,28 +327,34 @@ class StyleManager {
      * @returns {Array} Array of { label, value, action? }
      */
     getStyleOptions(stylesConfig) {
-        const options = [];
-        // Define order? Or just use object order? 
-        // The user provided list has a specific order, we should try to respect it or use a priority list.
-        // For now, Object.entries usually preserves insertion order in modern JS for non-integer keys.
+        const paragraphOptions = [];
+        const listOptions = [];
+
+        // Add "None" option for lists
+        listOptions.push({ label: 'None', value: 'none', type: 'list' });
 
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
-            if (key === 'scale') continue; // Skip scale
-            // Skip footnote style for the main paragraph picker usually?
-            // The user requested: "the list of paragraph styles to expose in the popover menu"
-            // Footnote is usually special, but let's include it if it's in the list, 
-            // though usually you don't convert a paragraph TO a footnote this way.
+            if (key === 'scale') continue;
             if (key === 'footnote') continue;
-            if (key === 'footnote-number') continue; // Also skip footnote-number
+            if (key === 'footnote-number') continue;
 
-            options.push({
+            const type = styleDef.type || 'paragraph';
+            const option = {
                 label: styleDef.name || key,
                 value: key,
-                // We don't define the action here, the UI component should handle the action based on the value
-                // because it needs access to the editor instance.
-            });
+                type: type,
+                listType: styleDef.defaults?.['list-type'] || 'unordered'
+            };
+
+            if (type === 'list') {
+                listOptions.push(option);
+            } else if (type === 'paragraph' || !type) {
+                // Include paragraphs and items without explicit type (legacy/default)
+                paragraphOptions.push(option);
+            }
+            // Character styles are excluded from these menus
         }
-        return options;
+        return { paragraphOptions, listOptions };
     }
 }
 
