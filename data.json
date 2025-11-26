@@ -10,5 +10,6 @@
   "enabledStyles": [
     "paragraph-styles.yaml"
   ],
+  "showWordCount": true,
   "textColumnBottomPadding": 0
 }

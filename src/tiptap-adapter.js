@@ -634,6 +634,72 @@ class TiptapAdapter {
         }
         return s;
     }
+
+    getWordCounts() {
+        if (!this.editor) return { main: 0, footnotes: 0 };
+
+        const mainCount = this.countWordsInDoc(this.editor.state.doc);
+
+        let footnotesCount = 0;
+        this.footnotes.forEach(fn => {
+            // Footnote content is stored as JSON or text?
+            // In updateFootnote, we just store 'content'. 
+            // If it's a string (from simple input), we count words.
+            // If it's a JSON doc (from rich text editor), we need to traverse.
+            // Currently, the FootnoteView uses Tiptap, so it's likely JSON or HTML.
+            // Let's assume it might be JSON if we switch to rich text fully, 
+            // but for now let's check what 'content' is.
+            // In `src/footnote-view.js`, we might need to see how it saves.
+            // If it's just text for now (as per current simple implementation in main.js export),
+            // we treat as text. But wait, `src/footnote-view.js` uses Tiptap?
+            // The AGENTS.md says "Sidebar View ... using Rich Text Tiptap Editors".
+            // So `content` in `this.footnotes` is likely a JSON object or HTML string.
+            // Let's handle both safely.
+
+            if (typeof fn.content === 'string') {
+                footnotesCount += this.countWordsInText(fn.content);
+            } else if (typeof fn.content === 'object') {
+                // It's a ProseMirror JSON node
+                footnotesCount += this.countWordsInDocNode(fn.content);
+            }
+        });
+
+        return {
+            main: mainCount,
+            footnotes: footnotesCount
+        };
+    }
+
+    countWordsInDoc(doc) {
+        let count = 0;
+        doc.descendants((node) => {
+            if (node.isText) {
+                count += this.countWordsInText(node.text);
+            }
+        });
+        return count;
+    }
+
+    countWordsInDocNode(node) {
+        // Recursive traversal for JSON object
+        let count = 0;
+        if (node.type === 'text' && node.text) {
+            count += this.countWordsInText(node.text);
+        }
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => {
+                count += this.countWordsInDocNode(child);
+            });
+        }
+        return count;
+    }
+
+    countWordsInText(text) {
+        if (!text) return 0;
+        // Simple word count regex
+        const matches = text.match(/\S+/g);
+        return matches ? matches.length : 0;
+    }
 }
 
 module.exports = TiptapAdapter;
