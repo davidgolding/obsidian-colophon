@@ -11,7 +11,8 @@ const DEFAULT_SETTINGS = {
     doubleQuoteStyle: '“|”',
     singleQuoteStyle: '‘|’',
     stylesFolder: 'snippets',
-    enabledStyles: []
+    enabledStyles: [],
+    showWordCount: false
 };
 
 const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');

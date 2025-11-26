@@ -15,10 +15,14 @@ class ColophonView extends FileView {
         this.frontmatter = ''; // YAML Frontmatter
         this.themeToggleBtn = null;
         this.loaderEl = null;
+        this.scrollEl = null;
         this.isForcedLight = false;
+        this.wordCountEl = null;
 
         // Debounce the save function to avoid excessive writes
         this.save = debounce(this.save.bind(this), 1000, true);
+        // Debounce word count update
+        this.updateWordCount = debounce(this.updateWordCount.bind(this), 500, false);
     }
 
     getViewType() {
@@ -39,6 +43,9 @@ class ColophonView extends FileView {
         this.contentEl.addClass('colophon-workspace');
         this.applySettings();
 
+        // Create scroll container
+        this.scrollEl = this.contentEl.createDiv('colophon-scroll-container');
+
         // Add Theme Toggle Action
         this.themeToggleBtn = this.addAction('sun-moon', 'Enable white canvas mode for this note', () => {
             this.toggleTheme();
@@ -52,10 +59,16 @@ class ColophonView extends FileView {
 
         // Initialize Tiptap Adapter
         // We pass a callback for updates
-        this.adapter = new TiptapAdapter(this.app, this.contentEl, isSpellcheckEnabled, this.settings, (newData) => {
+        // PASS scrollEl instead of contentEl
+        this.adapter = new TiptapAdapter(this.app, this.scrollEl, isSpellcheckEnabled, this.settings, (newData) => {
             this.data = newData;
             this.save();
+            this.updateWordCount();
         });
+
+        if (this.plugin.settings.showWordCount) {
+            this.toggleWordCount(true);
+        }
 
         // Listen for theme changes to re-apply overrides if needed
         this.registerEvent(this.app.workspace.on('css-change', () => {
@@ -74,6 +87,18 @@ class ColophonView extends FileView {
                 .setIcon('document')
                 .onClick(async () => {
                     this.plugin.exportToDocx(this);
+                });
+        });
+
+        menu.addItem((item) => {
+            item
+                .setTitle('Show word count')
+                .setIcon('calculator')
+                .setChecked(this.plugin.settings.showWordCount)
+                .onClick(async () => {
+                    this.plugin.settings.showWordCount = !this.plugin.settings.showWordCount;
+                    await this.plugin.saveSettings();
+                    this.toggleWordCount(this.plugin.settings.showWordCount);
                 });
         });
     }
@@ -95,7 +120,7 @@ class ColophonView extends FileView {
 
     toggleTheme() {
         this.isForcedLight = !this.isForcedLight;
-        
+
         if (this.themeToggleBtn) {
             this.themeToggleBtn.classList.toggle('is-active', this.isForcedLight);
             if (this.isForcedLight) {
@@ -123,7 +148,7 @@ class ColophonView extends FileView {
             // We want to force "Light Mode" appearance.
             // We attempt to fetch variables from the 'theme-light' class.
             const themeVars = this.extractThemeVars('theme-light');
-            
+
             // Apply them to the container
             for (const [key, value] of Object.entries(themeVars)) {
                 if (value) {
@@ -140,6 +165,29 @@ class ColophonView extends FileView {
         }
     }
 
+    toggleWordCount(show) {
+        if (show) {
+            if (!this.wordCountEl) {
+                this.wordCountEl = this.contentEl.createDiv('colophon-word-count-indicator');
+                this.updateWordCount();
+            }
+        } else {
+            if (this.wordCountEl) {
+                this.wordCountEl.remove();
+                this.wordCountEl = null;
+            }
+        }
+    }
+
+    updateWordCount() {
+        if (!this.wordCountEl || !this.adapter) return;
+
+        const counts = this.adapter.getWordCounts();
+        const total = counts.main + counts.footnotes;
+
+        this.wordCountEl.setText(`${counts.main} / ${total} (with footnotes)`);
+    }
+
     extractThemeVars(themeClass) {
         // Create a dummy element to simulate the theme class scope
         const dummy = document.createElement('div');
@@ -148,7 +196,7 @@ class ColophonView extends FileView {
         document.body.appendChild(dummy);
 
         const style = window.getComputedStyle(dummy);
-        
+
         const vars = {
             '--background-primary': style.getPropertyValue('--background-primary').trim(),
             '--text-normal': style.getPropertyValue('--text-normal').trim(),
