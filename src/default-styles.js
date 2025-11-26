@@ -3,6 +3,7 @@ const DEFAULT_STYLES = {
     "scale": "100%",
     "supertitle": {
         "name": "Supertitle",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "center",
         "line-spacing": "14pt",
@@ -13,6 +14,7 @@ const DEFAULT_STYLES = {
     },
     "title": {
         "name": "Title",
+        "type": "paragraph",
         "font-size": "18pt",
         "text-align": "center",
         "line-spacing": "18pt",
@@ -23,6 +25,7 @@ const DEFAULT_STYLES = {
     },
     "subtitle": {
         "name": "Subtitle",
+        "type": "paragraph",
         "font-family": "var(--font-text-theme), var(--font-text-override)",
         "font-variant": "Regular",
         "font-size": "14pt",
@@ -32,6 +35,7 @@ const DEFAULT_STYLES = {
     },
     "epigraph": {
         "name": "Epigraph",
+        "type": "paragraph",
         "font-family": "var(--font-text-theme), var(--font-text-override)",
         "font-variant": "Regular",
         "font-size": "11.5pt",
@@ -43,6 +47,7 @@ const DEFAULT_STYLES = {
     },
     "body-first": {
         "name": "Body First",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "left",
         "first-indent": "0in",
@@ -57,6 +62,7 @@ const DEFAULT_STYLES = {
     },
     "body": {
         "name": "Body",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "left",
         "first-indent": "0.3in",
@@ -70,6 +76,7 @@ const DEFAULT_STYLES = {
     },
     "footnote": {
         "name": "Footnote",
+        "type": "paragraph",
         "font-size": "7pt",
         "text-align": "left",
         "first-indent": "0in",
@@ -82,11 +89,11 @@ const DEFAULT_STYLES = {
         "font-variant": "Regular",
         "space-between-notes": "10pt",
         "format": "1, 2, 3, …",
-        "numbering": "continuous",
-        "type": "footnotes"
+        "numbering": "continuous"
     },
     "footnote-number": {
         "name": "Footnote Number",
+        "type": "pararaph",
         "font-weight": "bold",
         "font-family": "var(--font-text-theme), var(--font-text-override)",
         "color": "var(--text-accent)",
@@ -95,6 +102,7 @@ const DEFAULT_STYLES = {
     },
     "heading-1": {
         "name": "Heading 1",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "left",
         "first-indent": "0in",
@@ -110,6 +118,7 @@ const DEFAULT_STYLES = {
     },
     "heading-2": {
         "name": "Heading 2",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "left",
         "first-indent": "0in",
@@ -127,6 +136,7 @@ const DEFAULT_STYLES = {
     },
     "heading-3": {
         "name": "Heading 3",
+        "type": "paragraph",
         "font-size": "11.5pt",
         "text-align": "center",
         "first-indent": "0in",
@@ -139,6 +149,33 @@ const DEFAULT_STYLES = {
         "font-variant": "Regular",
         "keep-with-next": true,
         "following-style": "body-first"
+    },
+    "bullet": {
+        "name": "Bullet",
+        "type": "list",
+        "defaults": {
+            "list-type": "unordered",
+            "marker": "•",
+            "color": "inherit",
+            "size": "100%",
+            "align": "0pt",
+            "marker-indent": "0in",
+            "text-indent": "0.25in"
+        }
+    },
+    "numbered": {
+        "name": "Numbered",
+        "type": "list",
+        "defaults": {
+            "list-type": "ordered",
+            "marker": "decimal",
+            "suffix": ".",
+            "color": "inherit",
+            "size": "100%",
+            "align": "0pt",
+            "marker-indent": "0in",
+            "text-indent": "0.25in"
+        }
     }
 };
 

@@ -2,6 +2,9 @@ const { Editor, Mark, Extension, mergeAttributes } = require('@tiptap/core');
 const { StarterKit } = require('@tiptap/starter-kit');
 const { Paragraph } = require('@tiptap/extension-paragraph');
 const { Heading } = require('@tiptap/extension-heading');
+const { BulletList } = require('@tiptap/extension-bullet-list');
+const { OrderedList } = require('@tiptap/extension-ordered-list');
+const { ListItem } = require('@tiptap/extension-list-item');
 const Underline = require('@tiptap/extension-underline');
 const { Subscript } = require('@tiptap/extension-subscript');
 const { Superscript } = require('@tiptap/extension-superscript');
@@ -80,6 +83,39 @@ const CustomHeading = Heading.extend({
     },
 });
 
+// Custom List Extensions with Class Support
+const CustomBulletList = BulletList.extend({
+    addAttributes() {
+        return {
+            class: {
+                default: "bullet",
+                parseHTML: element => element.getAttribute('class'),
+                renderHTML: attributes => {
+                    return { class: attributes.class }
+                },
+            }
+        }
+    }
+});
+
+const CustomOrderedList = OrderedList.extend({
+    addAttributes() {
+        return {
+            class: {
+                default: "ordered",
+                parseHTML: element => element.getAttribute('class'),
+                renderHTML: attributes => {
+                    return { class: attributes.class }
+                },
+            }
+        }
+    }
+});
+
+const CustomListItem = ListItem.extend({
+    // We can add attributes here if needed, but usually class on UL/OL is enough
+});
+
 // Custom Small Caps Extension
 const SmallCaps = Mark.create({
     name: 'smallCaps',
@@ -116,7 +152,8 @@ class TiptapAdapter {
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
         this.styleManager = new StyleManager();
-        this.styleOptions = [];
+        this.paragraphOptions = [];
+        this.listOptions = [];
     }
 
     normalizeDoc(doc) {
@@ -213,10 +250,16 @@ class TiptapAdapter {
                 StarterKit.configure({
                     paragraph: false,
                     heading: false,
+                    bulletList: false,
+                    orderedList: false,
+                    listItem: false,
                 }),
                 EnterKeyHandler,
                 CustomParagraph,
                 CustomHeading,
+                CustomBulletList,
+                CustomOrderedList,
+                CustomListItem,
                 Underline,
                 Subscript,
                 Superscript,
@@ -253,7 +296,7 @@ class TiptapAdapter {
         });
 
         // Initialize Popover with empty options initially, updated by loadStyles
-        this.popover = new PopoverMenu(this.editor, this.containerEl, this.styleOptions || []);
+        this.popover = new PopoverMenu(this.editor, this.containerEl, this.paragraphOptions || [], this.listOptions || []);
         this.popover.setMode('default');
 
         // Add Context Menu Listener
@@ -304,11 +347,11 @@ class TiptapAdapter {
 
                             // Merge: User styles override defaults (deep merge)
                             for (const [key, styleDef] of Object.entries(userStyles)) {
-                                if (styles[key] && 
-                                    typeof styles[key] === 'object' && 
+                                if (styles[key] &&
+                                    typeof styles[key] === 'object' &&
                                     !Array.isArray(styles[key]) &&
-                                    styleDef && 
-                                    typeof styleDef === 'object' && 
+                                    styleDef &&
+                                    typeof styleDef === 'object' &&
                                     !Array.isArray(styleDef)) {
                                     // If style exists and both are objects, merge properties
                                     styles[key] = { ...styles[key], ...styleDef };
@@ -329,11 +372,13 @@ class TiptapAdapter {
             this.injectStyles(css);
 
             // Get Options
-            this.styleOptions = this.styleManager.getStyleOptions(styles);
+            const { paragraphOptions, listOptions } = this.styleManager.getStyleOptions(styles);
+            this.paragraphOptions = paragraphOptions;
+            this.listOptions = listOptions;
 
             // Update Popover
             if (this.popover) {
-                this.popover.updateStyleOptions(this.styleOptions);
+                this.popover.updateStyleOptions(this.paragraphOptions, this.listOptions);
             }
         } catch (e) {
             console.error('Colophon: Failed to load styles', e);
@@ -361,7 +406,7 @@ class TiptapAdapter {
         const { state } = this.editor;
         // Only scroll for cursor, not range selections (unless we want to force it)
         if (!state.selection.empty) {
-            return; 
+            return;
         }
 
         const view = this.editor.view;
@@ -369,7 +414,7 @@ class TiptapAdapter {
 
         // Get coordinates of the cursor (Viewport Relative)
         const cursorCoords = view.coordsAtPos(pos);
-        
+
         // Get Container Rect (Viewport Relative)
         const containerRect = this.containerEl.getBoundingClientRect();
 
@@ -377,24 +422,24 @@ class TiptapAdapter {
             // Typewriter Mode: Fixed position relative to bottom
             // feedPadding = % from bottom.
             // 0% = bottom, 50% = middle, 75% = top quarter.
-            
+
             const paddingPercent = this.settings.feedPadding || 0;
             // Calculate target Y from top of container
             // If 0% (bottom), target is containerHeight.
             // If 50%, target is containerHeight * 0.5.
             // If 75%, target is containerHeight * 0.25.
-            
+
             const ratioFromTop = 1 - (paddingPercent / 100);
             const targetOffset = containerRect.height * ratioFromTop;
-            
+
             // The target Y coordinate in the viewport
             const targetViewportY = containerRect.top + targetOffset;
-            
+
             // Calculate difference between current cursor Y (bottom) and target
-            const currentCursorY = cursorCoords.bottom; 
-            
+            const currentCursorY = cursorCoords.bottom;
+
             const delta = currentCursorY - targetViewportY;
-            
+
             // Apply scroll if delta is significant (e.g., > 2px to avoid jitter)
             if (Math.abs(delta) > 2) {
                 this.containerEl.scrollBy({
@@ -402,13 +447,13 @@ class TiptapAdapter {
                     behavior: 'smooth' // or 'auto' for instant
                 });
             }
-            
+
         } else {
             // Standard Behavior: Ensure cursor is in view
             // We need to check if cursor is above or below the visible area of container
-            
+
             const margin = 20; // Padding for visibility
-            
+
             // Check Top
             if (cursorCoords.top < containerRect.top + margin) {
                 const delta = cursorCoords.top - (containerRect.top + margin);
