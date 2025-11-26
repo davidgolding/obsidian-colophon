@@ -1,10 +1,10 @@
 {
     "name": "obsidian-colophon",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "description": "A dedicated writing environment for Obsidian.",
     "main": "main.js",
     "scripts": {
-        "build": "esbuild src/main.js --bundle --outfile=main.js --format=cjs --external:obsidian --external:electron --platform=node",
+        "build": "esbuild src/main.js --bundle --minify --outfile=main.js --format=cjs --external:obsidian --external:electron --platform=node",
         "test": "jest"
     },
     "keywords": [],

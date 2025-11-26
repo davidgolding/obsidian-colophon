@@ -8,7 +8,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "14pt",
         "before-paragraph": "0pt",
         "after-paragraph": "18pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular"
     },
     "title": {
@@ -18,12 +18,12 @@ const DEFAULT_STYLES = {
         "line-spacing": "18pt",
         "before-paragraph": "0pt",
         "after-paragraph": "4pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular"
     },
     "subtitle": {
         "name": "Subtitle",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular",
         "font-size": "14pt",
         "line-spacing": "18pt",
@@ -32,7 +32,7 @@ const DEFAULT_STYLES = {
     },
     "epigraph": {
         "name": "Epigraph",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular",
         "font-size": "11.5pt",
         "line-spacing": "16pt",
@@ -51,7 +51,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "16pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular",
         "following-style": "body"
     },
@@ -65,7 +65,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "16pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular"
     },
     "footnote": {
@@ -78,7 +78,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "9pt",
         "before-paragraph": "0pt",
         "after-paragraph": "0pt",
-        "font-family": "Minion 3 Caption, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-footnote-font)",
         "font-variant": "Regular",
         "space-between-notes": "10pt",
         "format": "1, 2, 3, …",
@@ -88,6 +88,7 @@ const DEFAULT_STYLES = {
     "footnote-number": {
         "name": "Footnote Number",
         "font-weight": "bold",
+        "font-family": "var(--colophon-footnote-font)",
         "color": "var(--text-accent)",
         "font-size": "7pt",
         "line-spacing": "9pt"
@@ -102,7 +103,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Italic",
         "keep-with-next": true,
         "following-style": "body-first"
@@ -117,7 +118,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular",
         "capitalization": "small-caps",
         "character-spacing": "2%",
@@ -134,7 +135,7 @@ const DEFAULT_STYLES = {
         "line-spacing": "28pt",
         "before-paragraph": "28pt",
         "after-paragraph": "14pt",
-        "font-family": "Minion 3 Subhead, Minion 3, Charter, Iowan Old Style, Palatino, Georgia, serif",
+        "font-family": "var(--colophon-default-font)",
         "font-variant": "Regular",
         "keep-with-next": true,
         "following-style": "body-first"
