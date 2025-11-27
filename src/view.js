@@ -93,6 +93,7 @@ class ColophonView extends FileView {
             this.data = newData;
             this.save();
             this.updateWordCount();
+            this.plugin.activateFootnoteView();
         });
 
         if (this.plugin.settings.showWordCount) {
