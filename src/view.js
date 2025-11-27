@@ -45,9 +45,32 @@ class ColophonView extends FileView {
         this.contentEl.addClass('colophon-workspace');
         this.applySettings();
 
-        // Create Toolbar
-        this.toolbar = new Toolbar(this.contentEl);
-        this.toolbar.create();
+        // Create Toolbar in View Header
+        // We need to find the header element.
+        // FileView -> ItemView -> View -> containerEl
+        // The containerEl contains .view-header and .view-content
+        const headerEl = this.containerEl.querySelector('.view-header');
+        if (headerEl) {
+            // Create a center container if it doesn't exist
+            let centerEl = headerEl.querySelector('.view-header-center');
+            if (!centerEl) {
+                centerEl = createDiv({ cls: 'view-header-center' });
+                // Insert before view-actions
+                const actionsEl = headerEl.querySelector('.view-actions');
+                if (actionsEl) {
+                    headerEl.insertBefore(centerEl, actionsEl);
+                } else {
+                    headerEl.appendChild(centerEl);
+                }
+            }
+
+            this.toolbar = new Toolbar(centerEl);
+            this.toolbar.create();
+        } else {
+            // Fallback if header not found (shouldn't happen in standard Obsidian view)
+            this.toolbar = new Toolbar(this.contentEl);
+            this.toolbar.create();
+        }
 
         // Create scroll container
         this.scrollEl = this.contentEl.createDiv('colophon-scroll-container');
@@ -231,6 +254,17 @@ class ColophonView extends FileView {
     }
 
     async onClose() {
+        if (this.toolbar) {
+            this.toolbar.destroy();
+            // Also remove the container we added to the header
+            const headerEl = this.containerEl.querySelector('.view-header');
+            if (headerEl) {
+                const centerEl = headerEl.querySelector('.view-header-center');
+                if (centerEl) {
+                    centerEl.remove();
+                }
+            }
+        }
         if (this.adapter) {
             this.adapter.destroy();
         }
