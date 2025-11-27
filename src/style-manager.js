@@ -62,7 +62,7 @@ class StyleManager {
         // 'heading-1' -> h1.heading-1
         // 'body' -> p.body
 
-        if (key.startsWith('heading-')) {
+        if (key && key.startsWith('heading-')) {
             const level = key.split('-')[1];
             return `${base} h${level}.${key}`; // e.g. h1.heading-1
         } else if (key === 'title') {

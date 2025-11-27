@@ -10,7 +10,7 @@ const { Subscript } = require('@tiptap/extension-subscript');
 const { Superscript } = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const { InputRule } = require('@tiptap/core');
-const PopoverMenu = require('./popover-menu');
+// PopoverMenu removed
 const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
@@ -140,15 +140,15 @@ const SmallCaps = Mark.create({
 });
 
 class TiptapAdapter {
-    constructor(app, containerEl, isSpellcheckEnabled, settings, onUpdate) {
+    constructor(app, containerEl, toolbar, isSpellcheckEnabled, settings, onUpdate) {
         this.app = app;
         this.containerEl = containerEl; // This is the scrollable container
+        this.toolbar = toolbar;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.settings = settings;
         this.onUpdate = onUpdate; // Callback when editor content changes
         this.editor = null;
         this.isLoaded = false;
-        this.popover = null;
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
         this.styleManager = new StyleManager();
@@ -292,38 +292,18 @@ class TiptapAdapter {
             },
             onSelectionUpdate: ({ editor }) => {
                 this.handleScroll();
+                if (this.toolbar) this.toolbar.update();
+            },
+            onFocus: ({ editor }) => {
+                if (this.toolbar) this.toolbar.setActiveEditor(editor);
             }
         });
 
-        // Initialize Popover with empty options initially, updated by loadStyles
-        this.popover = new PopoverMenu(this.editor, this.containerEl, this.paragraphOptions || [], this.listOptions || []);
-        this.popover.setMode('default');
-
-        // Add Context Menu Listener
-        this.editor.view.dom.addEventListener('contextmenu', (e) => {
-            const { from, to } = this.editor.state.selection;
-            if (from !== to) {
-                e.preventDefault();
-
-                // Get selection coordinates
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    const selectionRect = range.getBoundingClientRect();
-                    const containerRect = this.containerEl.getBoundingClientRect();
-
-                    // Calculate target rect relative to container content
-                    const targetRect = {
-                        left: selectionRect.left - containerRect.left + this.containerEl.scrollLeft,
-                        top: selectionRect.top - containerRect.top + this.containerEl.scrollTop,
-                        width: selectionRect.width,
-                        height: selectionRect.height
-                    };
-
-                    this.popover.show(targetRect);
-                }
-            }
-        });
+        // Set initial active editor
+        if (this.toolbar) {
+            this.toolbar.setActiveEditor(this.editor);
+            this.toolbar.updateStyleOptions(this.paragraphOptions || [], this.listOptions || []);
+        }
     }
 
     async loadStyles() {
@@ -376,9 +356,9 @@ class TiptapAdapter {
             this.paragraphOptions = paragraphOptions;
             this.listOptions = listOptions;
 
-            // Update Popover
-            if (this.popover) {
-                this.popover.updateStyleOptions(this.paragraphOptions, this.listOptions);
+            // Update Toolbar
+            if (this.toolbar) {
+                this.toolbar.updateStyleOptions(this.paragraphOptions, this.listOptions);
             }
 
             // Force update of footnote numbers based on new styles
@@ -566,9 +546,6 @@ class TiptapAdapter {
     }
 
     destroy() {
-        if (this.popover) {
-            this.popover.destroy();
-        }
         if (this.editor) {
             this.editor.destroy();
             this.editor = null;

@@ -9,16 +9,18 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    /* Prevent scroll on main container */
+    display: flex;
+    flex-direction: column;
 }
 
 .colophon-scroll-container {
     display: flex;
-    height: 100%;
+    flex: 1;
     justify-content: center;
     overflow-y: auto;
     width: 100%;
     position: relative;
+    padding-top: 3rem;
 }
 
 
@@ -151,125 +153,181 @@
     }
 }
 
-/* 5. POPOVER MENU */
-.colophon-popover {
-    position: absolute;
-    z-index: 1000;
-    background-color: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-    padding: 6px;
-    display: none;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 200px;
-
-    /* Backdrop Blur for Apple-like feel */
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    background-color: rgba(var(--background-primary-rgb), 0.8);
-    /* Needs RGB var or fallback */
-}
-
-/* Fallback for background if RGB var not available */
-.theme-light .colophon-popover {
-    background-color: rgba(255, 255, 255, 0.85);
-}
-
-.theme-dark .colophon-popover {
-    background-color: rgba(30, 30, 30, 0.85);
-}
-
-.colophon-popover.is-visible {
-    display: flex;
-    animation: popoverFadeIn 0.15s ease-out forwards;
-}
-
-@keyframes popoverFadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.colophon-popover-section {
+/* 5. TOOLBAR */
+.colophon-toolbar {
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    gap: 8px;
+    padding: 0px 20px;
+    z-index: 100;
 }
 
-.colophon-popover-section:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-    flex-direction: row;
-    /* Horizontal for icons */
-    flex-wrap: wrap;
-    justify-content: space-between;
-    padding-top: 4px;
-}
-
-/* Horizontal layout for the middle formatting section too */
-.colophon-popover-section:nth-child(2) {
-    flex-direction: row;
-    justify-content: space-between;
-    padding-top: 4px;
-}
-
-.colophon-popover-item {
+.colophon-toolbar-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
+}
+
+.colophon-ui-btn {
+    background: var(--interactive-normal);
+    border: 0;
     color: var(--text-normal);
-    font-size: 0.9rem;
+    padding: 6px 10px;
+    border-radius: 100vh;
     cursor: pointer;
-    text-align: left;
-    transition: background-color 0.1s;
-}
-
-.colophon-popover-item:hover {
-    background-color: var(--background-modifier-hover);
-}
-
-.colophon-popover-icon {
     display: flex;
     align-items: center;
-    color: var(--text-muted);
+    gap: 6px;
+    font-size: 14px;
+    height: 32px;
+    transition: background 0.1s ease;
 }
 
-/* Icon Buttons (Bold, Italic, etc.) */
-.colophon-popover-icon-btn {
+.colophon-ui-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.colophon-ui-btn.colophon-active {
+    background: var(--background-modifier-active-hover);
+    color: var(--text-normal);
+}
+
+.colophon-ui-btn.colophon-icon-only {
+    padding: 0;
+    width: 32px;
+    justify-content: center;
+}
+
+.colophon-btn-group {
+    display: flex;
+    align-items: center;
+    background: var(--interactive-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.colophon-btn-group .colophon-ui-btn {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    border-right: 1px solid var(--background-modifier-border);
+}
+
+.colophon-btn-group .colophon-ui-btn:last-child {
+    border-right: none;
+}
+
+.colophon-btn-group .colophon-ui-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.colophon-dropdown-trigger {
+    min-width: 110px;
+    justify-content: space-between;
+}
+
+.colophon-color-swatch-container {
+    height: 32px;
+    width: 32px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-normal);
     cursor: pointer;
-    transition: background-color 0.1s;
 }
 
-.colophon-popover-icon-btn:hover {
-    background-color: var(--background-modifier-hover);
+.colophon-color-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
 }
 
-.colophon-popover-icon-btn svg {
-    width: 16px;
-    height: 16px;
+.colophon-add-action {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border: none;
+}
+
+.colophon-add-action:hover {
+    background: var(--interactive-accent-hover);
+}
+
+.colophon-dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Dropdowns & Menus */
+.colophon-dropdown-menu,
+.colophon-context-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    padding: 6px;
+    min-width: 150px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: none;
+    /* Hidden by default */
+}
+
+.colophon-context-menu {
+    width: 220px;
+    /* Position handled by JS or relative to button? 
+       For now, let's assume absolute positioning or relative to parent.
+       If appended to toolbar, it might need top/left.
+       Actually, in toolbar.js I appended it to button parent? No, to toolbar el.
+       I need to position it.
+       Let's make it fixed or absolute relative to button.
+       CSS alone is hard for absolute positioning relative to a button in a flex row unless button is relative.
+       I'll make .ui-btn relative? No, dropdown is child of toolbar.
+       I'll update toolbar.js to position it or append to button.
+       Wait, I appended dropdown to `row1` (which is flex).
+       So `position: absolute` will be relative to `colophon-toolbar` (if relative) or `row1` (if relative).
+       Let's make `toolbar-row` relative?
+    */
+}
+
+.colophon-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.colophon-menu-item:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.colophon-menu-item .colophon-drag-handle {
+    cursor: grab;
+    color: var(--text-faint);
+    font-size: 10px;
+    letter-spacing: -1px;
+}
+
+.colophon-menu-item .colophon-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+}
+
+.colophon-menu-item .colophon-label {
+    font-size: 14px;
+    flex-grow: 1;
 }
 
 /* 6. FOOTNOTE SIDEBAR VIEW */
