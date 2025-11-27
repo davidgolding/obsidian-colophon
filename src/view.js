@@ -1,4 +1,5 @@
 const { FileView, WorkspaceLeaf, Notice, debounce } = require('obsidian');
+const Toolbar = require('./toolbar');
 const TiptapAdapter = require('./tiptap-adapter');
 const { parseFile, serializeFile } = require('./io');
 
@@ -10,6 +11,7 @@ class ColophonView extends FileView {
         this.plugin = plugin;
         this.settings = settings || { textColumnWidth: 1080 }; // Fallback
         this.adapter = null;
+        this.toolbar = null;
         this.data = null; // Sidecar data
         this.markdownBody = ''; // Markdown body
         this.frontmatter = ''; // YAML Frontmatter
@@ -43,6 +45,10 @@ class ColophonView extends FileView {
         this.contentEl.addClass('colophon-workspace');
         this.applySettings();
 
+        // Create Toolbar
+        this.toolbar = new Toolbar(this.contentEl);
+        this.toolbar.create();
+
         // Create scroll container
         this.scrollEl = this.contentEl.createDiv('colophon-scroll-container');
 
@@ -60,7 +66,7 @@ class ColophonView extends FileView {
         // Initialize Tiptap Adapter
         // We pass a callback for updates
         // PASS scrollEl instead of contentEl
-        this.adapter = new TiptapAdapter(this.app, this.scrollEl, isSpellcheckEnabled, this.settings, (newData) => {
+        this.adapter = new TiptapAdapter(this.app, this.scrollEl, this.toolbar, isSpellcheckEnabled, this.settings, (newData) => {
             this.data = newData;
             this.save();
             this.updateWordCount();

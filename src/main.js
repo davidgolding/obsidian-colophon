@@ -474,6 +474,14 @@ module.exports = class ColophonPlugin extends Plugin {
 
         const footnoteView = footnoteLeaves[0].view;
 
+        if (typeof footnoteView.setAdapter !== 'function') {
+            console.error('Colophon: FootnoteView instance does not have setAdapter method.');
+            console.log('FootnoteView keys:', Object.keys(footnoteView));
+            console.log('FootnoteView prototype keys:', Object.getOwnPropertyNames(Object.getPrototypeOf(footnoteView)));
+            console.log('FootnoteView constructor:', footnoteView.constructor.name);
+            return;
+        }
+
         // If the active view is the FootnoteView itself, DO NOT clear the adapter.
         // This allows interaction with the sidebar without losing context.
         if (activeView instanceof FootnoteView) {

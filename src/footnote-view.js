@@ -5,7 +5,7 @@ const Underline = require('@tiptap/extension-underline');
 const { Subscript } = require('@tiptap/extension-subscript');
 const { Superscript } = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
-const PopoverMenu = require('./popover-menu');
+// PopoverMenu removed
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
 
@@ -18,7 +18,6 @@ class FootnoteView extends ItemView {
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.adapter = null;
         this.editors = new Map(); // Map<id, Editor>
-        this.popover = null;
     }
 
     getViewType() {
@@ -38,10 +37,7 @@ class FootnoteView extends ItemView {
         container.empty();
         container.addClass('colophon-footnote-view');
 
-        // Initialize Popover (shared instance)
-        // We pass null as editor initially, it will be updated on trigger
-        this.popover = new PopoverMenu(null, container);
-        this.popover.setMode('footnote');
+        // Initialize Popover removed
 
         this.render();
     }
@@ -50,10 +46,6 @@ class FootnoteView extends ItemView {
         // Cleanup editors
         this.editors.forEach(editor => editor.destroy());
         this.editors.clear();
-
-        if (this.popover) {
-            this.popover.destroy();
-        }
 
         if (this.unsubscribe) {
             this.unsubscribe();
@@ -181,35 +173,14 @@ class FootnoteView extends ItemView {
                             spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                         },
                     },
-                });
-
-                // Add Context Menu Listener for Popover
-                editor.view.dom.addEventListener('contextmenu', (e) => {
-                    // Check if there is a selection
-                    const { from, to } = editor.state.selection;
-                    if (from !== to) {
-                        e.preventDefault();
-                        e.stopPropagation();
-
-                        // Update popover's editor reference
-                        this.popover.editor = editor;
-
-                        // Get selection coordinates
-                        const selection = window.getSelection();
-                        if (selection.rangeCount > 0) {
-                            const range = selection.getRangeAt(0);
-                            const selectionRect = range.getBoundingClientRect();
-                            const containerRect = this.contentEl.getBoundingClientRect();
-
-                            // Calculate target rect relative to container content
-                            const targetRect = {
-                                left: selectionRect.left - containerRect.left + this.contentEl.scrollLeft,
-                                top: selectionRect.top - containerRect.top + this.contentEl.scrollTop,
-                                width: selectionRect.width,
-                                height: selectionRect.height
-                            };
-
-                            this.popover.show(targetRect);
+                    onFocus: ({ editor }) => {
+                        if (this.adapter && this.adapter.toolbar) {
+                            this.adapter.toolbar.setActiveEditor(editor, true);
+                        }
+                    },
+                    onSelectionUpdate: ({ editor }) => {
+                        if (this.adapter && this.adapter.toolbar) {
+                            this.adapter.toolbar.update();
                         }
                     }
                 });
