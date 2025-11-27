@@ -1,6 +1,10 @@
 /* 
    COLOPHON STYLES
    Targeting Tiptap Editor within .colophon-workspace
+*/
+.view-header-title-container {
+    display: none;
+}
 
 /* 1. WORKSPACE CONTAINER */
 .colophon-workspace {
@@ -20,7 +24,7 @@
     overflow-y: auto;
     width: 100%;
     position: relative;
-    padding-top: 3rem;
+    padding-top: 1rem;
 }
 
 
@@ -153,14 +157,29 @@
     }
 }
 
-/* 5. TOOLBAR */
+/* 5. TOOLBAR (Now in View Header) */
 .colophon-toolbar {
-    flex: 0 0 auto;
+    flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 8px;
-    padding: 0px 20px;
-    z-index: 100;
+    padding: 0 10px;
+    height: 100%;
+    /* Remove background/border as it sits in header */
+    background: transparent;
+    border: none;
+}
+
+/* Container injected into view header */
+.view-header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    overflow: visible;
+    z-index: 10;
 }
 
 .colophon-toolbar-row {
@@ -196,31 +215,14 @@
 .colophon-ui-btn.colophon-icon-only {
     padding: 0;
     width: 32px;
+    margin-right: 8px;
     justify-content: center;
 }
 
 .colophon-btn-group {
     display: flex;
     align-items: center;
-    background: var(--interactive-normal);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
     overflow: hidden;
-}
-
-.colophon-btn-group .colophon-ui-btn {
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    border-right: 1px solid var(--background-modifier-border);
-}
-
-.colophon-btn-group .colophon-ui-btn:last-child {
-    border-right: none;
-}
-
-.colophon-btn-group .colophon-ui-btn:hover {
-    background: var(--background-modifier-hover);
 }
 
 .colophon-dropdown-trigger {
