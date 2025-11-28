@@ -1,6 +1,8 @@
 const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
 const { ColophonView, VIEW_TYPE } = require('./view');
 const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
+const ExportModal = require('./export-modal');
+const DocxStyleConverter = require('./docx-style-converter');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080,
@@ -15,8 +17,7 @@ const DEFAULT_SETTINGS = {
     showWordCount: false
 };
 
-const { DocxSerializer } = require('prosemirror-docx/dist/esm/index.js');
-const { Packer, HeadingLevel, Paragraph, TextRun, FootnoteReferenceRun, StyleLevel } = require('docx');
+const DocxGenerator = require('./docx-generator');
 const fs = require('fs');
 const electron = require('electron');
 
@@ -190,7 +191,18 @@ module.exports = class ColophonPlugin extends Plugin {
             view = this.app.workspace.getActiveViewOfType(ColophonView);
         }
 
-        if (!view || !(view instanceof ColophonView) || !view.adapter.editor) {
+        if (!view || !(view instanceof ColophonView)) {
+            new Notice('No active Colophon editor found.');
+            return;
+        }
+
+        new ExportModal(this.app, (settings) => {
+            this.performDocxExport(view, settings);
+        }).open();
+    }
+
+    async performDocxExport(view, exportSettings) {
+        if (!view || !view.adapter.editor) {
             new Notice('No active Colophon editor found.');
             return;
         }
@@ -200,150 +212,23 @@ module.exports = class ColophonPlugin extends Plugin {
         const defaultPath = (view.file?.basename || 'Untitled') + '.docx';
 
         try {
-            // Define serializers for your document structure
-            const nodeSerializers = {
+            // Prepare Styles
+            const converter = new DocxStyleConverter();
+            const stylesConfig = view.adapter.styleManager.styles;
 
-                paragraph(state, node) {
-                    state.renderInline(node);
-                    state.closeBlock(node);
-                },
-                heading(state, node) {
-                    state.renderInline(node);
-                    const heading = [
-                        HeadingLevel.HEADING_1,
-                        HeadingLevel.HEADING_2,
-                        HeadingLevel.HEADING_3,
-                        HeadingLevel.HEADING_4,
-                        HeadingLevel.HEADING_5,
-                        HeadingLevel.HEADING_6,
-                    ][node.attrs.level - 1];
-                    state.closeBlock(node, { heading });
-                },
-                text(state, node) {
-                    state.text(node.text);
-                },
-                hard_break(state) {
-                    state.addRunOptions({ break: 1 });
-                },
-                footnote(state, node) {
-                    const id = node.attrs.id;
-                    const footnotes = view.adapter ? view.adapter.footnotes : [];
-                    const fnData = footnotes.find(f => f.id === id);
-                    const content = fnData ? fnData.content : '';
+            // Get resolved font override
+            let globalFont = "Minion 3";
+            const computedStyle = getComputedStyle(view.contentEl);
+            const fontOverrideVar = computedStyle.getPropertyValue('--font-text-override').trim();
+            if (fontOverrideVar) {
+                // Split by comma, take first, strip quotes
+                globalFont = fontOverrideVar.split(',')[0].replace(/['"]/g, '').trim();
+            }
 
-                    // Manually handle footnote registration
-                    state.$footnoteCounter = (state.$footnoteCounter || 0) + 1;
-                    const refId = state.$footnoteCounter;
+            const { styles: docxStyles, styleIdMap } = converter.convertStyles(stylesConfig, exportSettings.scale, globalFont);
 
-                    state.footnotes[refId] = {
-                        children: [new Paragraph({
-                            children: [new TextRun(content)]
-                        })]
-                    };
-
-                    state.current.push(new FootnoteReferenceRun(refId));
-                }
-            };
-
-            const markSerializers = {
-                bold() { return { bold: true }; },
-                italic() { return { italics: true }; },
-                underline() { return { underline: {} }; },
-                strike() { return { strike: true }; },
-                superscript() { return { superScript: true }; },
-                subscript() { return { subScript: true }; },
-                internallink() { return {}; }, // Ignore links for now
-                smallCaps() { return { smallCaps: true }; }, // Ignore custom marks for now
-            };
-
-            const serializer = new DocxSerializer(nodeSerializers, markSerializers);
-            const doc = serializer.serialize(prosemirrorDoc, {
-                sections: [{
-                    properties: {},
-                    children: []
-                }],
-                styles: {
-                    default: {
-                        document: {
-                            run: {
-                                font: "Minion 3",
-                                size: 24, // 12pt
-                            },
-                            paragraph: {
-                                spacing: {
-                                    line: 360, // 1.5 lines
-                                },
-                            },
-                        },
-                    },
-                    paragraphStyles: [
-                        {
-                            id: "Normal",
-                            name: "Normal",
-                            basedOn: "Normal",
-                            next: "Normal",
-                            quickFormat: true,
-                            run: {
-                                font: "Minion 3",
-                                size: 24,
-                            },
-                            paragraph: {
-                                spacing: { line: 360 },
-                                indent: { firstLine: 720 }, // 0.5 inch
-                            },
-                        },
-                        {
-                            id: "Heading1",
-                            name: "Heading 1",
-                            basedOn: "Normal",
-                            next: "Normal",
-                            quickFormat: true,
-                            run: {
-                                font: "Minion 3",
-                                size: 36, // 18pt
-                                italics: true,
-                            },
-                            paragraph: {
-                                spacing: { before: 480, after: 240 },
-                            },
-                        },
-                        {
-                            id: "Heading2",
-                            name: "Heading 2",
-                            basedOn: "Normal",
-                            next: "Normal",
-                            quickFormat: true,
-                            run: {
-                                font: "Minion 3",
-                                size: 28, // 14pt
-                                smallCaps: true,
-                                tracking: 100, // Letter spacing
-                            },
-                            paragraph: {
-                                spacing: { before: 360, after: 240 },
-                            },
-                        },
-                        {
-                            id: "Heading3",
-                            name: "Heading 3",
-                            basedOn: "Normal",
-                            next: "Normal",
-                            quickFormat: true,
-                            run: {
-                                font: "Minion 3",
-                                size: 24, // 12pt
-                                italics: true,
-                            },
-                            paragraph: {
-                                alignment: "center",
-                                spacing: { before: 360, after: 240 },
-                            },
-                        }
-                    ]
-                }
-            });
-
-            const buffer = await Packer.toBuffer(doc);
+            const generator = new DocxGenerator(view, docxStyles, styleIdMap);
+            const buffer = await generator.generate(prosemirrorDoc, exportSettings);
 
             const result = await electron.remote.dialog.showSaveDialog({
                 title: 'Export to DOCX',
@@ -366,8 +251,8 @@ module.exports = class ColophonPlugin extends Plugin {
             });
 
         } catch (error) {
-            console.error('Colophon: Error exporting to DOCX.', error);
-            new Notice('An error occurred during DOCX export. See console for details.');
+            console.error('Docx Export Error:', error);
+            new Notice(`Error exporting to DOCX: ${error.message}`);
         }
     }
 
