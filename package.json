@@ -27,6 +27,6 @@
         "@tiptap/extension-underline": "^3.11.0",
         "@tiptap/starter-kit": "^3.11.0",
         "docx": "^9.5.1",
-        "prosemirror-docx": "^0.6.1"
+        "jszip": "^3.10.1"
     }
 }
