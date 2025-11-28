@@ -88,7 +88,7 @@ const DEFAULT_STYLES = {
         "font-family": "var(--font-text-theme), var(--font-text-override)",
         "font-variant": "Regular",
         "space-between-notes": "10pt",
-        "format": "1, 2, 3, …",
+        "format": "integer", //integer, lower-roman, upper-roman, lower-alpha, upper-alpha, ['custom', 'symbols', 'as', 'array']
         "numbering": "continuous"
     },
     "footnote-number": {
