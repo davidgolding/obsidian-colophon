@@ -216,16 +216,33 @@ module.exports = class ColophonPlugin extends Plugin {
             const converter = new DocxStyleConverter();
             const stylesConfig = view.adapter.styleManager.styles;
 
-            // Get resolved font override
-            let globalFont = "Minion 3";
+            // Get resolved font override and computed styles
             const computedStyle = getComputedStyle(view.contentEl);
+            let globalFont = "Minion 3";
+
+            // 1. Try variable override first
             const fontOverrideVar = computedStyle.getPropertyValue('--font-text-override').trim();
-            if (fontOverrideVar) {
-                // Split by comma, take first, strip quotes
-                globalFont = fontOverrideVar.split(',')[0].replace(/['"]/g, '').trim();
+
+            // 2. Fallback to computed font-family if override is empty or invalid
+            const fontStackString = fontOverrideVar || computedStyle.fontFamily;
+
+            if (fontStackString) {
+                // Split by comma, strip quotes, and find first valid font
+                const fonts = fontStackString.split(',').map(f => f.trim().replace(/['"]/g, ''));
+                const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined');
+
+                if (validFont) {
+                    globalFont = validFont;
+                }
             }
 
-            const { styles: docxStyles, styleIdMap } = converter.convertStyles(stylesConfig, exportSettings.scale, globalFont);
+            // Create context for style conversion
+            const context = {
+                baseFontSize: parseFloat(computedStyle.fontSize) || 16, // Default to 16px if parsing fails
+                getVariable: (name) => computedStyle.getPropertyValue(name).trim()
+            };
+
+            const { styles: docxStyles, styleIdMap } = converter.convertStyles(stylesConfig, exportSettings.scale, globalFont, context);
 
             const generator = new DocxGenerator(view, docxStyles, styleIdMap);
             const buffer = await generator.generate(prosemirrorDoc, exportSettings);

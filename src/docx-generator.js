@@ -1,4 +1,4 @@
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, PageOrientation, FootnoteReferenceRun } = require('docx');
+const { MinimalDocxGenerator, createRun, createParagraph } = require('./minimal-docx');
 
 class DocxGenerator {
     constructor(view, stylesConfig, styleIdMap) {
@@ -7,19 +7,19 @@ class DocxGenerator {
         this.styleIdMap = styleIdMap;
         this.footnotes = view.adapter ? view.adapter.footnotes : [];
         this.footnoteCounter = 0;
-        this.docxFootnotes = {};
+        // this.docxFootnotes = {}; // Not supported in minimal generator yet
     }
 
     generate(doc, exportSettings) {
-        const children = [];
+        const paragraphs = [];
 
         doc.content.forEach(node => {
             const element = this.processNode(node);
             if (element) {
                 if (Array.isArray(element)) {
-                    children.push(...element);
+                    paragraphs.push(...element);
                 } else {
-                    children.push(element);
+                    paragraphs.push(element);
                 }
             }
         });
@@ -31,9 +31,7 @@ class DocxGenerator {
         };
         const pageSize = pageSizeMap[exportSettings.pageSize] || pageSizeMap['Letter'];
 
-        // Convert margins to twips (approximate if string, but assuming number from modal for now? 
-        // actually modal returns strings like "1", so we need to convert)
-        // Helper to convert inches/string to twips
+        // Convert margins to twips
         const toTwips = (val) => Math.round(parseFloat(val) * 1440);
 
         const margins = {
@@ -43,26 +41,27 @@ class DocxGenerator {
             right: toTwips(exportSettings.margins.right),
         };
 
-        const docxDoc = new Document({
-            // externalStyles: '', // Attempt to suppress defaults if possible, or just rely on our styles
-            sections: [{
-                properties: {
-                    page: {
-                        size: {
-                            width: pageSize.width,
-                            height: pageSize.height,
-                            orientation: PageOrientation.PORTRAIT
-                        },
-                        margin: margins
-                    }
-                },
-                children: children,
-                footnotes: this.docxFootnotes
-            }],
-            styles: this.stylesConfig
+        // Flatten stylesConfig (which is { styles: { default, paragraphStyles }, styleIdMap }) 
+        // passed from main.js is actually just docxStyles (the object with default/paragraphStyles)
+        // Wait, main.js passes: new DocxGenerator(view, docxStyles, styleIdMap)
+        // docxStyles has { default, paragraphStyles }
+        // Minimal generator expects array of styles.
+
+        const styles = this.stylesConfig.paragraphStyles || [];
+        // We might need to handle default style separately or merge it?
+        // Minimal generator has hardcoded defaults but accepts styles array.
+        // Let's pass the paragraph styles.
+
+        const generator = new MinimalDocxGenerator({
+            paragraphs: paragraphs,
+            styles: styles,
+            pageSize: pageSize,
+            margins: margins,
+            defaultFont: this.stylesConfig.default?.document?.run?.font || 'Minion 3',
+            defaultFontSize: this.stylesConfig.default?.document?.run?.size || 24
         });
 
-        return Packer.toBuffer(docxDoc);
+        return generator.generate();
     }
 
     processNode(node) {
@@ -71,102 +70,75 @@ class DocxGenerator {
         } else if (node.type.name === 'heading') {
             return this.createHeading(node);
         }
-        // Handle other top-level blocks if necessary
         return null;
     }
 
     createParagraph(node) {
-        const children = this.processInlineContent(node);
+        const runs = this.processInlineContent(node);
 
         const styleKey = node.attrs.class || 'body';
         const styleId = this.styleIdMap[styleKey] || styleKey;
 
-        return new Paragraph({
-            style: styleId,
-            children: children
+        return createParagraph(runs, {
+            style: styleId
         });
     }
 
     createHeading(node) {
-        const children = this.processInlineContent(node);
+        const runs = this.processInlineContent(node);
 
         const styleKey = node.attrs.class || `heading-${node.attrs.level}`;
         const styleId = this.styleIdMap[styleKey] || styleKey;
 
         const options = {
-            style: styleId,
-            children: children
+            style: styleId
         };
 
         // Only apply structural heading level if it's a standard heading
-        // or if no class is provided (defaulting to standard heading)
         if (!node.attrs.class || node.attrs.class.startsWith('heading-')) {
-            const headingLevelMap = [
-                HeadingLevel.HEADING_1,
-                HeadingLevel.HEADING_2,
-                HeadingLevel.HEADING_3,
-                HeadingLevel.HEADING_4,
-                HeadingLevel.HEADING_5,
-                HeadingLevel.HEADING_6,
-            ];
-            options.heading = headingLevelMap[node.attrs.level - 1] || HeadingLevel.HEADING_1;
+            options.heading = node.attrs.level; // Pass number 1-6
         }
 
-        return new Paragraph(options);
+        return createParagraph(runs, options);
     }
 
     processInlineContent(node) {
-        const children = [];
+        const runs = [];
         if (node.content) {
             node.content.forEach(child => {
                 if (child.type.name === 'text') {
-                    children.push(this.createTextRun(child));
+                    runs.push(this.createTextRun(child));
                 } else if (child.type.name === 'footnote') {
-                    children.push(this.createFootnote(child));
+                    // Footnotes not fully supported in minimal generator yet
+                    // Just render marker for now or implement if possible
+                    // runs.push(this.createFootnote(child));
+                    // For now, let's just add a superscript number
+                    this.footnoteCounter++;
+                    runs.push(createRun(String(this.footnoteCounter), { superScript: true }));
                 } else if (child.type.name === 'hard_break') {
-                    children.push(new TextRun({ break: 1 }));
+                    runs.push(createRun('', { break: true }));
                 }
             });
         }
-        return children;
+        return runs;
     }
 
     createTextRun(node) {
-        const options = {
-            text: node.text
-        };
+        const options = {};
 
         if (node.marks) {
             node.marks.forEach(mark => {
                 if (mark.type.name === 'bold') options.bold = true;
-                if (mark.type.name === 'italic') options.italics = true;
+                if (mark.type.name === 'italic') options.italic = true;
                 if (mark.type.name === 'strike') options.strike = true;
-                if (mark.type.name === 'underline') options.underline = {};
+                if (mark.type.name === 'underline') options.underline = true;
                 if (mark.type.name === 'superscript') options.superScript = true;
                 if (mark.type.name === 'subscript') options.subScript = true;
                 if (mark.type.name === 'smallCaps') options.smallCaps = true;
             });
         }
 
-        return new TextRun(options);
-    }
-
-    createFootnote(node) {
-        const id = node.attrs.id;
-        const fnData = this.footnotes.find(f => f.id === id);
-        const content = fnData ? fnData.content : '';
-
-        this.footnoteCounter++;
-        const refId = this.footnoteCounter;
-
-        // Register footnote in the document's footnote collection
-        this.docxFootnotes[refId] = {
-            children: [new Paragraph({
-                children: [new TextRun(content)]
-            })]
-        };
-
-        return new FootnoteReferenceRun(refId);
+        return createRun(node.text, options);
     }
 }
 
