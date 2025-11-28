@@ -32,11 +32,15 @@ class DocxStyleConverter {
 
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
             if (key === 'scale') continue;
-            if (key === 'footnote-symbol') continue;
+            // if (key === 'footnote-symbol') continue; // Now mapped to FootnoteReference
+            if (key === 'footnote-number') continue;
 
             // Determine DOCX Style ID and Name
             let docxId = styleDef.name || key;
             const docxName = styleDef.name || key;
+
+            // Sanitize ID (remove spaces and non-alphanumeric characters)
+            docxId = docxId.replace(/[^a-zA-Z0-1]/g, '');
 
             styleIdMap[key] = docxId;
 
@@ -45,9 +49,11 @@ class DocxStyleConverter {
                 docxId = 'BodyText';
             } else if (key === 'footnote') {
                 docxId = 'FootnoteText';
+            } else if (key === 'footnote-symbol') {
+                docxId = 'FootnoteReference';
             }
 
-            if (!styleDef.type || styleDef.type === 'paragraph' || styleDef.type === 'heading' || styleDef.type === 'footnote') {
+            if (!styleDef.type || styleDef.type === 'paragraph' || styleDef.type === 'heading' || styleDef.type === 'footnote' || styleDef.type === 'character') {
                 const docxStyle = this.mapParagraphStyle(docxId, docxName, styleDef, scale, globalFont, context);
                 paragraphStyles.push(docxStyle);
                 styleIdMap[key] = docxId;
@@ -97,6 +103,24 @@ class DocxStyleConverter {
         }
         if (styleDef['capitalization'] === 'small-caps' || styleDef['font-variant'] === 'small-caps') {
             runProps.smallCaps = true;
+        }
+
+        // Vertical Alignment / Position
+        if (styleDef['align']) {
+            // If align is a dimension (e.g. "4pt"), map to position (raised)
+            const alignVal = resolve(styleDef['align']);
+            if (typeof alignVal === 'string' && (alignVal.endsWith('pt') || alignVal.endsWith('in') || alignVal.endsWith('cm'))) {
+                runProps.position = this.toHalfPoints(alignVal, scale, context);
+            } else if (alignVal === 'super' || alignVal === 'superscript') {
+                runProps.vertAlign = 'superscript';
+            } else if (alignVal === 'sub' || alignVal === 'subscript') {
+                runProps.vertAlign = 'subscript';
+            }
+        }
+
+        // Force superscript for FootnoteReference if not specified
+        if (id === 'FootnoteReference' && !runProps.vertAlign && !runProps.position) {
+            runProps.vertAlign = 'superscript';
         }
         if (styleDef['color']) {
             const color = resolve(styleDef['color']);
@@ -213,9 +237,15 @@ class DocxStyleConverter {
             paraProps.keepNext = true;
         }
 
+        let styleType = styleDef.type === 'character' ? 'character' : 'paragraph';
+        if (id === 'FootnoteReference') styleType = 'character';
+
         return {
             id: id,
             name: name,
+            type: styleType,
+            basedOn: styleDef.basedOn || 'Normal',
+            next: styleDef.next || 'Normal',
             run: runProps,
             paragraph: paraProps,
             quickFormat: true,
@@ -230,29 +260,31 @@ class DocxStyleConverter {
         if (!fontStackString) return null;
         // Split by comma, strip quotes, and find first valid font
         const fonts = fontStackString.split(',').map(f => f.trim().replace(/['"]/g, ''));
-        const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined');
+        const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined' && f.toLowerCase() !== 'null');
         return validFont || null;
     }
 
     resolveValue(value, context) {
         if (!value) return value;
         if (typeof value !== 'string') return value;
+        if (!context || !context.getVariable) return value;
 
-        // Check for var(--variable)
-        if (value.includes('var(') && context && context.getVariable) {
-            // Simple regex to extract variable name
-            const match = value.match(/var\((--[^)]+)\)/);
-            if (match) {
-                const varName = match[1];
-                const resolved = context.getVariable(varName);
-                if (resolved) {
-                    // Recursively resolve in case the variable points to another variable
-                    // (Simple recursion limit or check needed? Assuming no cycles for now)
-                    return this.resolveValue(resolved, context);
-                }
-            }
-        }
-        return value;
+        let resolved = value;
+        const varRegex = /var\((--[^)]+)\)/g;
+        let match;
+        // We need to handle nested variables or multiple variables.
+        // Simple replacement for now.
+        // Note: regex.exec loop on the same string being modified is tricky.
+        // Better to replace all.
+
+        // But we need to resolve the value first.
+        // Let's use a replacer function.
+        resolved = resolved.replace(varRegex, (match, varName) => {
+            const val = context.getVariable(varName);
+            return val !== null && val !== undefined ? this.resolveValue(val, context) : '';
+        });
+
+        return resolved;
     }
 
     /**

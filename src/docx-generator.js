@@ -7,7 +7,8 @@ class DocxGenerator {
         this.styleIdMap = styleIdMap;
         this.footnotes = view.adapter ? view.adapter.footnotes : [];
         this.footnoteCounter = 0;
-        // this.docxFootnotes = {}; // Not supported in minimal generator yet
+        this.docxFootnotes = {};
+        this.footnoteIdMap = {};
     }
 
     generate(doc, exportSettings) {
@@ -57,6 +58,8 @@ class DocxGenerator {
             styles: styles,
             pageSize: pageSize,
             margins: margins,
+            footnotes: this.docxFootnotes,
+            footnoteFormat: this.stylesConfig.default?.['footnote-symbol']?.format || 'integer',
             defaultFont: this.stylesConfig.default?.document?.run?.font || 'Minion 3',
             defaultFontSize: this.stylesConfig.default?.document?.run?.size || 24
         });
@@ -109,12 +112,18 @@ class DocxGenerator {
                 if (child.type.name === 'text') {
                     runs.push(this.createTextRun(child));
                 } else if (child.type.name === 'footnote') {
-                    // Footnotes not fully supported in minimal generator yet
-                    // Just render marker for now or implement if possible
-                    // runs.push(this.createFootnote(child));
-                    // For now, let's just add a superscript number
-                    this.footnoteCounter++;
-                    runs.push(createRun(String(this.footnoteCounter), { superScript: true }));
+                    // Handle footnote reference
+                    const footnoteId = child.attrs.id;
+                    const docxId = this.getDocxFootnoteId(footnoteId);
+
+                    // Add reference run
+                    runs.push(createRun('', { footnoteReference: docxId }));
+
+                    // Process footnote content if not already processed
+                    if (!this.docxFootnotes[docxId]) {
+                        this.processFootnoteContent(footnoteId, docxId);
+                    }
+
                 } else if (child.type.name === 'hard_break') {
                     runs.push(createRun('', { break: true }));
                 }
@@ -139,6 +148,92 @@ class DocxGenerator {
         }
 
         return createRun(node.text, options);
+    }
+
+    getDocxFootnoteId(internalId) {
+        if (!this.footnoteIdMap) this.footnoteIdMap = {};
+        if (!this.footnoteIdMap[internalId]) {
+            this.footnoteCounter++;
+            this.footnoteIdMap[internalId] = this.footnoteCounter;
+        }
+        return this.footnoteIdMap[internalId];
+    }
+
+    processFootnoteContent(internalId, docxId) {
+        // Get mapped style IDs
+        const footnoteTextStyle = this.styleIdMap['footnote'] || 'FootnoteText';
+        // Use footnote-symbol for the reference marker style
+        const footnoteRefStyle = this.styleIdMap['footnote-symbol'] || 'FootnoteReference';
+
+        const footnoteData = this.footnotes.find(f => f.id === internalId);
+
+        if (!footnoteData) {
+            // Empty footnote if not found, but MUST include marker
+            this.docxFootnotes[docxId] = {
+                paragraphs: [
+                    createParagraph([
+                        createRun('', { footnoteRef: true, style: footnoteRefStyle }),
+                        createRun(' ')
+                    ], { style: footnoteTextStyle })
+                ]
+            };
+            return;
+        }
+
+        const content = footnoteData.content;
+        let paragraphs = [];
+
+        if (typeof content === 'string') {
+            // Simple text content
+            paragraphs.push(createParagraph([
+                createRun('', { footnoteRef: true, style: footnoteRefStyle }), // Marker
+                createRun(' ' + content)
+            ], { style: footnoteTextStyle }));
+        } else if (typeof content === 'object' && content.type === 'doc') {
+            // ProseMirror JSON
+            const nodes = [];
+            if (content.content) {
+                content.content.forEach(node => {
+                    const processed = this.processNode(node);
+                    if (processed) {
+                        if (Array.isArray(processed)) nodes.push(...processed);
+                        else nodes.push(processed);
+                    }
+                });
+            }
+
+            // Inject marker into first paragraph
+            if (nodes.length > 0 && nodes[0].runs) {
+                // Prepend marker run
+                // Actually, let's look at how Word does it.
+                // <w:footnote ...>
+                //   <w:p>
+                //     <w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>
+                //     <w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r>
+                //     <w:r><w:t>Actual text</w:t></w:r>
+                //   </w:p>
+                // </w:footnote>
+
+                // So I need to add `footnoteRef` support to createRun in minimal-docx.
+                // Let's add it as a run option.
+                firstPara.runs.unshift(createRun('', { footnoteRef: true }));
+
+                // Force style to FootnoteText for all paragraphs in footnote?
+                // Or just the first? Usually all.
+                nodes.forEach(p => {
+                    if (!p.style || p.style === 'body') p.style = 'FootnoteText';
+                });
+            } else {
+                // Fallback if no content
+                nodes.push(createParagraph([
+                    createRun('', { footnoteRef: true }),
+                    createRun(' ')
+                ], { style: 'FootnoteText' }));
+            }
+            paragraphs = nodes;
+        }
+
+        this.docxFootnotes[docxId] = { paragraphs };
     }
 }
 
