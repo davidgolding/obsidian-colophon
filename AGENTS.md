@@ -1,7 +1,7 @@
 # AGENTS.md - Colophon Project Handover
 
 ## Project Overview
-**Colophon** is an Obsidian plugin designed to provide a "Google Docs" or "Apple Pages" style writing experience for long-form manuscripts, while strictly maintaining **Markdown** as the storage format.
+**Colophon** is an Obsidian plugin designed to provide an elegant and typographically clean writing experience for long-form manuscripts, while strictly maintaining **Markdown** as the storage format.
 
 ## Core Architecture
 - **Framework**: Obsidian API (Vanilla JS, CommonJS).
