@@ -1,6 +1,6 @@
 {
     "name": "obsidian-colophon",
-    "version": "1.1.4",
+    "version": "1.1.5",
     "description": "A dedicated writing environment for Obsidian.",
     "main": "main.js",
     "scripts": {
@@ -26,7 +26,6 @@
         "@tiptap/extension-text-style": "^3.11.0",
         "@tiptap/extension-underline": "^3.11.0",
         "@tiptap/starter-kit": "^3.11.0",
-        "docx": "^9.5.1",
         "jszip": "^3.10.1"
     }
 }
