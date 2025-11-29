@@ -42,16 +42,7 @@ class DocxGenerator {
             right: toTwips(exportSettings.margins.right),
         };
 
-        // Flatten stylesConfig (which is { styles: { default, paragraphStyles }, styleIdMap }) 
-        // passed from main.js is actually just docxStyles (the object with default/paragraphStyles)
-        // Wait, main.js passes: new DocxGenerator(view, docxStyles, styleIdMap)
-        // docxStyles has { default, paragraphStyles }
-        // Minimal generator expects array of styles.
-
         const styles = this.stylesConfig.paragraphStyles || [];
-        // We might need to handle default style separately or merge it?
-        // Minimal generator has hardcoded defaults but accepts styles array.
-        // Let's pass the paragraph styles.
 
         const generator = new MinimalDocxGenerator({
             paragraphs: paragraphs,
@@ -60,17 +51,24 @@ class DocxGenerator {
             margins: margins,
             footnotes: this.docxFootnotes,
             footnoteFormat: this.stylesConfig.default?.['footnote-symbol']?.format || 'integer',
-            defaultFont: this.stylesConfig.default?.document?.run?.font || 'Minion 3',
+            defaultFont: this.stylesConfig.default?.document?.run?.font || 'Times New Roman',
             defaultFontSize: this.stylesConfig.default?.document?.run?.size || 24
         });
 
         return generator.generate();
     }
 
+    getTypeName(nodeOrMark) {
+        if (typeof nodeOrMark.type === 'string') return nodeOrMark.type;
+        if (nodeOrMark.type && nodeOrMark.type.name) return nodeOrMark.type.name;
+        return null;
+    }
+
     processNode(node) {
-        if (node.type.name === 'paragraph') {
+        const type = this.getTypeName(node);
+        if (type === 'paragraph') {
             return this.createParagraph(node);
-        } else if (node.type.name === 'heading') {
+        } else if (type === 'heading') {
             return this.createHeading(node);
         }
         return null;
@@ -79,7 +77,7 @@ class DocxGenerator {
     createParagraph(node) {
         const runs = this.processInlineContent(node);
 
-        const styleKey = node.attrs.class || 'body';
+        const styleKey = (node.attrs && node.attrs.class) || 'body';
         const styleId = this.styleIdMap[styleKey] || styleKey;
 
         return createParagraph(runs, {
@@ -90,7 +88,7 @@ class DocxGenerator {
     createHeading(node) {
         const runs = this.processInlineContent(node);
 
-        const styleKey = node.attrs.class || `heading-${node.attrs.level}`;
+        const styleKey = (node.attrs && node.attrs.class) || `heading-${(node.attrs && node.attrs.level) || 1}`;
         const styleId = this.styleIdMap[styleKey] || styleKey;
 
         const options = {
@@ -98,8 +96,8 @@ class DocxGenerator {
         };
 
         // Only apply structural heading level if it's a standard heading
-        if (!node.attrs.class || node.attrs.class.startsWith('heading-')) {
-            options.heading = node.attrs.level; // Pass number 1-6
+        if (!node.attrs || !node.attrs.class || node.attrs.class.startsWith('heading-')) {
+            options.heading = (node.attrs && node.attrs.level) || 1; // Pass number 1-6
         }
 
         return createParagraph(runs, options);
@@ -109,22 +107,31 @@ class DocxGenerator {
         const runs = [];
         if (node.content) {
             node.content.forEach(child => {
-                if (child.type.name === 'text') {
+                const type = this.getTypeName(child);
+                if (type === 'text') {
                     runs.push(this.createTextRun(child));
-                } else if (child.type.name === 'footnote') {
+                } else if (type === 'footnote') {
                     // Handle footnote reference
-                    const footnoteId = child.attrs.id;
+                    const footnoteId = (child.attrs && child.attrs.id) || null;
+                    if (!footnoteId) return; // Skip if no ID
+
                     const docxId = this.getDocxFootnoteId(footnoteId);
 
-                    // Add reference run
-                    runs.push(createRun('', { footnoteReference: docxId }));
+                    // Get mapped style for the reference marker in main text
+                    const footnoteRefStyle = this.styleIdMap['footnote-symbol'] || 'FootnoteReference';
+
+                    // Add reference run with style
+                    runs.push(createRun('', {
+                        footnoteReference: docxId,
+                        style: footnoteRefStyle
+                    }));
 
                     // Process footnote content if not already processed
                     if (!this.docxFootnotes[docxId]) {
                         this.processFootnoteContent(footnoteId, docxId);
                     }
 
-                } else if (child.type.name === 'hard_break') {
+                } else if (type === 'hard_break') {
                     runs.push(createRun('', { break: true }));
                 }
             });
@@ -137,13 +144,14 @@ class DocxGenerator {
 
         if (node.marks) {
             node.marks.forEach(mark => {
-                if (mark.type.name === 'bold') options.bold = true;
-                if (mark.type.name === 'italic') options.italic = true;
-                if (mark.type.name === 'strike') options.strike = true;
-                if (mark.type.name === 'underline') options.underline = true;
-                if (mark.type.name === 'superscript') options.superScript = true;
-                if (mark.type.name === 'subscript') options.subScript = true;
-                if (mark.type.name === 'smallCaps') options.smallCaps = true;
+                const type = this.getTypeName(mark);
+                if (type === 'bold') options.bold = true;
+                if (type === 'italic') options.italic = true;
+                if (type === 'strike') options.strike = true;
+                if (type === 'underline') options.underline = true;
+                if (type === 'superscript') options.superScript = true;
+                if (type === 'subscript') options.subScript = true;
+                if (type === 'smallCaps') options.smallCaps = true;
             });
         }
 
@@ -161,12 +169,11 @@ class DocxGenerator {
 
     processFootnoteContent(internalId, docxId) {
         // Get mapped style IDs
+        // Use keys from default-styles.js / stylesConfig
         const footnoteTextStyle = this.styleIdMap['footnote'] || 'FootnoteText';
-        // Use footnote-symbol for the reference marker style
         const footnoteRefStyle = this.styleIdMap['footnote-symbol'] || 'FootnoteReference';
 
         const footnoteData = this.footnotes.find(f => f.id === internalId);
-
         if (!footnoteData) {
             // Empty footnote if not found, but MUST include marker
             this.docxFootnotes[docxId] = {
@@ -204,31 +211,23 @@ class DocxGenerator {
 
             // Inject marker into first paragraph
             if (nodes.length > 0 && nodes[0].runs) {
-                // Prepend marker run
-                // Actually, let's look at how Word does it.
-                // <w:footnote ...>
-                //   <w:p>
-                //     <w:pPr><w:pStyle w:val="FootnoteText"/></w:pPr>
-                //     <w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteRef/></w:r>
-                //     <w:r><w:t>Actual text</w:t></w:r>
-                //   </w:p>
-                // </w:footnote>
+                nodes[0].runs.unshift(createRun('', {
+                    footnoteRef: true,
+                    style: footnoteRefStyle
+                }));
 
-                // So I need to add `footnoteRef` support to createRun in minimal-docx.
-                // Let's add it as a run option.
-                firstPara.runs.unshift(createRun('', { footnoteRef: true }));
+                nodes[0].runs.splice(1, 0, createRun(' '));
 
-                // Force style to FootnoteText for all paragraphs in footnote?
-                // Or just the first? Usually all.
+                // Force style to FootnoteText for all paragraphs in footnote
                 nodes.forEach(p => {
-                    if (!p.style || p.style === 'body') p.style = 'FootnoteText';
+                    p.style = footnoteTextStyle;
                 });
             } else {
                 // Fallback if no content
                 nodes.push(createParagraph([
-                    createRun('', { footnoteRef: true }),
+                    createRun('', { footnoteRef: true, style: footnoteRefStyle }),
                     createRun(' ')
-                ], { style: 'FootnoteText' }));
+                ], { style: footnoteTextStyle }));
             }
             paragraphs = nodes;
         }

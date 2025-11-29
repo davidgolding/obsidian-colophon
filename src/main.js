@@ -86,7 +86,7 @@ module.exports = class ColophonPlugin extends Plugin {
         // COMMAND: Export to DOCX
         this.addCommand({
             id: 'export-to-docx',
-            name: 'Export to DOCX',
+            name: 'Export to Word (.docx)',
             callback: () => this.exportToDocx()
         });
 
@@ -218,7 +218,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
             // Get resolved font override and computed styles
             const computedStyle = getComputedStyle(view.contentEl);
-            let globalFont = "Minion 3";
+            let globalFont = "Times New Roman";
 
             // 1. Try variable override first
             const fontOverrideVar = computedStyle.getPropertyValue('--font-text-override').trim();
@@ -241,14 +241,12 @@ module.exports = class ColophonPlugin extends Plugin {
                 baseFontSize: parseFloat(computedStyle.fontSize) || 16, // Default to 16px if parsing fails
                 getVariable: (name) => computedStyle.getPropertyValue(name).trim()
             };
-
             const { styles: docxStyles, styleIdMap } = converter.convertStyles(stylesConfig, exportSettings.scale, globalFont, context);
-
             const generator = new DocxGenerator(view, docxStyles, styleIdMap);
             const buffer = await generator.generate(prosemirrorDoc, exportSettings);
 
             const result = await electron.remote.dialog.showSaveDialog({
-                title: 'Export to DOCX',
+                title: 'Export to Word (.docx)',
                 defaultPath: defaultPath,
                 filters: [{ name: 'Word Document', extensions: ['docx'] }]
             });
@@ -260,7 +258,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
             fs.writeFile(result.filePath, buffer, (err) => {
                 if (err) {
-                    console.error('Colophon: Failed to save DOCX file.', err);
+                    console.error('Colophon: Failed to save Word (.docx) file.', err);
                     new Notice('Failed to save file. See console for details.');
                 } else {
                     new Notice('File saved successfully!');
@@ -269,7 +267,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
         } catch (error) {
             console.error('Docx Export Error:', error);
-            new Notice(`Error exporting to DOCX: ${error.message}`);
+            new Notice(`Error exporting to Word (.docx): ${error.message}`);
         }
     }
 

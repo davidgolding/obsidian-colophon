@@ -1,5 +1,3 @@
-// const { AlignmentType, UnderlineType } = require('docx'); // Removed dependency
-
 class DocxStyleConverter {
     constructor() {
     }
@@ -12,17 +10,21 @@ class DocxStyleConverter {
      * @param {Object} context - Context for resolving styles (baseFontSize, getVariable).
      * @returns {Object} The DOCX styles configuration.
      */
-    convertStyles(stylesConfig, scalePercent = 100, globalFont = "Minion 3", context = null) {
+    convertStyles(stylesConfig, scalePercent = 100, globalFont = "Times New Roman", context = null) {
         const scale = scalePercent / 100;
         const paragraphStyles = [];
         const styleIdMap = {}; // Map internal key -> DOCX Style ID
 
         // Default styles (Normal) - Minimal fallback
+        // Update: Inherit from 'body' style if present to ensure unstyled text matches Body
+        const bodyStyle = stylesConfig['body'];
+        const resolve = (val) => this.resolveValue(val, context);
+
         const defaultStyle = {
             document: {
                 run: {
-                    font: globalFont,
-                    size: 24, // 12pt
+                    font: bodyStyle && bodyStyle['font-family'] ? this.cleanFontStack(resolve(bodyStyle['font-family'])) || globalFont : globalFont,
+                    size: bodyStyle && bodyStyle['font-size'] ? this.toHalfPoints(resolve(bodyStyle['font-size']), scale, context) : 24, // 12pt
                 },
                 paragraph: {
                     spacing: { line: 360 }, // 1.5 lines
@@ -30,28 +32,35 @@ class DocxStyleConverter {
             },
         };
 
+        if (bodyStyle) {
+            // Map spacing from body to default paragraph settings
+            const spacing = {};
+            let lineSpacingVal = bodyStyle['line-height'] || bodyStyle['line-spacing'];
+            if (lineSpacingVal) {
+                lineSpacingVal = resolve(lineSpacingVal);
+                const valStr = String(lineSpacingVal).trim();
+                if (valStr.match(/^[0-9.]+$/)) {
+                    const mult = parseFloat(valStr);
+                    if (!isNaN(mult)) {
+                        spacing.line = Math.round(mult * 240);
+                        spacing.lineRule = "auto";
+                    }
+                } else {
+                    spacing.line = this.toTwips(valStr, scale, context);
+                    spacing.lineRule = "exact";
+                }
+                defaultStyle.document.paragraph.spacing = spacing;
+            }
+        }
+
         for (const [key, styleDef] of Object.entries(stylesConfig)) {
-            if (key === 'scale') continue;
-            // if (key === 'footnote-symbol') continue; // Now mapped to FootnoteReference
-            if (key === 'footnote-number') continue;
+            if (key === 'scale') continue; //YAML key reserved for UI
+            if (key === 'footnote-number') continue; //YAML key reserved for UI
 
             // Determine DOCX Style ID and Name
-            let docxId = styleDef.name || key;
+            let docxId = key;
             const docxName = styleDef.name || key;
-
-            // Sanitize ID (remove spaces and non-alphanumeric characters)
-            docxId = docxId.replace(/[^a-zA-Z0-1]/g, '');
-
             styleIdMap[key] = docxId;
-
-            // Special handling for Body and Footnote to avoid collisions/ensure functionality
-            if (key === 'body') {
-                docxId = 'BodyText';
-            } else if (key === 'footnote') {
-                docxId = 'FootnoteText';
-            } else if (key === 'footnote-symbol') {
-                docxId = 'FootnoteReference';
-            }
 
             if (!styleDef.type || styleDef.type === 'paragraph' || styleDef.type === 'heading' || styleDef.type === 'footnote' || styleDef.type === 'character') {
                 const docxStyle = this.mapParagraphStyle(docxId, docxName, styleDef, scale, globalFont, context);
@@ -118,8 +127,8 @@ class DocxStyleConverter {
             }
         }
 
-        // Force superscript for FootnoteReference if not specified
-        if (id === 'FootnoteReference' && !runProps.vertAlign && !runProps.position) {
+        // Force superscript for FootnoteReference
+        if (id === 'FootnoteReference') {
             runProps.vertAlign = 'superscript';
         }
         if (styleDef['color']) {
@@ -244,8 +253,8 @@ class DocxStyleConverter {
             id: id,
             name: name,
             type: styleType,
-            basedOn: styleDef.basedOn || 'Normal',
-            next: styleDef.next || 'Normal',
+            basedOn: styleDef.basedOn || 'Body',
+            next: styleDef.next || 'Body',
             run: runProps,
             paragraph: paraProps,
             quickFormat: true,
