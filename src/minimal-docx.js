@@ -6,8 +6,9 @@ class MinimalDocxGenerator {
         this.styles = options.styles || [];
         this.fonts = options.fonts || ['Times New Roman', 'Arial'];
         this.footnotes = options.footnotes || {};
-        this.pageSize = options.pageSize || { width: 'Letter' }; // Handle string or object
-        this.margins = options.margins || { top: 1, bottom: 1, left: 1, right: 1 }; // Inches
+        this.pageSize = options.pageSize || { width: 'Letter' };
+        this.margins = options.margins || { top: 1, bottom: 1, left: 1, right: 1 };
+        this.stylesConfig = options.stylesConfig || {}; // Source of truth from YAML/Settings
     }
 
     async generate() {
@@ -89,21 +90,23 @@ class MinimalDocxGenerator {
         // Generate styles based on the captured styles map
         const stylesXml = this.styles.map(style => {
             const css = style.computed;
+            // We pass the style ID to look up overrides
+            const pPr = this.cssToParaProps(css, style.id);
+            const rPr = this.cssToRunProps(css, style.id);
+
             return `
     <w:style w:type="paragraph" w:styleId="${style.id}">
         <w:name w:val="${style.name}"/>
         ${style.basedOn ? `<w:basedOn w:val="${style.basedOn}"/>` : ''}
         <w:pPr>
-            ${this.cssToParaProps(css)}
+            ${pPr}
         </w:pPr>
         <w:rPr>
-            ${this.cssToRunProps(css)}
+            ${rPr}
         </w:rPr>
     </w:style>`;
         }).join('');
 
-        // Add default Normal style if not present (though we likely captured it)
-        // Add Footnote Reference style
         const footnoteRef = `
     <w:style w:type="character" w:styleId="FootnoteReference">
         <w:name w:val="Footnote Reference"/>
@@ -133,8 +136,7 @@ class MinimalDocxGenerator {
     createDocumentXml() {
         const bodyContent = this.paragraphs.map(p => this.createParagraphXml(p)).join('');
 
-        // Page Size & Margins
-        const width = this.pageSize.width === 'A4' ? 11906 : 12240; // Letter default
+        const width = this.pageSize.width === 'A4' ? 11906 : 12240;
         const height = this.pageSize.width === 'A4' ? 16838 : 15840;
         const margins = {
             top: Math.round(this.margins.top * 1440),
@@ -158,15 +160,6 @@ class MinimalDocxGenerator {
     createFootnotesXml() {
         const footnotesContent = Object.entries(this.footnotes).map(([id, data]) => {
             const content = data.paragraphs.map(p => this.createParagraphXml(p)).join('');
-            // We need a numeric ID for DOCX. The key 'id' from ProseMirror might be a string UUID.
-            // We need to map it, but the generator logic in DocxSerializer should have handled mapping?
-            // Wait, DocxSerializer passed the raw map. 
-            // In DOCX, footnotes are referenced by integer ID.
-            // We need to ensure the references in document.xml match these IDs.
-            // Let's assume the ID passed here is the integer ID used in references.
-            // NOTE: This requires the serializer to have mapped UUIDs to Integers.
-            // I will add a simple hash/map logic here if needed, but better to trust the input keys are valid DOCX IDs (integers).
-            // Actually, let's just use the key as the ID.
             return `<w:footnote w:id="${id}">${content}</w:footnote>`;
         }).join('');
 
@@ -185,10 +178,11 @@ class MinimalDocxGenerator {
     // --- Element Generators ---
 
     createParagraphXml(p) {
+        // Pass styleId to look up overrides
         const pPr = `
         <w:pPr>
             <w:pStyle w:val="${p.styleId}"/>
-            ${this.cssToParaProps(p.computed)}
+            ${this.cssToParaProps(p.computed, p.styleId)}
         </w:pPr>`;
 
         const runs = p.runs.map(r => this.createRunXml(r)).join('');
@@ -197,15 +191,7 @@ class MinimalDocxGenerator {
     }
 
     createRunXml(r) {
-        // Handle Footnote Reference
         if (r.type === 'footnote') {
-            // The 'id' attr in the node is the UUID. 
-            // We need to map this to the integer ID used in footnotes.xml.
-            // Since we didn't map it in serializer, we have a problem.
-            // FIX: We need a shared ID map. 
-            // For now, let's assume the 'id' attribute IS the integer ID (1, 2, 3...).
-            // The plugin re-indexes footnotes to 1..N.
-            // So r.attrs.id might be "1".
             return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${r.attrs.id}"/></w:r>`;
         }
 
@@ -220,42 +206,124 @@ class MinimalDocxGenerator {
 
     // --- Helpers ---
 
-    cssToParaProps(css) {
+    /**
+     * Converts CSS to Paragraph Properties.
+     * Checks `this.stylesConfig` for overrides based on `styleId`.
+     */
+    cssToParaProps(css, styleId) {
         if (!css) return '';
-        // Alignment
+
+        // Check for override
+        // The styleId from Tiptap might be "Heading1", but in stylesConfig it might be "heading-1" or "body".
+        // We need to map Tiptap styleId back to config key if possible.
+        // TiptapAdapter normalizes classes: "body", "heading-1".
+        // DocxSerializer registers styleId as "Heading1" or "FootnoteText" or "Normal".
+        // Let's try to find the config key.
+
+        let configKey = null;
+        if (styleId === 'Normal') configKey = 'body'; // Fallback? Or 'body' maps to Normal?
+        // Actually, TiptapAdapter uses 'body' class for normal text.
+        // DocxSerializer mapped 'body' class -> 'Normal' styleId? No, it mapped 'Normal' if no class.
+        // Wait, DocxSerializer logic:
+        // if (type === 'heading') id = `Heading${level}`
+        // if (attrs.class === 'Footnote') id = 'FootnoteText'
+        // else id = 'Normal'
+
+        // But TiptapAdapter puts 'body' class on paragraphs.
+        // DocxSerializer should probably map 'body' class to 'Body' styleId if we want to match config.
+        // The config key is 'body'.
+
+        if (styleId === 'Normal') configKey = 'body';
+        else if (styleId === 'Title') configKey = 'title';
+        else if (styleId === 'Subtitle') configKey = 'subtitle';
+        else if (styleId === 'FootnoteText') configKey = 'footnote';
+        else if (styleId && styleId.startsWith('Heading')) {
+            const level = styleId.replace('Heading', '');
+            configKey = `heading-${level}`;
+        } else {
+            // Fallback: assume styleId IS the configKey (for custom styles)
+            configKey = styleId;
+        }
+        if (styleId === 'FootnoteText') configKey = 'footnote';
+
+        const override = configKey ? this.stylesConfig[configKey] : null;
+
+        // --- Alignment ---
         let jc = 'left';
-        if (css.textAlign === 'center') jc = 'center';
-        if (css.textAlign === 'right') jc = 'right';
-        if (css.textAlign === 'justify') jc = 'both';
+        if (override && override['text-align']) {
+            jc = override['text-align'];
+        } else if (css.textAlign) {
+            if (css.textAlign === 'center') jc = 'center';
+            if (css.textAlign === 'right') jc = 'right';
+            if (css.textAlign === 'justify') jc = 'both';
+        }
 
-        // Spacing
-        // 1px = 15 twips (approx, 1/96 in * 1440)
-        // 1em = font-size
-        const toTwips = (val) => {
-            if (!val) return 0;
-            if (val.endsWith('px')) return Math.round(parseFloat(val) * 15);
-            return 0; // TODO: Handle other units
-        };
-
-        const before = toTwips(css.marginTop);
-        const after = toTwips(css.marginBottom);
-        // Line Height: "normal" ~ 1.2. 
-        // DOCX: 240 = 1 line.
+        // --- Spacing ---
+        let before = 0;
+        let after = 0;
         let line = 240;
         let lineRule = 'auto';
-        if (css.lineHeight !== 'normal') {
+
+        // Before
+        if (override && (override['margin-top'] || override['before-paragraph'])) {
+            before = this.parseUnit(override['margin-top'] || override['before-paragraph'], 'twips');
+        } else {
+            before = this.parseUnit(css.marginTop, 'twips');
+        }
+
+        // After
+        if (override && (override['margin-bottom'] || override['after-paragraph'])) {
+            after = this.parseUnit(override['margin-bottom'] || override['after-paragraph'], 'twips');
+        } else {
+            after = this.parseUnit(css.marginBottom, 'twips');
+        }
+
+        // Line Height
+        if (override && (override['line-height'] || override['line-spacing'])) {
+            const val = override['line-height'] || override['line-spacing'];
+            if (String(val).match(/^[0-9.]+$/)) {
+                // Multiplier
+                line = Math.round(parseFloat(val) * 240);
+                lineRule = 'auto';
+            } else {
+                // Exact
+                line = this.parseUnit(val, 'twips');
+                lineRule = 'exact';
+            }
+        } else if (css.lineHeight !== 'normal') {
             if (css.lineHeight.endsWith('px')) {
-                line = toTwips(css.lineHeight);
+                line = this.parseUnit(css.lineHeight, 'twips');
                 lineRule = 'exact';
             } else if (!isNaN(parseFloat(css.lineHeight))) {
                 line = Math.round(parseFloat(css.lineHeight) * 240);
             }
         }
 
-        // Indentation
-        const left = toTwips(css.marginLeft) + toTwips(css.paddingLeft);
-        const right = toTwips(css.marginRight) + toTwips(css.paddingRight);
-        const firstLine = toTwips(css.textIndent);
+        // --- Indentation ---
+        let left = 0;
+        let right = 0;
+        let firstLine = 0;
+
+        // Left
+        if (override && (override['margin-left'] || override['left-indent'])) {
+            left = this.parseUnit(override['margin-left'] || override['left-indent'], 'twips');
+        } else {
+            left = this.parseUnit(css.marginLeft, 'twips') + this.parseUnit(css.paddingLeft, 'twips');
+        }
+
+        // Right
+        if (override && (override['margin-right'] || override['right-indent'])) {
+            right = this.parseUnit(override['margin-right'] || override['right-indent'], 'twips');
+        } else {
+            right = this.parseUnit(css.marginRight, 'twips') + this.parseUnit(css.paddingRight, 'twips');
+        }
+
+        // First Line
+        if (override && (override['text-indent'] || override['first-indent'])) {
+            firstLine = this.parseUnit(override['text-indent'] || override['first-indent'], 'twips');
+        } else {
+            firstLine = this.parseUnit(css.textIndent, 'twips');
+        }
 
         return `
             <w:jc w:val="${jc}"/>
@@ -264,16 +332,38 @@ class MinimalDocxGenerator {
         `;
     }
 
-    cssToRunProps(css) {
+    /**
+     * Converts CSS to Run Properties.
+     * Checks `this.stylesConfig` for overrides based on `styleId`.
+     */
+    cssToRunProps(css, styleId) {
         if (!css) return '';
 
-        // Font
-        const font = css.fontFamily ? css.fontFamily.split(',')[0].replace(/['"]/g, '').trim() : 'Times New Roman';
+        let configKey = null;
+        if (styleId === 'Normal') configKey = 'body';
+        if (styleId && styleId.startsWith('Heading')) {
+            const level = styleId.replace('Heading', '');
+            configKey = `heading-${level}`;
+        }
+        if (styleId === 'FootnoteText') configKey = 'footnote';
 
-        // Size (half-points)
-        // 16px = 12pt = 24 half-points
-        // 1px = 0.75pt = 1.5 half-points
-        const size = css.fontSize ? Math.round(parseFloat(css.fontSize) * 1.5) : 24;
+        const override = configKey ? this.stylesConfig[configKey] : null;
+
+        // --- Font ---
+        let font = 'Times New Roman';
+        if (override && override['font-family']) {
+            font = cleanFont(override['font-family']);
+        } else if (css.fontFamily) {
+            font = cleanFont(css.fontFamily);
+        }
+
+        // --- Size ---
+        let size = 24; // 12pt
+        if (override && override['font-size']) {
+            size = this.parseUnit(override['font-size'], 'half-points');
+        } else if (css.fontSize) {
+            size = this.parseUnit(css.fontSize, 'half-points');
+        }
 
         // Color (Normalize to black/auto for print)
         const color = 'auto';
@@ -312,6 +402,46 @@ class MinimalDocxGenerator {
             }
         });
     }
+
+    /**
+     * Parses a unit string (e.g., "12pt", "0.5in", "16px") into DOCX units.
+     * targetUnit: 'twips' (1/1440 in) or 'half-points' (1/144 in).
+     */
+    parseUnit(value, targetUnit = 'twips') {
+        if (!value) return 0;
+        const str = String(value).trim();
+        const num = parseFloat(str);
+        if (isNaN(num)) return 0;
+
+        let points = 0;
+
+        if (str.endsWith('pt')) points = num;
+        else if (str.endsWith('in')) points = num * 72;
+        else if (str.endsWith('mm')) points = num * 2.835;
+        else if (str.endsWith('cm')) points = num * 28.35;
+        else if (str.endsWith('px')) points = num * 0.75; // Approx 96dpi
+        else if (str.endsWith('pc')) points = num * 12;
+        else points = num; // Assume points if no unit, or px? Let's assume points for safety in DOCX context, but CSS is usually px.
+        // If it came from getComputedStyle, it's likely px.
+        // If it came from YAML, user might omit unit.
+        // Let's assume px if no unit and it looks like a CSS value, but for YAML "11.5" usually means pt.
+        // Let's stick to the unit check. If no unit, treat as pt for YAML compatibility.
+
+        if (targetUnit === 'twips') {
+            return Math.round(points * 20);
+        } else {
+            // half-points
+            return Math.round(points * 2);
+        }
+    }
 }
 
-module.exports = { MinimalDocxGenerator };
+function cleanFont(fontStack) {
+    if (!fontStack) return 'Times New Roman';
+    // "Minion 3", serif -> Minion 3
+    const fonts = fontStack.split(',').map(f => f.trim().replace(/['"]/g, ''));
+    const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined');
+    return validFont || 'Times New Roman';
+}
+
+module.exports = { MinimalDocxGenerator, cleanFont };

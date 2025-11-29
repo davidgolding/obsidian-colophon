@@ -64,6 +64,11 @@
   - **Features**: Configurable footnote symbols (integer, roman, alpha, custom chars).
   - **Styling**: Control over font size, vertical alignment (`align`), and color via `footnote-symbol` style.
   - **Implementation**: `TiptapAdapter.getFootnoteSymbol` and `StyleManager.generateFootnoteCSS`.
+- **DOCX Export**:
+  - **Architecture**:
+    - **Tiptap Extension (`src/extensions/docx-serializer.js`)**: Traverses the document and extracts computed styles (WYSIWYG).
+    - **Generator (`src/minimal-docx.js`)**: Generates valid DOCX XML (`document.xml`, `styles.xml`, `fontTable.xml`) with 1-to-1 visual fidelity.
+  - **Features**: Supports inline styles, lists, footnotes (from sidebar), and custom fonts.
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.

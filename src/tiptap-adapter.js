@@ -153,6 +153,7 @@ class TiptapAdapter {
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
         this.styleManager = new StyleManager();
+        this.styles = {}; // Store loaded styles configuration
         this.paragraphOptions = [];
         this.listOptions = [];
     }
@@ -348,6 +349,9 @@ class TiptapAdapter {
                     }
                 }
             }
+
+            // Store merged styles
+            this.styles = styles;
 
             // Generate CSS
             const css = this.styleManager.generateCSS(styles);

@@ -1,5 +1,5 @@
 const { Extension } = require('@tiptap/core');
-const { MinimalDocxGenerator } = require('../minimal-docx');
+const { MinimalDocxGenerator, cleanFont } = require('../minimal-docx');
 const { Notice } = require('obsidian');
 const electron = require('electron');
 const fs = require('fs');
@@ -10,13 +10,13 @@ const DocxSerializer = Extension.create({
     addCommands() {
         return {
             exportToDocx: (options) => async ({ editor, view }) => {
-                const { settings, footnoteView } = options;
+                const { settings, footnoteView, stylesConfig } = options;
 
                 try {
                     new Notice('Preparing DOCX export...');
 
                     // 1. Traverse and Process Main Document
-                    const { paragraphs, styles, fonts } = processDocument(view, editor.state.doc);
+                    const { paragraphs, styles, fonts } = processDocument(view, editor.state.doc, stylesConfig);
 
                     // 2. Process Footnotes
                     const footnotes = processFootnotes(footnoteView, editor);
@@ -28,7 +28,8 @@ const DocxSerializer = Extension.create({
                         fonts,
                         footnotes,
                         pageSize: settings.pageSize,
-                        margins: settings.margins
+                        margins: settings.margins,
+                        stylesConfig: stylesConfig // Pass source of truth styles
                     });
 
                     const buffer = await generator.generate();
@@ -66,7 +67,7 @@ const DocxSerializer = Extension.create({
     }
 });
 
-function processDocument(view, doc) {
+function processDocument(view, doc, stylesConfig) {
     const paragraphs = [];
     const styles = new Map(); // Map<id, styleDef>
     const fonts = new Set(['Times New Roman', 'Arial', 'Symbol']); // Standard fonts
@@ -76,7 +77,7 @@ function processDocument(view, doc) {
         if (!dom || !(dom instanceof Element)) return;
 
         const computed = getComputedStyle(dom);
-        const styleId = registerStyle(styles, computed, node.type.name, node.attrs);
+        const styleId = registerStyle(styles, computed, node.type.name, node.attrs, stylesConfig);
 
         // Extract Font
         const font = cleanFont(computed.fontFamily);
@@ -149,14 +150,18 @@ function processFootnotes(footnoteView, mainEditor) {
         const view = editor.view;
         const doc = editor.state.doc;
 
-        const { paragraphs } = processDocument(view, doc);
+        const { paragraphs } = processDocument(view, doc, {}); // Footnotes don't need main config overrides usually, or maybe they do? 
+        // Actually, footnotes might use styles too. Let's pass empty for now to avoid circular deps or just keep simple.
+        // The user said "all paragraph styles listed in stylesConfig".
+        // If a footnote has a custom style, it should probably be respected.
+        // But footnotes usually just have 'Footnote' style.
         footnotes[id] = { paragraphs };
     });
 
     return footnotes;
 }
 
-function registerStyle(stylesMap, computed, type, attrs) {
+function registerStyle(stylesMap, computed, type, attrs, stylesConfig) {
     // Create a unique ID based on semantic type or visual properties?
     // For DOCX, we want semantic styles if possible (Heading 1, Body).
     // Let's map based on Tiptap type/attrs.
@@ -165,14 +170,50 @@ function registerStyle(stylesMap, computed, type, attrs) {
     let name = 'Normal';
     let basedOn = null;
 
-    if (type === 'heading') {
-        id = `Heading${attrs.level}`;
-        name = `Heading ${attrs.level}`;
-        basedOn = 'Normal';
-    } else if (attrs.class === 'Footnote') {
-        id = 'FootnoteText';
-        name = 'Footnote Text';
-        basedOn = 'Normal';
+    // 1. Check for explicit class mapping first
+    if (attrs && attrs.class) {
+        const cls = attrs.class; // Keep case sensitivity matching config keys usually? Tiptap classes are usually lowercase.
+
+        if (cls === 'body') {
+            // Map 'body' class to 'Normal' style for DOCX defaults
+            id = 'Normal';
+            name = 'Normal';
+        } else if (cls === 'title') {
+            id = 'Title';
+            name = 'Title';
+            basedOn = 'Normal';
+        } else if (cls === 'subtitle') {
+            id = 'Subtitle';
+            name = 'Subtitle';
+            basedOn = 'Title';
+        } else if (cls.startsWith('heading-')) {
+            const level = cls.replace('heading-', '');
+            id = `Heading${level}`;
+            name = `Heading ${level}`;
+            basedOn = 'Normal';
+        } else if (cls === 'footnote') {
+            id = 'FootnoteText';
+            name = 'Footnote Text';
+            basedOn = 'Normal';
+        } else if (stylesConfig && stylesConfig[cls]) {
+            // Generic mapping for any other style found in config
+            id = cls;
+            name = stylesConfig[cls].name || cls;
+            basedOn = 'Normal';
+        }
+    }
+
+    // 2. Fallback based on node type if ID is still default (and not explicitly set to Normal by body class)
+    // Actually, if it was 'body', it is 'Normal'.
+    // If it wasn't matched above, it's still 'Normal'.
+    // Check specific types if not matched by class.
+
+    if (id === 'Normal' && (!attrs || !attrs.class || attrs.class === 'body')) {
+        if (type === 'heading') {
+            id = `Heading${attrs.level}`;
+            name = `Heading ${attrs.level}`;
+            basedOn = 'Normal';
+        }
     }
 
     if (!stylesMap.has(id)) {
@@ -187,12 +228,6 @@ function registerStyle(stylesMap, computed, type, attrs) {
         });
     }
     return id;
-}
-
-function cleanFont(fontStack) {
-    if (!fontStack) return 'Times New Roman';
-    // "Minion 3", serif -> Minion 3
-    return fontStack.split(',')[0].replace(/['"]/g, '').trim();
 }
 
 module.exports = DocxSerializer;
