@@ -87,14 +87,42 @@ class MinimalDocxGenerator {
     }
 
     createStylesXml() {
-        // Generate styles based on the captured styles map
-        const stylesXml = this.styles.map(style => {
-            const css = style.computed;
-            // We pass the style ID to look up overrides
-            const pPr = this.cssToParaProps(css, style.id);
-            const rPr = this.cssToRunProps(css, style.id);
+        const generatedIds = new Set();
+        let stylesXml = '';
 
-            return `
+        // 1. Generate styles from stylesConfig (Source of Truth)
+        for (const [key, config] of Object.entries(this.stylesConfig)) {
+            if (key === 'scale' || key === 'footnote-number') continue;
+
+            const { id, name, basedOn } = this.getDocxStyleInfo(key, config);
+
+            // Generate properties using ONLY config (css=null)
+            const pPr = this.cssToParaProps(null, id);
+            const rPr = this.cssToRunProps(null, id);
+
+            stylesXml += `
+    <w:style w:type="paragraph" w:styleId="${id}">
+        <w:name w:val="${name}"/>
+        ${basedOn ? `<w:basedOn w:val="${basedOn}"/>` : ''}
+        <w:pPr>
+            ${pPr}
+        </w:pPr>
+        <w:rPr>
+            ${rPr}
+        </w:rPr>
+    </w:style>`;
+            generatedIds.add(id);
+        }
+
+        // 2. Fallback: Generate styles found in document but NOT in config
+        // (e.g. if user used a style that isn't in the config file?)
+        this.styles.forEach(style => {
+            if (!generatedIds.has(style.id)) {
+                const css = style.computed;
+                const pPr = this.cssToParaProps(css, style.id);
+                const rPr = this.cssToRunProps(css, style.id);
+
+                stylesXml += `
     <w:style w:type="paragraph" w:styleId="${style.id}">
         <w:name w:val="${style.name}"/>
         ${style.basedOn ? `<w:basedOn w:val="${style.basedOn}"/>` : ''}
@@ -105,7 +133,9 @@ class MinimalDocxGenerator {
             ${rPr}
         </w:rPr>
     </w:style>`;
-        }).join('');
+                generatedIds.add(style.id);
+            }
+        });
 
         const footnoteRef = `
     <w:style w:type="character" w:styleId="FootnoteReference">
@@ -185,19 +215,19 @@ class MinimalDocxGenerator {
             ${this.cssToParaProps(p.computed, p.styleId)}
         </w:pPr>`;
 
-        const runs = p.runs.map(r => this.createRunXml(r)).join('');
+        const runs = p.runs.map(r => this.createRunXml(r, p.styleId)).join('');
 
         return `<w:p>${pPr}${runs}</w:p>`;
     }
 
-    createRunXml(r) {
+    createRunXml(r, styleId) {
         if (r.type === 'footnote') {
             return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${r.attrs.id}"/></w:r>`;
         }
 
         const rPr = `
         <w:rPr>
-            ${this.cssToRunProps(r.style)}
+            ${this.cssToRunProps(r.style, styleId)}
             ${this.marksToRunProps(r.marks)}
         </w:rPr>`;
 
@@ -206,33 +236,44 @@ class MinimalDocxGenerator {
 
     // --- Helpers ---
 
+    getDocxStyleInfo(key, config) {
+        let id = key;
+        let name = config.name || key;
+        let basedOn = 'Normal';
+
+        if (key === 'body') {
+            id = 'Normal';
+            name = 'Normal';
+            basedOn = null;
+        } else if (key === 'title') {
+            id = 'Title';
+            name = 'Title';
+            basedOn = 'Normal';
+        } else if (key === 'subtitle') {
+            id = 'Subtitle';
+            name = 'Subtitle';
+            basedOn = 'Title';
+        } else if (key.startsWith('heading-')) {
+            const level = key.replace('heading-', '');
+            id = `Heading${level}`;
+            name = `Heading ${level}`;
+            basedOn = 'Normal';
+        } else if (key === 'footnote') {
+            id = 'FootnoteText';
+            name = 'Footnote Text';
+            basedOn = 'Normal';
+        }
+
+        return { id, name, basedOn };
+    }
+
     /**
      * Converts CSS to Paragraph Properties.
      * Checks `this.stylesConfig` for overrides based on `styleId`.
      */
     cssToParaProps(css, styleId) {
-        if (!css) return '';
-
         // Check for override
-        // The styleId from Tiptap might be "Heading1", but in stylesConfig it might be "heading-1" or "body".
-        // We need to map Tiptap styleId back to config key if possible.
-        // TiptapAdapter normalizes classes: "body", "heading-1".
-        // DocxSerializer registers styleId as "Heading1" or "FootnoteText" or "Normal".
-        // Let's try to find the config key.
-
         let configKey = null;
-        if (styleId === 'Normal') configKey = 'body'; // Fallback? Or 'body' maps to Normal?
-        // Actually, TiptapAdapter uses 'body' class for normal text.
-        // DocxSerializer mapped 'body' class -> 'Normal' styleId? No, it mapped 'Normal' if no class.
-        // Wait, DocxSerializer logic:
-        // if (type === 'heading') id = `Heading${level}`
-        // if (attrs.class === 'Footnote') id = 'FootnoteText'
-        // else id = 'Normal'
-
-        // But TiptapAdapter puts 'body' class on paragraphs.
-        // DocxSerializer should probably map 'body' class to 'Body' styleId if we want to match config.
-        // The config key is 'body'.
-
         if (styleId === 'Normal') configKey = 'body';
         else if (styleId === 'Title') configKey = 'title';
         else if (styleId === 'Subtitle') configKey = 'subtitle';
@@ -244,7 +285,6 @@ class MinimalDocxGenerator {
             // Fallback: assume styleId IS the configKey (for custom styles)
             configKey = styleId;
         }
-        if (styleId === 'FootnoteText') configKey = 'footnote';
 
         const override = configKey ? this.stylesConfig[configKey] : null;
 
@@ -252,7 +292,7 @@ class MinimalDocxGenerator {
         let jc = 'left';
         if (override && override['text-align']) {
             jc = override['text-align'];
-        } else if (css.textAlign) {
+        } else if (css && css.textAlign) {
             if (css.textAlign === 'center') jc = 'center';
             if (css.textAlign === 'right') jc = 'right';
             if (css.textAlign === 'justify') jc = 'both';
@@ -267,14 +307,14 @@ class MinimalDocxGenerator {
         // Before
         if (override && (override['margin-top'] || override['before-paragraph'])) {
             before = this.parseUnit(override['margin-top'] || override['before-paragraph'], 'twips');
-        } else {
+        } else if (css) {
             before = this.parseUnit(css.marginTop, 'twips');
         }
 
         // After
         if (override && (override['margin-bottom'] || override['after-paragraph'])) {
             after = this.parseUnit(override['margin-bottom'] || override['after-paragraph'], 'twips');
-        } else {
+        } else if (css) {
             after = this.parseUnit(css.marginBottom, 'twips');
         }
 
@@ -290,7 +330,7 @@ class MinimalDocxGenerator {
                 line = this.parseUnit(val, 'twips');
                 lineRule = 'exact';
             }
-        } else if (css.lineHeight !== 'normal') {
+        } else if (css && css.lineHeight !== 'normal') {
             if (css.lineHeight.endsWith('px')) {
                 line = this.parseUnit(css.lineHeight, 'twips');
                 lineRule = 'exact';
@@ -307,21 +347,21 @@ class MinimalDocxGenerator {
         // Left
         if (override && (override['margin-left'] || override['left-indent'])) {
             left = this.parseUnit(override['margin-left'] || override['left-indent'], 'twips');
-        } else {
+        } else if (css) {
             left = this.parseUnit(css.marginLeft, 'twips') + this.parseUnit(css.paddingLeft, 'twips');
         }
 
         // Right
         if (override && (override['margin-right'] || override['right-indent'])) {
             right = this.parseUnit(override['margin-right'] || override['right-indent'], 'twips');
-        } else {
+        } else if (css) {
             right = this.parseUnit(css.marginRight, 'twips') + this.parseUnit(css.paddingRight, 'twips');
         }
 
         // First Line
         if (override && (override['text-indent'] || override['first-indent'])) {
             firstLine = this.parseUnit(override['text-indent'] || override['first-indent'], 'twips');
-        } else {
+        } else if (css) {
             firstLine = this.parseUnit(css.textIndent, 'twips');
         }
 
@@ -337,15 +377,17 @@ class MinimalDocxGenerator {
      * Checks `this.stylesConfig` for overrides based on `styleId`.
      */
     cssToRunProps(css, styleId) {
-        if (!css) return '';
-
         let configKey = null;
         if (styleId === 'Normal') configKey = 'body';
-        if (styleId && styleId.startsWith('Heading')) {
+        else if (styleId === 'Title') configKey = 'title';
+        else if (styleId === 'Subtitle') configKey = 'subtitle';
+        else if (styleId === 'FootnoteText') configKey = 'footnote';
+        else if (styleId && styleId.startsWith('Heading')) {
             const level = styleId.replace('Heading', '');
             configKey = `heading-${level}`;
+        } else {
+            configKey = styleId;
         }
-        if (styleId === 'FootnoteText') configKey = 'footnote';
 
         const override = configKey ? this.stylesConfig[configKey] : null;
 
@@ -353,7 +395,7 @@ class MinimalDocxGenerator {
         let font = 'Times New Roman';
         if (override && override['font-family']) {
             font = cleanFont(override['font-family']);
-        } else if (css.fontFamily) {
+        } else if (css && css.fontFamily) {
             font = cleanFont(css.fontFamily);
         }
 
@@ -361,7 +403,7 @@ class MinimalDocxGenerator {
         let size = 24; // 12pt
         if (override && override['font-size']) {
             size = this.parseUnit(override['font-size'], 'half-points');
-        } else if (css.fontSize) {
+        } else if (css && css.fontSize) {
             size = this.parseUnit(css.fontSize, 'half-points');
         }
 
@@ -438,9 +480,18 @@ class MinimalDocxGenerator {
 
 function cleanFont(fontStack) {
     if (!fontStack) return 'Times New Roman';
+
+    // Resolve CSS variables if running in browser
+    if (typeof window !== 'undefined' && typeof document !== 'undefined' && fontStack.includes('var(')) {
+        fontStack = fontStack.replace(/var\((--[^)]+)\)/g, (match, varName) => {
+            const val = getComputedStyle(document.body).getPropertyValue(varName).trim();
+            return val || '';
+        });
+    }
+
     // "Minion 3", serif -> Minion 3
     const fonts = fontStack.split(',').map(f => f.trim().replace(/['"]/g, ''));
-    const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined');
+    const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined' && f !== '');
     return validFont || 'Times New Roman';
 }
 
