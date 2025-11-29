@@ -153,7 +153,7 @@ class TiptapAdapter {
         this.footnotes = []; // Store footnote definitions: { id, content }
         this.listeners = []; // Listeners for footnote updates
         this.styleManager = new StyleManager();
-        this.styles = {}; // Store loaded styles configuration
+        this.styles = { ...DEFAULT_STYLES }; // Store loaded styles configuration (init with defaults)
         this.paragraphOptions = [];
         this.listOptions = [];
     }
