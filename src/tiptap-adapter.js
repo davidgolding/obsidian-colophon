@@ -15,6 +15,7 @@ const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
 const StandardLink = require('./extensions/standard-link');
+const DocxSerializer = require('./extensions/docx-serializer');
 const StyleManager = require('./style-manager');
 const DEFAULT_STYLES = require('./default-styles');
 const { parseYaml } = require('obsidian');
@@ -279,7 +280,8 @@ class TiptapAdapter {
                 StandardLink.configure({
                     app: this.app,
                     getFilePath: () => this.filePath
-                })
+                }),
+                DocxSerializer
             ],
             editorProps: {
                 attributes: {
