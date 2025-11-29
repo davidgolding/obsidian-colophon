@@ -212,10 +212,11 @@ module.exports = class ColophonPlugin extends Plugin {
         const footnoteView = footnoteLeaves.length > 0 ? footnoteLeaves[0].view : null;
 
         // Execute the export command provided by the extension
-        // We pass the settings and the footnote view instance
+        // We pass the settings, the footnote view instance, and the source styles
         editor.commands.exportToDocx({
             settings: exportSettings,
-            footnoteView: footnoteView
+            footnoteView: footnoteView,
+            stylesConfig: view.adapter.styles
         });
     }
 
