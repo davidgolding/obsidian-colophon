@@ -2,7 +2,6 @@ const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab,
 const { ColophonView, VIEW_TYPE } = require('./view');
 const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
 const ExportModal = require('./export-modal');
-const DocxStyleConverter = require('./docx-style-converter');
 
 const DEFAULT_SETTINGS = {
     textColumnWidth: 1080,
@@ -17,7 +16,6 @@ const DEFAULT_SETTINGS = {
     showWordCount: false
 };
 
-const DocxGenerator = require('./docx-generator');
 const fs = require('fs');
 const electron = require('electron');
 
@@ -208,67 +206,17 @@ module.exports = class ColophonPlugin extends Plugin {
         }
 
         const editor = view.adapter.editor;
-        const prosemirrorDoc = editor.state.doc;
-        const defaultPath = (view.file?.basename || 'Untitled') + '.docx';
 
-        try {
-            // Prepare Styles
-            const converter = new DocxStyleConverter();
-            const stylesConfig = view.adapter.styleManager.styles;
+        // Get Footnote View instance
+        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+        const footnoteView = footnoteLeaves.length > 0 ? footnoteLeaves[0].view : null;
 
-            // Get resolved font override and computed styles
-            const computedStyle = getComputedStyle(view.contentEl);
-            let globalFont = "Times New Roman";
-
-            // 1. Try variable override first
-            const fontOverrideVar = computedStyle.getPropertyValue('--font-text-override').trim();
-
-            // 2. Fallback to computed font-family if override is empty or invalid
-            const fontStackString = fontOverrideVar || computedStyle.fontFamily;
-
-            if (fontStackString) {
-                // Split by comma, strip quotes, and find first valid font
-                const fonts = fontStackString.split(',').map(f => f.trim().replace(/['"]/g, ''));
-                const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined');
-
-                if (validFont) {
-                    globalFont = validFont;
-                }
-            }
-
-            // Create context for style conversion
-            const context = {
-                baseFontSize: parseFloat(computedStyle.fontSize) || 16, // Default to 16px if parsing fails
-                getVariable: (name) => computedStyle.getPropertyValue(name).trim()
-            };
-            const { styles: docxStyles, styleIdMap } = converter.convertStyles(stylesConfig, exportSettings.scale, globalFont, context);
-            const generator = new DocxGenerator(view, docxStyles, styleIdMap);
-            const buffer = await generator.generate(prosemirrorDoc, exportSettings);
-
-            const result = await electron.remote.dialog.showSaveDialog({
-                title: 'Export to Word (.docx)',
-                defaultPath: defaultPath,
-                filters: [{ name: 'Word Document', extensions: ['docx'] }]
-            });
-
-            if (result.canceled || !result.filePath) {
-                new Notice('Export cancelled.');
-                return;
-            }
-
-            fs.writeFile(result.filePath, buffer, (err) => {
-                if (err) {
-                    console.error('Colophon: Failed to save Word (.docx) file.', err);
-                    new Notice('Failed to save file. See console for details.');
-                } else {
-                    new Notice('File saved successfully!');
-                }
-            });
-
-        } catch (error) {
-            console.error('Docx Export Error:', error);
-            new Notice(`Error exporting to Word (.docx): ${error.message}`);
-        }
+        // Execute the export command provided by the extension
+        // We pass the settings and the footnote view instance
+        editor.commands.exportToDocx({
+            settings: exportSettings,
+            footnoteView: footnoteView
+        });
     }
 
     async activateFootnoteView() {
