@@ -111,10 +111,18 @@ function processDocument(view, doc, stylesConfig) {
                 const runFont = cleanFont(childComputed.fontFamily);
                 if (runFont) fonts.add(runFont);
 
+                // Map marks to simple objects and handle internal links
+                const marks = child.marks.map(m => ({ type: m.type.name, attrs: m.attrs }));
+
+                // Force bold for internal links
+                if (['internal-link', 'internalLink', 'wikilink', 'internallink'].includes(child.type.name)) {
+                    marks.push({ type: 'bold' });
+                }
+
                 runs.push({
                     text: child.text,
                     style: childComputed, // Pass full computed style for extraction later
-                    marks: child.marks,
+                    marks: marks,
                     type: child.type.name,
                     attrs: child.attrs
                 });
@@ -141,20 +149,10 @@ function processFootnotes(footnoteView, mainEditor) {
     const footnotes = {};
     if (!footnoteView) return footnotes;
 
-    // Get all footnote references from main doc to know which IDs we need
-    // Actually, we can just dump all footnotes available in the view.
-
     footnoteView.editors.forEach((editor, id) => {
-        // We need to process this mini-doc similar to the main doc
-        // But we need to get the DOM from the footnote view's editor instance
         const view = editor.view;
         const doc = editor.state.doc;
-
-        const { paragraphs } = processDocument(view, doc, {}); // Footnotes don't need main config overrides usually, or maybe they do? 
-        // Actually, footnotes might use styles too. Let's pass empty for now to avoid circular deps or just keep simple.
-        // The user said "all paragraph styles listed in stylesConfig".
-        // If a footnote has a custom style, it should probably be respected.
-        // But footnotes usually just have 'Footnote' style.
+        const { paragraphs } = processDocument(view, doc, {});
         footnotes[id] = { paragraphs };
     });
 

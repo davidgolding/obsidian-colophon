@@ -9,10 +9,17 @@ class MinimalDocxGenerator {
         this.pageSize = options.pageSize || { width: 'Letter' };
         this.margins = options.margins || { top: 1, bottom: 1, left: 1, right: 1 };
         this.stylesConfig = options.stylesConfig || {}; // Source of truth from YAML/Settings
+        this.footnoteIdMap = new Map(); // Map<stringId, intId>
     }
 
     async generate() {
         const zip = new JSZip();
+
+        // 0. Map Footnote IDs to Integers (1-based)
+        let fnIndex = 1;
+        Object.keys(this.footnotes).forEach(id => {
+            this.footnoteIdMap.set(id, fnIndex++);
+        });
 
         zip.file('[Content_Types].xml', this.createContentTypesXml());
         zip.folder('_rels').file('.rels', this.createRelsXml());
@@ -143,6 +150,12 @@ class MinimalDocxGenerator {
         <w:rPr>
             <w:vertAlign w:val="superscript"/>
         </w:rPr>
+    </w:style>
+    <w:style w:type="character" w:styleId="FootnoteSymbol">
+        <w:name w:val="Footnote Symbol"/>
+        <w:rPr>
+            ${this.cssToRunProps(null, 'FootnoteSymbol')}
+        </w:rPr>
     </w:style>`;
 
         return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -189,8 +202,38 @@ class MinimalDocxGenerator {
 
     createFootnotesXml() {
         const footnotesContent = Object.entries(this.footnotes).map(([id, data]) => {
-            const content = data.paragraphs.map(p => this.createParagraphXml(p)).join('');
-            return `<w:footnote w:id="${id}">${content}</w:footnote>`;
+            const intId = this.footnoteIdMap.get(id);
+            // Ensure data.paragraphs exists. If data is just the paragraph object (as user snippet suggested might happen?), handle it.
+            // But based on docx-serializer, it should be { paragraphs: [] }.
+            // Let's be robust:
+            const paragraphs = data.paragraphs || (Array.isArray(data) ? data : [data]);
+
+            const content = paragraphs.map((p, index) => {
+                // Force FootnoteText style
+                const pCopy = { ...p, styleId: 'FootnoteText' };
+
+                // Prepend footnote marker to the first paragraph
+                if (index === 0) {
+                    // We need to inject a run at the beginning
+                    // <w:r><w:rPr><w:rStyle w:val="FootnoteSymbol"/></w:rPr><w:footnoteRef/></w:r>
+                    // We can't easily modify pCopy.runs if we use createParagraphXml directly unless we modify it.
+                    // Let's manually construct the XML for the first paragraph to include the marker.
+
+                    const pPr = `
+        <w:pPr>
+            <w:pStyle w:val="FootnoteText"/>
+            ${this.cssToParaProps(p.computed, 'FootnoteText')}
+        </w:pPr>`;
+
+                    const markerRun = `<w:r><w:rPr><w:rStyle w:val="FootnoteSymbol"/></w:rPr><w:footnoteRef/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>`; // Add space after marker?
+                    const runs = p.runs.map(r => this.createRunXml(r, 'FootnoteText')).join('');
+                    return `<w:p>${pPr}${markerRun}${runs}</w:p>`;
+                }
+
+                return this.createParagraphXml(pCopy);
+            }).join('');
+
+            return `<w:footnote w:id="${intId}">${content}</w:footnote>`;
         }).join('');
 
         return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -222,7 +265,12 @@ class MinimalDocxGenerator {
 
     createRunXml(r, styleId) {
         if (r.type === 'footnote') {
-            return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${r.attrs.id}"/></w:r>`;
+            const intId = this.footnoteIdMap.get(r.attrs.id);
+            // If ID not found (shouldn't happen if sync is correct), fallback or warn?
+            // If undefined, it might break XML. Use 0 or -1? Or keep original if not found?
+            // Let's use the mapped ID if available, else original (though original string ID is invalid).
+            const idToUse = intId !== undefined ? intId : r.attrs.id;
+            return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${idToUse}"/></w:r>`;
         }
 
         const rPr = `
@@ -262,6 +310,10 @@ class MinimalDocxGenerator {
             id = 'FootnoteText';
             name = 'Footnote Text';
             basedOn = 'Normal';
+        } else if (key === 'footnote-symbol') {
+            id = 'FootnoteSymbol';
+            name = 'Footnote Symbol';
+            basedOn = 'DefaultParagraphFont'; // Character style
         }
 
         return { id, name, basedOn };
@@ -278,6 +330,7 @@ class MinimalDocxGenerator {
         else if (styleId === 'Title') configKey = 'title';
         else if (styleId === 'Subtitle') configKey = 'subtitle';
         else if (styleId === 'FootnoteText') configKey = 'footnote';
+        else if (styleId === 'FootnoteSymbol') configKey = 'footnote-symbol';
         else if (styleId && styleId.startsWith('Heading')) {
             const level = styleId.replace('Heading', '');
             configKey = `heading-${level}`;
@@ -382,6 +435,7 @@ class MinimalDocxGenerator {
         else if (styleId === 'Title') configKey = 'title';
         else if (styleId === 'Subtitle') configKey = 'subtitle';
         else if (styleId === 'FootnoteText') configKey = 'footnote';
+        else if (styleId === 'FootnoteSymbol') configKey = 'footnote-symbol';
         else if (styleId && styleId.startsWith('Heading')) {
             const level = styleId.replace('Heading', '');
             configKey = `heading-${level}`;
@@ -410,11 +464,25 @@ class MinimalDocxGenerator {
         // Color (Normalize to black/auto for print)
         const color = 'auto';
 
+        // --- Inline Styles from Config ---
+        let bold = '';
+        let italic = '';
+
+        if (override) {
+            if (override['font-weight'] === 'bold') bold = '<w:b/>';
+            if (override['font-variant'] === 'Italic' || override['font-style'] === 'italic') italic = '<w:i/>';
+        } else if (css) {
+            if (css.fontWeight === 'bold' || parseInt(css.fontWeight) >= 700) bold = '<w:b/>';
+            if (css.fontStyle === 'italic') italic = '<w:i/>';
+        }
+
         return `
             <w:rFonts w:ascii="${font}" w:hAnsi="${font}"/>
             <w:sz w:val="${size}"/>
             <w:szCs w:val="${size}"/>
             <w:color w:val="${color}"/>
+            ${bold}
+            ${italic}
         `;
     }
 
