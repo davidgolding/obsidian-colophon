@@ -10,7 +10,6 @@ const { Subscript } = require('@tiptap/extension-subscript');
 const { Superscript } = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const { InputRule } = require('@tiptap/core');
-// PopoverMenu removed
 const Footnote = require('./extensions/footnote');
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
@@ -625,24 +624,9 @@ class TiptapAdapter {
 
         let footnotesCount = 0;
         this.footnotes.forEach(fn => {
-            // Footnote content is stored as JSON or text?
-            // In updateFootnote, we just store 'content'. 
-            // If it's a string (from simple input), we count words.
-            // If it's a JSON doc (from rich text editor), we need to traverse.
-            // Currently, the FootnoteView uses Tiptap, so it's likely JSON or HTML.
-            // Let's assume it might be JSON if we switch to rich text fully, 
-            // but for now let's check what 'content' is.
-            // In `src/footnote-view.js`, we might need to see how it saves.
-            // If it's just text for now (as per current simple implementation in main.js export),
-            // we treat as text. But wait, `src/footnote-view.js` uses Tiptap?
-            // The AGENTS.md says "Sidebar View ... using Rich Text Tiptap Editors".
-            // So `content` in `this.footnotes` is likely a JSON object or HTML string.
-            // Let's handle both safely.
-
             if (typeof fn.content === 'string') {
                 footnotesCount += this.countWordsInText(fn.content);
             } else if (typeof fn.content === 'object') {
-                // It's a ProseMirror JSON node
                 footnotesCount += this.countWordsInDocNode(fn.content);
             }
         });

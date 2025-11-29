@@ -66,9 +66,12 @@
   - **Implementation**: `TiptapAdapter.getFootnoteSymbol` and `StyleManager.generateFootnoteCSS`.
 - **DOCX Export**:
   - **Architecture**:
-    - **Tiptap Extension (`src/extensions/docx-serializer.js`)**: Traverses the document and extracts computed styles (WYSIWYG).
+    - **Tiptap Extension (`src/extensions/docx-serializer.js`)**: Traverses the document recursively (`processDocument`) to handle nested structures like lists. Extracts computed styles (WYSIWYG) and maps marks/nodes to export-ready objects.
     - **Generator (`src/minimal-docx.js`)**: Generates valid DOCX XML (`document.xml`, `styles.xml`, `fontTable.xml`) with 1-to-1 visual fidelity.
-  - **Features**: Supports inline styles, lists, footnotes (from sidebar), and custom fonts.
+      - **Styles**: Uses `stylesConfig` as the authoritative source for `styles.xml`, falling back to computed CSS only when necessary.
+      - **Footnotes**: Maps internal IDs to integer IDs, enforces `FootnoteText` and `FootnoteSymbol` styles, and recursively processes footnote content.
+      - **Inline Styles**: Supports Bold, Italic, Underline, Strike, Sub/Superscript, and Small Caps from both direct formatting and style definitions.
+  - **Features**: Supports inline styles, complex nested lists, footnotes (from sidebar) with rich text, and custom fonts.
 
 ## Key Files Map
 - `src/main.js`: Plugin entry, patches, command interception, settings tab.
