@@ -72,71 +72,92 @@ function processDocument(view, doc, stylesConfig) {
     const styles = new Map(); // Map<id, styleDef>
     const fonts = new Set(['Times New Roman', 'Arial', 'Symbol']); // Standard fonts
 
-    doc.forEach((node, offset) => {
-        const dom = view.nodeDOM(offset);
-        if (!dom || !(dom instanceof Element)) return;
+    function traverse(node, pos) {
+        if (node.isText) return;
 
-        const computed = getComputedStyle(dom);
-        const styleId = registerStyle(styles, computed, node.type.name, node.attrs, stylesConfig);
+        const isBlock = node.type.name === 'paragraph' || node.type.name === 'heading';
 
-        // Extract Font
-        const font = cleanFont(computed.fontFamily);
-        if (font) fonts.add(font);
+        if (isBlock) {
+            const dom = view.nodeDOM(pos);
+            if (!dom || !(dom instanceof Element)) {
+                // Try to find the element if nodeDOM returns text or null (rare for block)
+                // But if it fails, we can't get computed styles easily.
+                // Fallback?
+            }
 
-        // Process Children (Runs)
-        const runs = [];
-        if (node.content && node.content.size > 0) {
-            node.content.forEach((child, childOffset) => {
-                // Find DOM for child. 
-                // view.nodeDOM(pos) returns the DOM node.
-                // The pos is absolute.
-                const childPos = offset + 1 + childOffset;
-                // Note: nodeDOM might return text node for text.
-                // We need the parent element for computed styles usually, 
-                // but for text nodes, we look at the parent or specific spans.
-                // Tiptap renders text as text nodes, marks as spans.
+            const computed = dom && dom instanceof Element ? getComputedStyle(dom) : {};
+            const styleId = registerStyle(styles, computed, node.type.name, node.attrs, stylesConfig);
 
-                // Actually, getting computed style for every text node is tricky because 
-                // text nodes don't have styles. We need the parent element or the span wrapping it.
-                // If it's a mark, Tiptap wraps it.
+            // Extract Font
+            if (computed.fontFamily) {
+                const font = cleanFont(computed.fontFamily);
+                if (font) fonts.add(font);
+            }
 
-                // Strategy: Use the resolved DOM from the view for the specific position.
-                // However, view.domAtPos(pos) gives the DOM node at that position.
+            // Process Children (Runs)
+            const runs = [];
+            if (node.content && node.content.size > 0) {
+                node.content.forEach((child, childOffset) => {
+                    const childPos = pos + 1 + childOffset;
 
-                const domAtPos = view.domAtPos(childPos);
-                let element = domAtPos.node;
-                if (element.nodeType === 3) element = element.parentElement; // Text node -> parent
+                    // For runs, we need computed styles too.
+                    // view.domAtPos(childPos)
+                    let childComputed = {};
+                    try {
+                        const domAtPos = view.domAtPos(childPos);
+                        let element = domAtPos.node;
+                        if (element.nodeType === 3) element = element.parentElement;
+                        if (element) childComputed = getComputedStyle(element);
+                    } catch (e) {
+                        // Ignore
+                    }
 
-                const childComputed = getComputedStyle(element);
-                const runFont = cleanFont(childComputed.fontFamily);
-                if (runFont) fonts.add(runFont);
+                    if (childComputed.fontFamily) {
+                        const runFont = cleanFont(childComputed.fontFamily);
+                        if (runFont) fonts.add(runFont);
+                    }
 
-                // Map marks to simple objects and handle internal links
-                const marks = child.marks.map(m => ({ type: m.type.name, attrs: m.attrs }));
+                    // Map marks
+                    const marks = child.marks ? child.marks.map(m => ({ type: m.type.name, attrs: m.attrs })) : [];
 
-                // Force bold for internal links
-                if (['internal-link', 'internalLink', 'wikilink', 'internallink'].includes(child.type.name)) {
-                    marks.push({ type: 'bold' });
-                }
+                    // Force bold for internal links (check marks, not node type)
+                    const hasLinkMark = child.marks && child.marks.some(m => ['internal-link', 'internalLink', 'wikilink', 'internallink'].includes(m.type.name));
+                    if (hasLinkMark) {
+                        marks.push({ type: 'bold' });
+                    }
 
-                runs.push({
-                    text: child.text,
-                    style: childComputed, // Pass full computed style for extraction later
-                    marks: marks,
-                    type: child.type.name,
-                    attrs: child.attrs
+                    runs.push({
+                        text: child.text || '', // Ensure text is not undefined
+                        style: childComputed,
+                        marks: marks,
+                        type: child.type.name,
+                        attrs: child.attrs
+                    });
                 });
+            }
+
+            paragraphs.push({
+                type: node.type.name,
+                styleId: styleId,
+                computed: computed,
+                runs: runs,
+                attrs: node.attrs
             });
+
+            return; // Don't traverse children of paragraph
         }
 
-        paragraphs.push({
-            type: node.type.name,
-            styleId: styleId,
-            computed: computed, // Paragraph level computed style
-            runs: runs,
-            attrs: node.attrs
+        // Recurse for containers (doc, bulletList, orderedList, listItem)
+        let childPos = pos + 1; // +1 for start tag of container
+        if (node.type.name === 'doc') childPos = 0; // Doc starts at 0
+
+        node.content.forEach((child) => {
+            traverse(child, childPos);
+            childPos += child.nodeSize;
         });
-    });
+    }
+
+    traverse(doc, 0);
 
     return {
         paragraphs,

@@ -7,7 +7,7 @@
 - **Manuscript View**: A dedicated, distraction-free writing interface that replaces the standard Markdown view for manuscript files.
 - **Rich-Text Footnotes**: Manage footnotes in a dedicated sidebar. Footnotes support rich text and are stored cleanly in the file's metadata.
 - **Smart Substitutions**: Automatically converts straight quotes to smart quotes (`" "` → `“ ”`) and dashes (`--` → `—`) as you type.
-- **DOCX Export**: Export your manuscript to a properly formatted Word document. The export uses a "WYSIWYG" engine to ensure the output matches your editor exactly, including fonts, spacing, and styles.
+- **DOCX Export**: Export your manuscript to a properly formatted Word document. The export uses a "WYSIWYG" engine to ensure the output matches your editor exactly, including fonts, spacing, nested lists, and complex styles.
 - **Wikilink Support**: Full support for standard Obsidian `[[Wikilinks]]` to keep your manuscript connected to your research.
 - **Theme Support**: Seamlessly adapts to Light and Dark modes, with an optional independent theme toggle for the writing canvas.
 - **Advanced Lists**: Create bulleted and numbered lists with professional styling options (custom markers, indentation, alignment).

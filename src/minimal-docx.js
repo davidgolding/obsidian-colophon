@@ -36,10 +36,29 @@ class MinimalDocxGenerator {
         return zip.generateAsync({ type: 'nodebuffer' });
     }
 
+    minifyXMLString(xml) {
+        xml = xml.replace(/<!--[\s\S]*?-->/g, ''); // Remove XML comments (<!-- ... -->)
+
+        const cdataBlocks = []; // Preserve CDATA sections by temporarily replacing them
+        xml = xml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match) => {
+            cdataBlocks.push(match);
+            return `__CDATA_${cdataBlocks.length - 1}__`;
+        });
+        xml = xml.replace(/>\s+</g, '><'); // Remove whitespace between tags (but not within text content)
+        xml = xml.replace(/\s*=\s*/g, '='); // Remove whitespace around = in attributes
+        xml = xml.replace(/<([^>]+)>/g, (match, content) => { // Remove extra whitespace within tags (multiple spaces/newlines between attributes)
+            return '<' + content.replace(/\s+/g, ' ').trim() + '>';
+        });
+        cdataBlocks.forEach((block, i) => { // Restore CDATA sections
+            xml = xml.replace(`__CDATA_${i}__`, block);
+        });
+        return xml.trim(); // Remove leading and trailing whitespace
+    }
+
     // --- XML Generators ---
 
     createContentTypesXml() {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
     <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
     <Default Extension="xml" ContentType="application/xml"/>
@@ -48,24 +67,24 @@ class MinimalDocxGenerator {
     <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
     <Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>
     <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
-</Types>`;
+</Types>`);
     }
 
     createRelsXml() {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`;
+</Relationships>`);
     }
 
     createDocumentRelsXml() {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
     <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
     <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>
     <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
-</Relationships>`;
+</Relationships>`);
     }
 
     createFontTableXml() {
@@ -76,21 +95,21 @@ class MinimalDocxGenerator {
         <w:pitch w:val="variable"/>
     </w:font>`).join('');
 
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     ${fontsXml}
-</w:fonts>`;
+</w:fonts>`);
     }
 
     createSettingsXml() {
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:zoom w:percent="100"/>
     <w:defaultTabStop w:val="720"/>
     <w:compat>
         <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
     </w:compat>
-</w:settings>`;
+</w:settings>`);
     }
 
     createStylesXml() {
@@ -158,7 +177,7 @@ class MinimalDocxGenerator {
         </w:rPr>
     </w:style>`;
 
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:docDefaults>
         <w:rPrDefault>
@@ -173,7 +192,7 @@ class MinimalDocxGenerator {
     </w:docDefaults>
     ${stylesXml}
     ${footnoteRef}
-</w:styles>`;
+</w:styles>`);
     }
 
     createDocumentXml() {
@@ -188,7 +207,7 @@ class MinimalDocxGenerator {
             right: Math.round(this.margins.right * 1440),
         };
 
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:body>
         ${bodyContent}
@@ -197,7 +216,7 @@ class MinimalDocxGenerator {
             <w:pgMar w:top="${margins.top}" w:right="${margins.right}" w:bottom="${margins.bottom}" w:left="${margins.left}" w:header="720" w:footer="720" w:gutter="0"/>
         </w:sectPr>
     </w:body>
-</w:document>`;
+</w:document>`);
     }
 
     createFootnotesXml() {
@@ -236,7 +255,7 @@ class MinimalDocxGenerator {
             return `<w:footnote w:id="${intId}">${content}</w:footnote>`;
         }).join('');
 
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:footnote w:type="separator" w:id="-1">
         <w:p><w:r><w:separator/></w:r></w:p>
@@ -245,7 +264,7 @@ class MinimalDocxGenerator {
         <w:p><w:r><w:continuationSeparator/></w:r></w:p>
     </w:footnote>
     ${footnotesContent}
-</w:footnotes>`;
+</w:footnotes>`);
     }
 
     // --- Element Generators ---
@@ -259,7 +278,6 @@ class MinimalDocxGenerator {
         </w:pPr>`;
 
         const runs = p.runs.map(r => this.createRunXml(r, p.styleId)).join('');
-
         return `<w:p>${pPr}${runs}</w:p>`;
     }
 
@@ -467,13 +485,27 @@ class MinimalDocxGenerator {
         // --- Inline Styles from Config ---
         let bold = '';
         let italic = '';
+        let underline = '';
+        let strike = '';
+        let smallCaps = '';
+        let vertAlign = '';
 
         if (override) {
             if (override['font-weight'] === 'bold') bold = '<w:b/>';
             if (override['font-variant'] === 'Italic' || override['font-style'] === 'italic') italic = '<w:i/>';
+            if (override['text-decoration'] === 'underline') underline = '<w:u w:val="single"/>';
+            if (override['text-decoration'] === 'line-through') strike = '<w:strike/>';
+            if (override['font-variant'] === 'small-caps') smallCaps = '<w:smallCaps/>';
+            if (override['vertical-align'] === 'super') vertAlign = '<w:vertAlign w:val="superscript"/>';
+            if (override['vertical-align'] === 'sub') vertAlign = '<w:vertAlign w:val="subscript"/>';
         } else if (css) {
             if (css.fontWeight === 'bold' || parseInt(css.fontWeight) >= 700) bold = '<w:b/>';
             if (css.fontStyle === 'italic') italic = '<w:i/>';
+            if (css.textDecorationLine.includes('underline')) underline = '<w:u w:val="single"/>';
+            if (css.textDecorationLine.includes('line-through')) strike = '<w:strike/>';
+            if (css.fontVariant === 'small-caps') smallCaps = '<w:smallCaps/>';
+            if (css.verticalAlign === 'super') vertAlign = '<w:vertAlign w:val="superscript"/>';
+            if (css.verticalAlign === 'sub') vertAlign = '<w:vertAlign w:val="subscript"/>';
         }
 
         return `
@@ -483,6 +515,10 @@ class MinimalDocxGenerator {
             <w:color w:val="${color}"/>
             ${bold}
             ${italic}
+            ${underline}
+            ${strike}
+            ${smallCaps}
+            ${vertAlign}
         `;
     }
 
