@@ -568,9 +568,6 @@ class MinimalDocxGenerator {
         else if (str.endsWith('px')) points = num * 0.75; // Approx 96dpi
         else if (str.endsWith('pc')) points = num * 12;
         else points = num; // Assume points if no unit, or px? Let's assume points for safety in DOCX context, but CSS is usually px.
-        // If it came from getComputedStyle, it's likely px.
-        // If it came from YAML, user might omit unit.
-        // Let's assume px if no unit and it looks like a CSS value, but for YAML "11.5" usually means pt.
         // Let's stick to the unit check. If no unit, treat as pt for YAML compatibility.
 
         if (targetUnit === 'twips') {
@@ -592,8 +589,6 @@ function cleanFont(fontStack) {
             return val || '';
         });
     }
-
-    // "Minion 3", serif -> Minion 3
     const fonts = fontStack.split(',').map(f => f.trim().replace(/['"]/g, ''));
     const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined' && f !== '');
     return validFont || 'Times New Roman';
