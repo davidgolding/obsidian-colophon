@@ -51,6 +51,7 @@ class ColophonView extends FileView {
         // The containerEl contains .view-header and .view-content
         const headerEl = this.containerEl.querySelector('.view-header');
         if (headerEl) {
+            headerEl.classList.add('colophon-view-header');
             // Create a center container if it doesn't exist
             let centerEl = headerEl.querySelector('.view-header-center');
             if (!centerEl) {

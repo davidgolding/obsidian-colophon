@@ -2,7 +2,7 @@
    COLOPHON STYLES
    Targeting Tiptap Editor within .colophon-workspace
 */
-.view-header-title-container {
+.colophon-view-header .view-header-title-container {
     display: none;
 }
 
