@@ -93,7 +93,7 @@ const DEFAULT_STYLES = {
     },
     "footnote-number": {
         "name": "Footnote Number",
-        "type": "pararaph",
+        "type": "paragraph",
         "font-weight": "bold",
         "font-family": "var(--font-text-theme), var(--font-text-override)",
         "font-size": "7pt",
