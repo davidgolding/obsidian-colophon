@@ -11,6 +11,8 @@ const { Superscript } = require('@tiptap/extension-superscript');
 const TextStyle = require('@tiptap/extension-text-style');
 const { InputRule } = require('@tiptap/core');
 const Footnote = require('./extensions/footnote');
+const CommentMark = require('./extensions/comment-mark');
+const CommentsManager = require('./comments');
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
 const StandardLink = require('./extensions/standard-link');
@@ -155,6 +157,7 @@ class TiptapAdapter {
         this.styles = { ...DEFAULT_STYLES }; // Store loaded styles configuration (init with defaults)
         this.paragraphOptions = [];
         this.listOptions = [];
+        this.commentsManager = new CommentsManager(this);
     }
 
     normalizeDoc(doc) {
@@ -214,7 +217,13 @@ class TiptapAdapter {
                 // Legacy structure: data IS the doc
                 content = data;
                 this.footnotes = [];
+                this.commentsManager.load([]);
             }
+        }
+
+        // Load comments if available in new structure
+        if (data && data.comments) {
+            this.commentsManager.load(data.comments);
         }
 
         // Fallback to parsing Markdown if no data
@@ -266,7 +275,9 @@ class TiptapAdapter {
                 Superscript,
                 TextStyle,
                 SmallCaps,
+
                 Footnote,
+                CommentMark,
                 Substitutions.configure({
                     smartQuotes: this.settings.smartQuotes,
                     smartDashes: this.settings.smartDashes,
@@ -295,6 +306,7 @@ class TiptapAdapter {
             onSelectionUpdate: ({ editor }) => {
                 this.handleScroll();
                 if (this.toolbar) this.toolbar.update();
+                this.checkActiveComment();
             },
             onFocus: ({ editor }) => {
                 if (this.toolbar) this.toolbar.setActiveEditor(editor);
@@ -514,12 +526,145 @@ class TiptapAdapter {
         if (this.onUpdate) {
             this.onUpdate({
                 doc: this.editor.getJSON(),
-                footnotes: this.footnotes
+                footnotes: this.footnotes,
+                comments: this.commentsManager.getComments()
             });
         }
 
         // Notify listeners (e.g. FootnoteView)
         this.listeners.forEach(listener => listener());
+    }
+
+    checkActiveComment() {
+        if (!this.editor) return;
+        const { state } = this.editor;
+        const { selection } = state;
+        const { $from } = selection;
+
+        // Check if cursor is inside a comment mark
+        const marks = $from.marks();
+        const commentMark = marks.find(m => m.type.name === 'comment');
+
+        if (commentMark) {
+            const id = commentMark.attrs.id;
+            // Notify listeners to focus this comment
+            // We can add a specific event or just rely on the view polling?
+            // Better to emit an event.
+            // For now, let's just call a method on the view if we had access, but we don't.
+            // So we'll use the subscription mechanism with a specific type?
+            // Or just pass the active ID in the update?
+            // But onSelectionUpdate doesn't trigger full update usually.
+
+            // Let's add a specialized callback for selection/focus?
+            // Or just reuse subscribe.
+            this.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
+        }
+    }
+
+    addComment(authorName = "Me") {
+        if (!this.editor) return;
+        const { state } = this.editor;
+        if (state.selection.empty) return; // Must select text
+
+        const id = `comment-${Date.now()}`;
+        this.editor.chain().focus().setComment(id).run();
+
+        // Add data
+        this.commentsManager.addComment(id, authorName);
+        this.triggerUpdate();
+
+        // Focus the new comment card
+        setTimeout(() => {
+            this.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
+        }, 100);
+    }
+
+    resolveComment(id) {
+        // Remove mark from editor
+        if (!this.editor) return;
+
+        // We need to find where this mark is.
+        // Tiptap doesn't have a direct "remove mark by ID" easily without searching.
+        // We can use `unsetMark` but that works on selection.
+        // We need to find the range of this mark.
+
+        let found = false;
+        this.editor.state.doc.descendants((node, pos) => {
+            if (found) return false;
+            if (node.marks) {
+                const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                if (mark) {
+                    // Found it. Remove it.
+                    // We need the exact range.
+                    // descendants gives us nodes.
+                    const from = pos;
+                    const to = pos + node.nodeSize;
+                    this.editor.chain().setTextSelection({ from, to }).unsetComment().run();
+                    // Note: This might only remove it from this node if the comment spans multiple nodes.
+                    // But usually `unsetComment` (unsetMark) removes it from the selection.
+                    // If the comment spans multiple nodes, we might need to do this for all occurrences.
+                    // But let's assume for now we just need to trigger the command on the range.
+                    // Actually, `unsetMark` removes the mark type from the range.
+                    // So if we find *all* ranges with this ID, we can remove them.
+                }
+            }
+        });
+
+        // Better approach: Find all ranges with this mark ID
+        const ranges = [];
+        this.editor.state.doc.descendants((node, pos) => {
+            if (node.marks) {
+                const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                if (mark) {
+                    ranges.push({ from: pos, to: pos + node.nodeSize });
+                }
+            }
+        });
+
+        if (ranges.length > 0) {
+            // Create a transaction to remove marks
+            const tr = this.editor.state.tr;
+            ranges.forEach(range => {
+                tr.removeMark(range.from, range.to, this.editor.schema.marks.comment);
+            });
+            this.editor.view.dispatch(tr);
+        }
+
+        this.commentsManager.resolveComment(id);
+        this.triggerUpdate();
+    }
+
+    scrollToComment(id) {
+        if (!this.editor) return;
+
+        // Find the mark
+        let targetPos = null;
+        this.editor.state.doc.descendants((node, pos) => {
+            if (targetPos !== null) return false;
+            if (node.marks) {
+                const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                if (mark) {
+                    targetPos = pos;
+                }
+            }
+        });
+
+        if (targetPos !== null) {
+            this.editor.commands.setTextSelection(targetPos);
+            this.editor.commands.scrollIntoView();
+        }
+    }
+
+    getComments() {
+        return this.commentsManager.getComments();
+    }
+
+    updateComment(id, data) {
+        this.commentsManager.updateComment(id, data);
+    }
+
+    addReply(id, author, content) {
+        this.commentsManager.addReply(id, author, content);
     }
 
     addFootnote() {

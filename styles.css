@@ -518,30 +518,206 @@
 }
 
 .colophon-export-margins .colophon-export-margins__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  min-width: 240px; /* keeps the grid from collapsing in narrow sidebars */
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    min-width: 240px;
+    /* keeps the grid from collapsing in narrow sidebars */
 }
 
 .colophon-export-margins__label {
-  font-size: 11px;
-  line-height: 1.2;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--text-muted);
+    margin-bottom: 4px;
 }
 
 .colophon-export-margins__input {
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: var(--radius-s);
-  border: 1px solid var(--background-modifier-border);
-  background: var(--background-modifier-form-field);
-  color: var(--text-normal);
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
 }
 
 .colophon-export-margins__input:focus {
-  outline: none;
-  border-color: var(--interactive-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+/* 8. COMMENTS */
+.colophon-comment-highlight {
+    background-color: rgba(255, 214, 10, 0.3);
+    /* Subtle yellow */
+    border-bottom: 2px solid rgba(255, 214, 10, 0.5);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.colophon-comment-highlight:hover {
+    background-color: rgba(255, 214, 10, 0.5);
+}
+
+/* Active state (when sidebar card is focused or clicked) */
+/* We don't strictly have an .is-active class on the mark yet, 
+   but we could add one via decoration or just rely on selection. 
+   Tiptap selection is blue by default. 
+   We might want to override selection color for comment marks? 
+   For now, let's stick to default selection. */
+
+/* Sidebar View */
+.colophon-comment-view {
+    padding: 10px;
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--background-secondary);
+}
+
+.colophon-comment-empty {
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 40px;
+    font-style: italic;
+}
+
+.colophon-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding-bottom: 40px;
+}
+
+.colophon-comment-card {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    border-left: 3px solid transparent;
+}
+
+.colophon-comment-card:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    border-color: var(--interactive-accent);
+}
+
+.colophon-comment-card.is-active {
+    border-color: var(--interactive-accent);
+    border-left-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.1);
+}
+
+.colophon-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.colophon-comment-author-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.colophon-comment-author {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-normal);
+}
+
+.colophon-comment-date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.colophon-comment-resolve-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: all 0.2s;
+}
+
+.colophon-comment-resolve-btn:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--interactive-success);
+    opacity: 1;
+}
+
+.colophon-comment-content {
+    width: 100%;
+    min-height: 24px;
+    resize: none;
+    border: none;
+    background: transparent;
+    font-family: var(--font-text);
+    font-size: 0.95rem;
+    color: var(--text-normal);
+    padding: 0;
+    margin: 4px 0;
+    line-height: 1.4;
+}
+
+.colophon-comment-content:focus {
+    outline: none;
+}
+
+/* Replies */
+.colophon-comment-replies {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.colophon-comment-reply {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.9rem;
+}
+
+.colophon-comment-reply-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+}
+
+.colophon-comment-reply-content {
+    color: var(--text-normal);
+    padding-left: 8px;
+    border-left: 2px solid var(--background-modifier-border);
+}
+
+.colophon-comment-reply-input {
+    width: 100%;
+    background: var(--background-secondary);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    margin-top: 8px;
+    transition: all 0.2s;
+}
+
+.colophon-comment-reply-input:focus {
+    background: var(--background-primary);
+    border-color: var(--interactive-accent);
+    outline: none;
 }
