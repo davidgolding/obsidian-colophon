@@ -1,6 +1,7 @@
 const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
 const { ColophonView, VIEW_TYPE } = require('./view');
 const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
+const { CommentsView, COMMENT_VIEW_TYPE } = require('./comment-view');
 const ExportModal = require('./export-modal');
 
 const DEFAULT_SETTINGS = {
@@ -13,7 +14,8 @@ const DEFAULT_SETTINGS = {
     singleQuoteStyle: '‘|’',
     stylesFolder: 'snippets',
     enabledStyles: [],
-    showWordCount: false
+    showWordCount: false,
+    authorName: 'Me'
 };
 
 const fs = require('fs');
@@ -34,6 +36,12 @@ module.exports = class ColophonPlugin extends Plugin {
         this.registerView(
             FOOTNOTE_VIEW_TYPE,
             (leaf) => new FootnoteView(leaf, this.settings, isSpellcheckEnabledForFootnotes)
+        );
+
+        // Register Comments View
+        this.registerView(
+            COMMENT_VIEW_TYPE,
+            (leaf) => new CommentsView(leaf, this.settings)
         );
 
         // Add Settings Tab
@@ -106,6 +114,32 @@ module.exports = class ColophonPlugin extends Plugin {
                 if (view) {
                     if (!checking) {
                         view.insertFootnote();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        // COMMAND: Open Comments Sidebar
+        this.addCommand({
+            id: 'open-colophon-comments',
+            name: 'Open Comments Sidebar',
+            callback: async () => {
+                this.activateCommentsView();
+            }
+        });
+
+        // COMMAND: Add Comment
+        this.addCommand({
+            id: 'add-colophon-comment',
+            name: 'Add Comment',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
+                    if (!checking) {
+                        view.adapter.addComment(this.settings.authorName);
+                        this.activateCommentsView();
                     }
                     return true;
                 }
@@ -240,6 +274,24 @@ module.exports = class ColophonPlugin extends Plugin {
         workspace.revealLeaf(leaf);
     }
 
+    async activateCommentsView() {
+        const { workspace } = this.app;
+
+        let leaf = null;
+        const leaves = workspace.getLeavesOfType(COMMENT_VIEW_TYPE);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            leaf = workspace.getRightLeaf(false);
+            await leaf.setViewState({ type: COMMENT_VIEW_TYPE, active: true });
+        }
+
+        workspace.revealLeaf(leaf);
+    }
+
+
+
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
@@ -300,6 +352,8 @@ module.exports = class ColophonPlugin extends Plugin {
 
         // Update Footnote View if it exists
         this.updateFootnoteView(leaf.view);
+        // Update Comments View if it exists
+        this.updateCommentsView(leaf.view);
 
         const file = leaf.view.file;
         if (!file) return;
@@ -313,6 +367,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
         // Update Footnote View
         this.updateFootnoteView(leaf.view);
+        this.updateCommentsView(leaf.view);
 
         await this.ensureCorrectView(leaf, file);
     }
@@ -323,11 +378,16 @@ module.exports = class ColophonPlugin extends Plugin {
 
         const footnoteView = footnoteLeaves[0].view;
 
+        if (!(footnoteView instanceof FootnoteView)) {
+            // This can happen during hot-reload if the view instance is stale
+            // or if the class definition has changed.
+            // We should probably try to detach it?
+            // For now, just return to avoid error.
+            return;
+        }
+
         if (typeof footnoteView.setAdapter !== 'function') {
             console.error('Colophon: FootnoteView instance does not have setAdapter method.');
-            console.log('FootnoteView keys:', Object.keys(footnoteView));
-            console.log('FootnoteView prototype keys:', Object.getOwnPropertyNames(Object.getPrototypeOf(footnoteView)));
-            console.log('FootnoteView constructor:', footnoteView.constructor.name);
             return;
         }
 
@@ -346,6 +406,23 @@ module.exports = class ColophonPlugin extends Plugin {
             // If we click the sidebar, the active leaf becomes the sidebar.
             // So the check `activeView instanceof FootnoteView` above handles the sidebar click.
             footnoteView.setAdapter(null);
+        }
+    }
+
+    updateCommentsView(activeView) {
+        const leaves = this.app.workspace.getLeavesOfType(COMMENT_VIEW_TYPE);
+        if (leaves.length === 0) return;
+
+        const view = leaves[0].view;
+
+        if (activeView instanceof CommentsView) {
+            return;
+        }
+
+        if (activeView instanceof ColophonView && activeView.adapter) {
+            view.setAdapter(activeView.adapter);
+        } else {
+            view.setAdapter(null);
         }
     }
 
@@ -414,6 +491,9 @@ colophon-plugin: manuscript
     }
 
     onunload() {
+        this.app.workspace.detachLeavesOfType(VIEW_TYPE);
+        this.app.workspace.detachLeavesOfType(FOOTNOTE_VIEW_TYPE);
+        this.app.workspace.detachLeavesOfType(COMMENT_VIEW_TYPE);
     }
 };
 
@@ -545,6 +625,20 @@ class ColophonSettingTab extends PluginSettingTab {
 
         // List files in the folder
         this.displayStyleFiles(containerEl);
+
+        // Comments Settings
+        containerEl.createEl('h3', { text: 'Comments' });
+
+        new Setting(containerEl)
+            .setName('Author Name')
+            .setDesc('Name to display on your comments.')
+            .addText(text => text
+                .setPlaceholder('Me')
+                .setValue(this.plugin.settings.authorName)
+                .onChange(async (value) => {
+                    this.plugin.settings.authorName = value;
+                    await this.plugin.saveSettings();
+                }));
     }
 
     async displayStyleFiles(containerEl) {
