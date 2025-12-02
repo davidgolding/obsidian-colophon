@@ -65,7 +65,12 @@ module.exports = class ColophonPlugin extends Plugin {
             await this.createNewManuscript();
         });
 
-        // FILE MENU: Add "New Manuscript" to context menu
+        // RIBBON ICON: Create new Script
+        this.addRibbonIcon('clapperboard', 'New script', async () => {
+            await this.createNewScript();
+        });
+
+        // FILE MENU: Add "New Manuscript" and "New Script" to context menu
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
                 const isFolder = file instanceof TFolder;
@@ -79,6 +84,15 @@ module.exports = class ColophonPlugin extends Plugin {
                             await this.createNewManuscript(path);
                         });
                 });
+
+                menu.addItem((item) => {
+                    item
+                        .setTitle("New script")
+                        .setIcon("clapperboard")
+                        .onClick(async () => {
+                            await this.createNewScript(path);
+                        });
+                });
             })
         );
 
@@ -87,6 +101,13 @@ module.exports = class ColophonPlugin extends Plugin {
             id: 'create-new-colophon-manuscript',
             name: 'New manuscript',
             callback: () => this.createNewManuscript()
+        });
+
+        // COMMAND: Add "New script" to command list
+        this.addCommand({
+            id: 'create-new-colophon-script',
+            name: 'New script',
+            callback: () => this.createNewScript()
         });
 
         // COMMAND: Export to DOCX
@@ -330,7 +351,7 @@ module.exports = class ColophonPlugin extends Plugin {
             const app = this.app || plugin.app;
             const cache = app.metadataCache.getFileCache(file);
 
-            if (cache?.frontmatter && cache.frontmatter['colophon-plugin'] === 'manuscript') {
+            if (cache?.frontmatter && (cache.frontmatter['colophon-plugin'] === 'manuscript' || cache.frontmatter['colophon-plugin'] === 'script')) {
                 const currentViewType = this.view.getViewType();
 
                 if (currentViewType !== VIEW_TYPE) {
@@ -429,7 +450,7 @@ module.exports = class ColophonPlugin extends Plugin {
 
     async ensureCorrectView(leaf, file) {
         const cache = this.app.metadataCache.getFileCache(file);
-        const isColophon = cache?.frontmatter && cache.frontmatter['colophon-plugin'] === 'manuscript';
+        const isColophon = cache?.frontmatter && (cache.frontmatter['colophon-plugin'] === 'manuscript' || cache.frontmatter['colophon-plugin'] === 'script');
         const currentViewType = leaf.view.getViewType();
 
         if (isColophon && currentViewType === 'markdown') {
@@ -475,6 +496,35 @@ colophon-plugin: manuscript
             await this.app.workspace.getLeaf(false).openFile(newFile);
         } catch (e) {
             new Notice(`Failed to create manuscript: ${e.toString()}`);
+        }
+    }
+
+    async createNewScript(folder) {
+        let target;
+        if (folder) {
+            target = typeof folder === 'string' ? this.app.vault.getAbstractFileByPath(folder) : folder;
+        } else {
+            target = this.app.fileManager.getNewFileParent(
+                this.app.workspace.getActiveFile()?.path || ''
+            );
+        }
+
+        if (!target || !target.path) {
+            new Notice('Invalid folder location');
+            return;
+        }
+
+        const initialContent = `---
+colophon-plugin: script
+---
+`;
+        const finalPath = await this.getUniqueFilePath(target);
+
+        try {
+            const newFile = await this.app.vault.create(finalPath, initialContent);
+            await this.app.workspace.getLeaf(false).openFile(newFile);
+        } catch (e) {
+            new Notice(`Failed to create script: ${e.toString()}`);
         }
     }
 
