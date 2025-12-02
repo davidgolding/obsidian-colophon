@@ -188,59 +188,49 @@ module.exports = class ColophonPlugin extends Plugin {
 
         this.app.workspace.onLayoutReady(() => {
             // Helper to patch commands
-            const patchCommand = (commandId, action) => {
+            const patchCommand = (commandId, action, predicate) => {
                 const originalCommand = this.app.commands.commands[commandId];
                 if (originalCommand) {
                     const originalCheckCallback = originalCommand.checkCallback;
 
                     originalCommand.checkCallback = (checking) => {
-                        // A Colophon view must exist, but doesn't have to be active
-                        const colophonLeaves = this.app.workspace.getLeavesOfType(VIEW_TYPE);
-                        const colophonView = colophonLeaves.length > 0 ? colophonLeaves[0].view : null;
+                        // Check for active Colophon View
+                        const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
 
-                        // Check if we are in a Colophon context
-                        if (colophonView) {
-                            // Disable in Script Mode
-                            if (colophonView.adapter && colophonView.adapter.docType === 'script') {
-                                // Fallback to original behavior (which likely fails or does standard MD footnote)
-                                // Or just return false to disable it completely in this context?
-                                // If we return false, it disables the command.
-                                // But if the user switches to a normal MD file, we want it to work.
-                                // The check `colophonView` just means A view exists.
-                                // We need to check if the ACTIVE view is the script view.
-                                const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
-                                if (activeView && activeView === colophonView && activeView.adapter.docType === 'script') {
-                                    return false;
-                                }
+                        // Check for Footnote View
+                        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
+                        const footnoteView = footnoteLeaves.length > 0 ? footnoteLeaves[0].view : null;
+
+                        let targetEditor = null;
+
+                        // 1. Check Footnote Sidebar Focus
+                        const activeLeaf = this.app.workspace.activeLeaf;
+                        if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
+                            const focusedFootnoteEditor = footnoteView.getFocusedEditor();
+                            if (focusedFootnoteEditor) {
+                                targetEditor = focusedFootnoteEditor;
+                            }
+                        }
+
+                        // 2. Check Main View
+                        if (!targetEditor && activeView && activeView instanceof ColophonView && activeView.adapter && activeView.adapter.editor) {
+                            // If active view is Colophon, use it
+                            targetEditor = activeView.adapter.editor;
+                        }
+
+                        // If we found a target editor in our plugin
+                        if (targetEditor) {
+                            // Check predicate if provided (e.g. to disable in script mode)
+                            if (predicate && !predicate(activeView || footnoteView)) { // Pass context if needed
+                                // If predicate fails, we should fall back to original or return false?
+                                // For insert-footnote in script mode, we want to return false (disable).
+                                return false;
                             }
 
-                            const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
-
-                            // Determine target editor
-                            let targetEditor = null;
-
-                            // 1. Check Footnote Sidebar Focus
-                            // We need to check if the sidebar *itself* is the active leaf's view
-                            const activeLeaf = this.app.workspace.activeLeaf;
-                            if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
-                                const focusedFootnoteEditor = footnoteView.getFocusedEditor();
-                                if (focusedFootnoteEditor) {
-                                    targetEditor = focusedFootnoteEditor;
-                                }
+                            if (!checking) {
+                                action(targetEditor);
                             }
-
-                            // 2. Check Main View Focus (fallback or if active)
-                            if (!targetEditor && colophonView.adapter && colophonView.adapter.editor && colophonView.adapter.editor.isFocused) {
-                                targetEditor = colophonView.adapter.editor;
-                            }
-
-                            // If we found a target editor in our plugin, handle the command
-                            if (targetEditor) {
-                                if (!checking) {
-                                    action(targetEditor);
-                                }
-                                return true;
-                            }
+                            return true;
                         }
 
                         // Fallback to original
@@ -256,6 +246,14 @@ module.exports = class ColophonPlugin extends Plugin {
             patchCommand('editor:insert-footnote', (editor) => {
                 const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
                 if (colophonView) colophonView.insertFootnote();
+            }, (view) => {
+                // Predicate: Disable in Script Mode
+                // We need to check the ACTIVE view's docType
+                const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (activeView && activeView.adapter && activeView.adapter.docType === 'script') {
+                    return false;
+                }
+                return true;
             });
 
             // Patch Formatting Commands
