@@ -26,6 +26,8 @@
     width: 100%;
     position: relative;
     padding-top: 1rem;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
 }
 
 

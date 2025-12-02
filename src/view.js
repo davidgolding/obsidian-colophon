@@ -193,18 +193,22 @@ class ColophonView extends FileView {
             const themeVars = this.extractThemeVars('theme-light');
 
             // Apply them to the container
-            for (const [key, value] of Object.entries(themeVars)) {
-                if (value) {
-                    this.contentEl.style.setProperty(key, value);
+            if (this.scrollEl) {
+                for (const [key, value] of Object.entries(themeVars)) {
+                    if (value) {
+                        this.scrollEl.style.setProperty(key, value);
+                    }
                 }
+                this.scrollEl.classList.add('colophon-forced-theme');
             }
-            this.contentEl.classList.add('colophon-forced-theme');
         } else {
             // Revert to default (inherited)
-            for (const key of varsToHandle) {
-                this.contentEl.style.removeProperty(key);
+            if (this.scrollEl) {
+                for (const key of varsToHandle) {
+                    this.scrollEl.style.removeProperty(key);
+                }
+                this.scrollEl.classList.remove('colophon-forced-theme');
             }
-            this.contentEl.classList.remove('colophon-forced-theme');
         }
     }
 
