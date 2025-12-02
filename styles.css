@@ -15,6 +15,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    padding: 0 !important;
 }
 
 .colophon-scroll-container {
@@ -733,14 +734,46 @@
 
 /* 10. COMMENTS PANEL (In-Editor) */
 .colophon-comments-panel {
-    width: 300px;
+    width: 0;
+    opacity: 0;
     background-color: var(--background-secondary);
-    border-left: 1px solid var(--background-modifier-border);
+    border-left: 0 solid var(--background-modifier-border);
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    transition: width 0.2s ease;
+    overflow-x: hidden;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease,
+        padding 0.3s ease,
+        border-left-width 0.3s ease;
+    padding: 0;
+    visibility: hidden;
+    /* Hide content when closed to prevent focus */
+}
+
+.colophon-comments-panel.is-visible {
+    width: 300px;
+    opacity: 1;
     padding: 10px;
+    border-left-width: 1px;
+    visibility: visible;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.3s ease 0.1s,
+        /* Delay opacity slightly on open */
+        padding 0.3s ease,
+        border-left-width 0.3s ease,
+        visibility 0s linear 0s;
+    /* Immediate visibility on open */
+}
+
+/* Ensure visibility transitions properly on close */
+.colophon-comments-panel:not(.is-visible) {
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease,
+        padding 0.3s ease,
+        border-left-width 0.3s ease,
+        visibility 0s linear 0.3s;
+    /* Delay hiding visibility until width animates */
 }
 
 .colophon-comments-panel-header {
