@@ -152,6 +152,11 @@ class Toolbar {
         this.update();
     }
 
+    setDocType(docType) {
+        this.docType = docType;
+        this.update();
+    }
+
     updateStyleOptions(paragraphOptions, listOptions) {
         this.paragraphOptions = paragraphOptions;
         this.listOptions = listOptions;
@@ -161,7 +166,21 @@ class Toolbar {
     rebuildDropdowns() {
         // Paragraph
         this.paragraphSelect.dropdown.empty();
-        this.paragraphOptions.forEach(opt => {
+
+        // If Script Mode, use hardcoded script options
+        let options = this.paragraphOptions;
+        if (this.docType === 'script') {
+            options = [
+                { label: 'Scene Heading', value: 'script-scene', type: 'paragraph' },
+                { label: 'Action', value: 'script-action', type: 'paragraph' },
+                { label: 'Character', value: 'script-character', type: 'paragraph' },
+                { label: 'Dialogue', value: 'script-dialogue', type: 'paragraph' },
+                { label: 'Parenthetical', value: 'script-parenthetical', type: 'paragraph' },
+                { label: 'Transition', value: 'script-transition', type: 'paragraph' }
+            ];
+        }
+
+        options.forEach(opt => {
             const item = this.paragraphSelect.dropdown.createDiv('colophon-menu-item');
             item.createSpan({ cls: 'colophon-label', text: opt.label });
             item.addEventListener('click', () => {
@@ -213,6 +232,7 @@ class Toolbar {
         if (isHeading) {
             this.editor.chain().focus().toggleHeading({ level }).updateAttributes('heading', { class: value }).run();
         } else {
+            // For script classes, we just update attributes on paragraph
             this.editor.chain().focus().setParagraph().updateAttributes('paragraph', { class: value }).run();
         }
     }
@@ -244,11 +264,28 @@ class Toolbar {
                 this.paragraphSelect.trigger.addClass('colophon-disabled');
                 this.paragraphSelect.labelSpan.innerText = 'Footnote';
             }
+            // Disable List Select too for footnotes? Usually footnotes don't have lists in this impl?
         } else {
             if (this.paragraphSelect) {
                 this.paragraphSelect.trigger.removeAttribute('disabled');
                 this.paragraphSelect.trigger.removeClass('colophon-disabled');
                 this.updateParagraphLabel();
+            }
+        }
+
+        // Handle Script Mode UI
+        if (this.docType === 'script') {
+            // Hide List Select
+            if (this.listSelect) {
+                this.listSelect.trigger.style.display = 'none';
+            }
+            // Rebuild dropdowns if needed? 
+            // We should rebuild dropdowns when docType changes, not on every update.
+            // But update() is called often.
+            // Let's assume rebuildDropdowns is called when docType is set.
+        } else {
+            if (this.listSelect) {
+                this.listSelect.trigger.style.display = '';
             }
         }
 
@@ -259,7 +296,20 @@ class Toolbar {
         if (!this.editor || !this.paragraphSelect) return;
 
         let activeLabel = 'Paragraph';
-        for (const opt of this.paragraphOptions) {
+
+        let options = this.paragraphOptions;
+        if (this.docType === 'script') {
+            options = [
+                { label: 'Scene Heading', value: 'script-scene' },
+                { label: 'Action', value: 'script-action' },
+                { label: 'Character', value: 'script-character' },
+                { label: 'Dialogue', value: 'script-dialogue' },
+                { label: 'Parenthetical', value: 'script-parenthetical' },
+                { label: 'Transition', value: 'script-transition' }
+            ];
+        }
+
+        for (const opt of options) {
             const value = opt.value;
             if (!value) continue;
             let isMatch = false;
@@ -278,6 +328,8 @@ class Toolbar {
 
     updateListLabel() {
         if (!this.editor || !this.listSelect) return;
+
+        if (this.docType === 'script') return; // Skip for script mode
 
         let activeLabel = 'List';
         for (const opt of this.listOptions) {

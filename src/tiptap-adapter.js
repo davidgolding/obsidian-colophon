@@ -20,6 +20,7 @@ const DocxSerializer = require('./extensions/docx-serializer');
 const StyleManager = require('./style-manager');
 const DEFAULT_STYLES = require('./default-styles');
 const { parseYaml, Menu } = require('obsidian');
+const ScriptFormatting = require('./extensions/script-formatting');
 
 // Custom extension to handle the Enter key
 const EnterKeyHandler = Extension.create({
@@ -198,8 +199,9 @@ class TiptapAdapter {
         }
     }
 
-    load(markdown, data, filePath) {
+    load(markdown, data, filePath, docType = 'manuscript') {
         this.filePath = filePath;
+        this.docType = docType;
 
         if (this.editor) {
             this.editor.destroy();
@@ -254,51 +256,61 @@ class TiptapAdapter {
         // The editor is mounted in a child div to separate it from the scrollable container
         const editorHost = this.containerEl.createDiv('colophon-editor-host');
 
+        if (this.docType === 'script') {
+            editorHost.classList.add('is-script-mode');
+        }
+
         // Load styles asynchronously
         this.loadStyles().then(() => {
             // Styles loaded
         });
 
+        const extensions = [
+            StarterKit.configure({
+                paragraph: false,
+                heading: false,
+                bulletList: false,
+                orderedList: false,
+                listItem: false,
+            }),
+            EnterKeyHandler,
+            CustomParagraph,
+            CustomHeading,
+            CustomBulletList,
+            CustomOrderedList,
+            CustomListItem,
+            Underline,
+            Subscript,
+            Superscript,
+            TextStyle,
+            SmallCaps,
+
+            Footnote,
+            CommentMark,
+            Substitutions.configure({
+                smartQuotes: this.settings.smartQuotes,
+                smartDashes: this.settings.smartDashes,
+                doubleQuoteStyle: this.settings.doubleQuoteStyle,
+                singleQuoteStyle: this.settings.singleQuoteStyle,
+            }),
+            InternalLink.configure({
+                app: this.app,
+                getFilePath: () => this.filePath
+            }),
+            StandardLink.configure({
+                app: this.app,
+                getFilePath: () => this.filePath
+            }),
+            DocxSerializer
+        ];
+
+        if (this.docType === 'script') {
+            extensions.push(ScriptFormatting);
+        }
+
         this.editor = new Editor({
             element: editorHost,
-            extensions: [
-                StarterKit.configure({
-                    paragraph: false,
-                    heading: false,
-                    bulletList: false,
-                    orderedList: false,
-                    listItem: false,
-                }),
-                EnterKeyHandler,
-                CustomParagraph,
-                CustomHeading,
-                CustomBulletList,
-                CustomOrderedList,
-                CustomListItem,
-                Underline,
-                Subscript,
-                Superscript,
-                TextStyle,
-                SmallCaps,
-
-                Footnote,
-                CommentMark,
-                Substitutions.configure({
-                    smartQuotes: this.settings.smartQuotes,
-                    smartDashes: this.settings.smartDashes,
-                    doubleQuoteStyle: this.settings.doubleQuoteStyle,
-                    singleQuoteStyle: this.settings.singleQuoteStyle,
-                }),
-                InternalLink.configure({
-                    app: this.app,
-                    getFilePath: () => this.filePath
-                }),
-                StandardLink.configure({
-                    app: this.app,
-                    getFilePath: () => this.filePath
-                }),
-                DocxSerializer
-            ],
+            extensions: extensions,
             editorProps: {
                 attributes: {
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',

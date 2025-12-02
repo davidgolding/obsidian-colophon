@@ -791,3 +791,83 @@
     font-weight: 600;
     color: var(--text-normal);
 }
+
+/* =========================================
+   SCRIPT MODE STYLES
+   ========================================= */
+
+/* Root Scope */
+.colophon-editor-host.is-script-mode .ProseMirror {
+    font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+    font-size: 12pt;
+    line-height: 1.0;
+    /* Single spacing standard */
+    color: var(--text-normal);
+    max-width: 8.5in;
+    /* Standard US Letter width approx */
+    padding: 1in 1in 1in 1.5in;
+    /* Top, Right, Bottom, Left (1.5" left margin) */
+}
+
+/* Paragraph Reset for Script Mode */
+.colophon-editor-host.is-script-mode .ProseMirror p {
+    margin-bottom: 1em;
+    /* Standard spacing */
+    min-height: 1em;
+}
+
+/* 1. Scene Heading */
+.colophon-editor-host.is-script-mode .ProseMirror .script-scene {
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-top: 1em;
+    margin-bottom: 1em;
+    /* 1.5" Left Margin is default padding */
+}
+
+/* 2. Action */
+.colophon-editor-host.is-script-mode .ProseMirror .script-action {
+    /* Standard Width */
+    margin-bottom: 1em;
+}
+
+/* 3. Character */
+.colophon-editor-host.is-script-mode .ProseMirror .script-character {
+    margin-left: 2.0in;
+    /* Relative to 1.5" margin -> Total ~3.5" */
+    margin-right: 0;
+    text-transform: uppercase;
+    margin-bottom: 0;
+    /* Tight with dialogue */
+}
+
+/* 4. Dialogue */
+.colophon-editor-host.is-script-mode .ProseMirror .script-dialogue {
+    margin-left: 1.0in;
+    /* Relative to 1.5" margin -> Total ~2.5" */
+    margin-right: 1.0in;
+    margin-bottom: 1em;
+}
+
+/* 5. Parenthetical */
+.colophon-editor-host.is-script-mode .ProseMirror .script-parenthetical {
+    margin-left: 1.5in;
+    /* Relative to 1.5" margin -> Total ~3.0" */
+    margin-right: 1.5in;
+    margin-bottom: 0;
+}
+
+/* 6. Transition */
+.colophon-editor-host.is-script-mode .ProseMirror .script-transition {
+    text-align: right;
+    margin-right: 0.5in;
+    text-transform: uppercase;
+    margin-bottom: 1em;
+    margin-top: 1em;
+}
+
+/* Hide Visual Elements in Script Mode if needed */
+.colophon-editor-host.is-script-mode .ProseMirror .footnote-list {
+    font-family: var(--font-text-theme);
+    /* Keep footnotes readable? Or Courier? */
+}
