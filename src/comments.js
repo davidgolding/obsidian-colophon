@@ -44,17 +44,11 @@ class CommentsManager {
         const comment = this.getComment(id);
         if (comment) {
             comment.resolved = true;
-            // We might want to keep it but hide it, or remove the mark?
-            // Usually "Resolve" removes the highlight.
-            // So we should tell the adapter to remove the mark.
-            // this.adapter.removeCommentMark(id);
-            // We can keep the data or remove it. Let's keep it for now but maybe filter it out?
-            // Actually, if the mark is gone, the comment is effectively "gone" from the doc flow.
-            // But we might want to keep it in history.
-            // For now, let's just mark it resolved. The adapter will handle cleaning up orphaned data if we implement that.
-            // Or we just remove it from the array?
-            // Apple Pages removes the highlight.
         }
+    }
+
+    deleteComment(id) {
+        this.comments = this.comments.filter(c => c.id !== id);
     }
 
     addReply(commentId, author, content) {

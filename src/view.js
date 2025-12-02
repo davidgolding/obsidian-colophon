@@ -1,6 +1,7 @@
 const { FileView, WorkspaceLeaf, Notice, debounce } = require('obsidian');
 const Toolbar = require('./toolbar');
 const TiptapAdapter = require('./tiptap-adapter');
+const CommentsPanel = require('./comments-panel');
 const { parseFile, serializeFile } = require('./io');
 
 const VIEW_TYPE = 'colophon-view';
@@ -46,17 +47,12 @@ class ColophonView extends FileView {
         this.applySettings();
 
         // Create Toolbar in View Header
-        // We need to find the header element.
-        // FileView -> ItemView -> View -> containerEl
-        // The containerEl contains .view-header and .view-content
         const headerEl = this.containerEl.querySelector('.view-header');
         if (headerEl) {
             headerEl.classList.add('colophon-view-header');
-            // Create a center container if it doesn't exist
             let centerEl = headerEl.querySelector('.view-header-center');
             if (!centerEl) {
                 centerEl = createDiv({ cls: 'view-header-center' });
-                // Insert before view-actions
                 const actionsEl = headerEl.querySelector('.view-actions');
                 if (actionsEl) {
                     headerEl.insertBefore(centerEl, actionsEl);
@@ -68,34 +64,50 @@ class ColophonView extends FileView {
             this.toolbar = new Toolbar(centerEl);
             this.toolbar.create();
         } else {
-            // Fallback if header not found (shouldn't happen in standard Obsidian view)
             this.toolbar = new Toolbar(this.contentEl);
             this.toolbar.create();
         }
 
-        // Create scroll container
-        this.scrollEl = this.contentEl.createDiv('colophon-scroll-container');
+        // Create Main Layout Container (Flex)
+        this.mainLayout = this.contentEl.createDiv('colophon-main-layout');
+
+        // Create scroll container (Editor)
+        this.scrollEl = this.mainLayout.createDiv('colophon-scroll-container');
+
+        // Get Spellcheck Setting
+        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
+
+        // Create Comments Panel
+        this.commentsPanel = new CommentsPanel(this.mainLayout, this.settings, isSpellcheckEnabled);
+        this.commentsPanel.create();
 
         // Add Theme Toggle Action
         this.themeToggleBtn = this.addAction('sun-moon', 'Enable white canvas mode for this note', () => {
             this.toggleTheme();
         });
 
+        // Add Comments Toggle Action
+        this.commentsToggleBtn = this.addAction('message-square', 'Toggle Comments', () => {
+            this.toggleComments();
+        });
+
         // Show Loader
         this.showLoader();
 
-        // Get Spellcheck Setting
-        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
-
         // Initialize Tiptap Adapter
-        // We pass a callback for updates
-        // PASS scrollEl instead of contentEl
         this.adapter = new TiptapAdapter(this.app, this.scrollEl, this.toolbar, isSpellcheckEnabled, this.settings, (newData) => {
             this.data = newData;
             this.save();
             this.updateWordCount();
             this.plugin.activateFootnoteView();
+            // Update comments panel
+            if (this.commentsPanel) {
+                this.commentsPanel.render();
+            }
         });
+
+        // Connect Adapter to Comments Panel
+        this.commentsPanel.setAdapter(this.adapter);
 
         if (this.plugin.settings.showWordCount) {
             this.toggleWordCount(true);
@@ -326,6 +338,17 @@ class ColophonView extends FileView {
                         }, 50); // Small delay for DOM update
                     }
                 }
+            }
+        }
+    }
+
+    toggleComments() {
+        if (this.commentsPanel) {
+            const isVisible = !this.commentsPanel.isVisible;
+            this.commentsPanel.toggle(isVisible);
+
+            if (this.commentsToggleBtn) {
+                this.commentsToggleBtn.classList.toggle('is-active', isVisible);
             }
         }
     }

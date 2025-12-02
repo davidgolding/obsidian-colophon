@@ -49,6 +49,14 @@ Use the native “Insert” > “Footnote” menu item and hotkey to insert a fo
 
 Using backspace to delete the footnote marker in the main body text will delete its corresponding footnote from the sidebar. The sequence automatically synchronizes.
 
+## Comments
+
+You can add comments to any text in the main body or in footnotes. Select the text you wish to comment on, right-click, and choose "Add comment". The comments sidebar will open, allowing you to type your comment.
+
+- **Resolve or Delete**: Click the three-dots menu on a comment card to resolve or delete it.
+- **Bidirectional Highlighting**: Clicking a comment in the sidebar will scroll to and select the corresponding text in the manuscript. Conversely, double-clicking a highlighted comment in the text will open the sidebar and focus the relevant comment card.
+- **Spellcheck**: Comments respect the global Obsidian spellcheck setting.
+
 ## Features
 
 The plugin’s settings include the following customizations:

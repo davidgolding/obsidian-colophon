@@ -121,12 +121,19 @@ module.exports = class ColophonPlugin extends Plugin {
             }
         });
 
-        // COMMAND: Open Comments Sidebar
+        // COMMAND: Toggle Comments Panel
         this.addCommand({
-            id: 'open-colophon-comments',
-            name: 'Open Comments Sidebar',
-            callback: async () => {
-                this.activateCommentsView();
+            id: 'toggle-colophon-comments',
+            name: 'Toggle Comments Panel',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view) {
+                    if (!checking) {
+                        view.toggleComments();
+                    }
+                    return true;
+                }
+                return false;
             }
         });
 
@@ -139,7 +146,10 @@ module.exports = class ColophonPlugin extends Plugin {
                 if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
                         view.adapter.addComment(this.settings.authorName);
-                        this.activateCommentsView();
+                        // Ensure panel is open
+                        if (view.commentsPanel && !view.commentsPanel.isVisible) {
+                            view.toggleComments();
+                        }
                     }
                     return true;
                 }
@@ -410,19 +420,10 @@ module.exports = class ColophonPlugin extends Plugin {
     }
 
     updateCommentsView(activeView) {
-        const leaves = this.app.workspace.getLeavesOfType(COMMENT_VIEW_TYPE);
-        if (leaves.length === 0) return;
-
-        const view = leaves[0].view;
-
-        if (activeView instanceof CommentsView) {
-            return;
-        }
-
-        if (activeView instanceof ColophonView && activeView.adapter) {
-            view.setAdapter(activeView.adapter);
-        } else {
-            view.setAdapter(null);
+        // Now handled internally by ColophonView via CommentsPanel
+        // We can just ensure the panel is updated if the view is active
+        if (activeView instanceof ColophonView && activeView.commentsPanel) {
+            activeView.commentsPanel.render();
         }
     }
 
