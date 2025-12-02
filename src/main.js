@@ -133,6 +133,9 @@ module.exports = class ColophonPlugin extends Plugin {
             checkCallback: (checking) => {
                 const view = this.app.workspace.getActiveViewOfType(ColophonView);
                 if (view) {
+                    // Disable in Script Mode
+                    if (view.adapter && view.adapter.docType === 'script') return false;
+
                     if (!checking) {
                         view.insertFootnote();
                     }
@@ -197,6 +200,20 @@ module.exports = class ColophonPlugin extends Plugin {
 
                         // Check if we are in a Colophon context
                         if (colophonView) {
+                            // Disable in Script Mode
+                            if (colophonView.adapter && colophonView.adapter.docType === 'script') {
+                                // Fallback to original behavior (which likely fails or does standard MD footnote)
+                                // Or just return false to disable it completely in this context?
+                                // If we return false, it disables the command.
+                                // But if the user switches to a normal MD file, we want it to work.
+                                // The check `colophonView` just means A view exists.
+                                // We need to check if the ACTIVE view is the script view.
+                                const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
+                                if (activeView && activeView === colophonView && activeView.adapter.docType === 'script') {
+                                    return false;
+                                }
+                            }
+
                             const footnoteView = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE)[0]?.view;
 
                             // Determine target editor

@@ -37,8 +37,10 @@ class ColophonView extends FileView {
     }
 
     getIcon() {
-        return 'feather';
+        return this.docType === 'script' ? 'clapperboard' : 'feather';
     }
+
+
 
     async onOpen() {
         // Create the container for Tiptap
@@ -302,12 +304,25 @@ class ColophonView extends FileView {
         this.data = data;
         this.frontmatter = frontmatter;
 
+        // Determine Doc Type
+        const cache = this.app.metadataCache.getFileCache(file);
+        const docType = cache?.frontmatter?.['colophon-plugin'] || 'manuscript';
+
+        this.docType = docType; // Store for getIcon
+
         if (this.adapter) {
-            this.adapter.load(markdown, data, this.file.path);
+            this.adapter.load(markdown, data, this.file.path, docType);
 
             // Hide loader once loaded
             this.hideLoader();
         }
+
+        if (this.toolbar) {
+            this.toolbar.setDocType(docType);
+        }
+
+        // Force icon update
+        this.app.workspace.trigger('layout-change');
     }
 
     async onUnloadFile(file) {
