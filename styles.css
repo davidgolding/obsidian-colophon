@@ -871,3 +871,20 @@
     font-family: var(--font-text-theme);
     /* Keep footnotes readable? Or Courier? */
 }
+
+/* Ensure formatting marks are visible in Script Mode */
+.colophon-editor-host.is-script-mode .ProseMirror strong {
+    font-weight: bold;
+}
+
+.colophon-editor-host.is-script-mode .ProseMirror em {
+    font-style: italic;
+}
+
+.colophon-editor-host.is-script-mode .ProseMirror s {
+    text-decoration: line-through;
+}
+
+.colophon-editor-host.is-script-mode .ProseMirror u {
+    text-decoration: underline;
+}

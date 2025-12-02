@@ -1,104 +1,79 @@
 # AGENTS.md - Colophon Project Handover
 
 ## Project Overview
-**Colophon** is an Obsidian plugin designed to provide an elegant and typographically clean writing experience for long-form manuscripts, while strictly maintaining **Markdown** as the storage format.
+**Colophon** is an Obsidian plugin designed to provide an elegant and typographically clean writing experience for long-form manuscripts and screenplays, while strictly maintaining **Markdown** as the storage format.
 
 ## Core Architecture
 - **Framework**: Obsidian API (Vanilla JS, CommonJS).
 - **Editor Engine**: **Tiptap** (Headless wrapper around ProseMirror).
 - **Build System**: `esbuild` (bundles to `main.js`).
-- **File Identity**: Files are identified as manuscripts via frontmatter: `colophon-plugin: manuscript`.
-- **Data Storage**: All Tiptap data is stored within a "sidecar" block at the bottom of the file (`%% colophon:data ... %%`).
+- **File Identity**: Files are identified via frontmatter:
+  - Manuscript: `colophon-plugin: manuscript`
+  - Script: `colophon-plugin: script`
+- **Data Storage**: All Tiptap data (footnotes, comments) is stored within a "sidecar" block at the bottom of the file (`%% colophon:data ... %%`).
 
 ## Current Implementation State (Checkpoint)
 
 ### 1. View System
-- **Interception**: `WorkspaceLeaf.prototype.openFile` is patched in `main.js` to detect manuscript files and open them directly in `ColophonView`, bypassing the default `MarkdownView` to prevent FOUC.
+- **Interception**: `WorkspaceLeaf.prototype.openFile` is patched in `main.js` to detect Colophon files and open them directly in `ColophonView`, bypassing the default `MarkdownView`.
 - **ColophonView (`src/view.js`)**: 
   - Manages the Tiptap instance via `TiptapAdapter`.
-  - Handles theme overrides (Light/Dark/Auto) for the canvas area.
-  - Shows a loading spinner during initialization.
+  - **White Canvas Mode**: Toggles a forced light theme for the canvas area (`toggleTheme()`), overriding CSS variables.
+  - **Word Count**: Displays a live word count (Main + Footnotes) via `toggleWordCount()`.
+  - **Icon**: Dynamically sets tab icon to 'feather' (Manuscript) or 'clapperboard' (Script).
 
 ### 2. Editor & Styling
 - **Tiptap Adapter (`src/tiptap-adapter.js`)**: 
   - Wraps the Tiptap `Editor` class.
-  - Implements custom Markdown parsing in `parseMarkdown()` to handle footnotes and basic formatting.
-  - Syncs with Obsidian's "Spell check" setting.
+  - **Script Mode Support**: Loads `ScriptFormatting` extension and applies `is-script-mode` class based on `docType`.
+  - **Global Scale Factor**: `StyleManager` applies a global scale factor to all dimension values in `DEFAULT_STYLES`.
 - **Styling (`styles.css`)**:
-  - **Layout**: Single centered column with user-configurable width (`--colophon-editor-width`).
-  - **Typography**: High-quality serif stack (Minion 3, Charter), margin collapsing for vertical rhythm.
-  - **Theme**: Adaptive background (`var(--background-primary)`), with specific overrides for the canvas area.
+  - **Manuscript**: Single centered column, serif typography (Minion 3, Charter).
+  - **Script Mode**: Fixed 8.5" width, Courier Prime font, specific margins for Scene/Action/Character/Dialogue.
+  - **Page Divisions**: Visual 1px line every 11 inches to simulate pages.
+  - **Typography**: Explicit support for Bold, Italic, Strikethrough, and Underline in both modes.
 
 ### 3. Features
+- **Script Mode (`src/extensions/script-formatting.js`)**:
+  - **Auto-Formatting**: Detects `INT./EXT.` for Scene Headings, `TO:` for Transitions.
+  - **Smart Navigation**: Tab/Enter keys navigate between script elements (Action -> Character -> Dialogue) per industry standards.
+  - **Command Disabling**: "Insert Footnote" is explicitly disabled in Script Mode via `patchCommand` predicate.
+- **Native Command Interception**:
+  - `main.js` patches `editor:toggle-bold`, `editor:toggle-italics`, etc., routing them to the active Colophon editor.
+  - `editor:insert-footnote` is patched with a predicate to disable it in Script Mode.
 - **Context Menu Popover (`src/popover-menu.js`)**: 
-  - Appears on right-click with selection.
-  - Provides styling (H1-H3, Body), formatting (Bold, Italic, Small Caps, etc.), and "Add Footnote".
-  - **Modes**: Supports 'default' (Main Editor) and 'footnote' (Sidebar, restricted options).
-  - Styled with backdrop blur and rounded corners.
+  - Provides styling and formatting options.
+  - **Modes**: Supports 'default' (Main Editor) and 'footnote' (Sidebar).
 - **Footnotes**:
-  - **Architecture**: 
-    - **Tiptap Extension (`src/extensions/footnote.js`)**: Inline atomic node with dynamic numbering.
-    - **Sidebar View (`src/footnote-view.js`)**: Dedicated sidebar for managing footnotes using **Rich Text Tiptap Editors**.
-    - **Synchronization**: Sidebar subscribes to main editor updates for real-time deletion and re-ordering.
-  - **Styling**: Matches `pages-styles.yaml` (Minion 3 Caption, 10pt). Selection style matches main editor.
-  - **Commands**: Intercepts native formatting commands (`bold`, `italic`) to work seamlessly in both main and sidebar editors.
-  - **Persistence**: Footnote content is stored in the "sidecar" block (`%% colophon:data ... %%`) as JSON.
-- **Substitutions**:
-  - **Settings**: "Smart Quotes" (with configurable styles) and "Smart Dashes".
-  - **Implementation**: Custom Tiptap extension (`src/extensions/substitutions.js`) using `InputRule`.
-  - **Scope**: Applied to both main manuscript and footnote editors.
-- **Internal Link**:
-  - **Support**: `[[Link]]`, `[[Link|Alias]]`, and `[[Link#Anchor]]`.
-  - **Navigation**: Clicking links uses Obsidian's native navigation (`openLinkText`).
-  - **Autocomplete**: Typing `[[` triggers a custom `SuggestModal` (`src/link-suggest-modal.js`) listing vault files.
-  - **Implementation**: Custom Tiptap extension (`src/extensions/internallink.js`) and Obsidian `SuggestModal`.
-- **Standard Links**:
-  - **Support**: `[Text](Link)` syntax is detected and treated as an internal link if no protocol is present.
-  - **Implementation**: Custom Tiptap extension (`src/extensions/standard-link.js`).
-- **List Support**:
-  - **Features**: Bulleted and Numbered lists with rich customization (markers, indentation, alignment).
-  - **Styling**: "Apple Pages" style logic (separate `text-indent` and `marker-indent`).
-  - **Implementation**: Custom Tiptap extensions (`CustomBulletList`, `CustomOrderedList`) and `StyleManager` generation.
-  - **UI**: Dedicated "List Style" menu in Popover with "None" option to lift list items.
-- **Footnote Customization**:
-  - **Features**: Configurable footnote symbols (integer, roman, alpha, custom chars).
-  - **Styling**: Control over font size, vertical alignment (`align`), and color via `footnote-symbol` style.
-  - **Implementation**: `TiptapAdapter.getFootnoteSymbol` and `StyleManager.generateFootnoteCSS`.
-- **DOCX Export**:
-  - **Architecture**:
-    - **Tiptap Extension (`src/extensions/docx-serializer.js`)**: Traverses the document recursively (`processDocument`) to handle nested structures like lists. Extracts computed styles (WYSIWYG) and maps marks/nodes to export-ready objects.
-    - **Generator (`src/minimal-docx.js`)**: Generates valid DOCX XML (`document.xml`, `styles.xml`, `fontTable.xml`) with 1-to-1 visual fidelity.
-      - **Styles**: Uses `stylesConfig` as the authoritative source for `styles.xml`, falling back to computed CSS only when necessary.
-      - **Footnotes**: Maps internal IDs to integer IDs, enforces `FootnoteText` and `FootnoteSymbol` styles, and recursively processes footnote content.
-      - **Inline Styles**: Supports Bold, Italic, Underline, Strike, Sub/Superscript, and Small Caps from both direct formatting and style definitions.
-  - **Features**: Supports inline styles, complex nested lists, footnotes (from sidebar) with rich text, and custom fonts.
+  - **Architecture**: Inline atomic node + Sidebar View (`src/footnote-view.js`).
+  - **Sync**: Real-time synchronization between main editor and sidebar.
+- **Substitutions**: Smart Quotes and Dashes via `src/extensions/substitutions.js`.
+- **Internal & Standard Links**: Wikilink and Markdown link support with autocomplete (`src/link-suggest-modal.js`).
+- **List Support**: Richly customizable bullet/ordered lists.
+- **DOCX Export**: High-fidelity export via `src/extensions/docx-serializer.js` and `src/minimal-docx.js`.
 
 ## Key Files Map
-- `src/main.js`: Plugin entry, patches, command interception, settings tab.
-- `src/view.js`: View container, theme logic, settings application.
-- `src/tiptap-adapter.js`: Tiptap editor setup, parsing logic, event handling, subscription system.
+- `src/main.js`: Plugin entry, command patching (with predicates), settings tab.
+- `src/view.js`: View container, theme logic, word count, icon logic.
+- `src/tiptap-adapter.js`: Editor setup, docType handling, style loading.
+- `src/extensions/script-formatting.js`: Script Mode input rules and key bindings.
 - `src/extensions/footnote.js`: Footnote node schema.
-- `src/extensions/substitutions.js`: Smart quotes and dashes logic.
-- `src/extensions/internallink.js`: Wikilink mark and behavior.
-- `src/link-suggest-modal.js`: Autocomplete modal for Internal Link.
-- `src/footnote-view.js`: Sidebar view logic, Tiptap instantiation for footnotes.
-- `src/popover-menu.js`: UI for the floating context menu.
-- `styles.css`: All CSS.
+- `src/extensions/substitutions.js`: Smart quotes/dashes.
+- `src/style-manager.js`: CSS generation, global scaling logic.
+- `styles.css`: All CSS, including Script Mode specific styles.
 
 ## Next Steps / Roadmap
 
-### 1. Commenting System (Phase 3)
+### 1. Commenting System (In Progress/Next)
 - **Goal**: Google Docs-style comments.
-- **Plan**: 
-  - Use Tiptap marks for commented ranges.
-  - Store comment data in the "Sidecar" block (`%% colophon:data ... %%`).
-  - Render comments as floating bubbles in the margin or a dedicated sidebar tab.
+- **Current Status**: `CommentsPanel` class exists, basic UI structure.
+- **Next**: Implement Tiptap marks for comments, storage in sidecar, and full UI interaction.
 
 ### 2. Track Changes (Phase 4)
-- **Goal**: Track Changes mode (like Suggestion mode in Google Docs or Review mode in Microsoft Word).
-- **Plan**: Use CriticMarkup syntax (`{++ ++}`, `{-- --}`) for storage.
+- **Goal**: Track Changes mode (CriticMarkup).
 
 ## How to Resume
-1.  **Run Build**: `pnpm run build` to ensure everything is fresh.
-2.  **Verify Features**: Check Footnotes (rich text, sync), Substitutions (quotes/dashes), and Internal Link (navigation, autocomplete).
-3.  **Start Comments**: Begin implementing the Commenting System.
+1.  **Run Build**: `npm run build` (or `pnpm`).
+2.  **Verify Script Mode**: Create a script, test formatting (Scene/Action/Dialogue), check disabled footnote command.
+3.  **Verify Manuscript**: Check word count, white canvas mode, footnotes.
+4.  **Continue Comments**: Proceed with the Commenting System implementation.
