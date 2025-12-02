@@ -1,4 +1,4 @@
-const { ItemView, WorkspaceLeaf, Notice, setIcon } = require('obsidian');
+const { ItemView, WorkspaceLeaf, Notice, setIcon, Menu } = require('obsidian');
 const { Editor, mergeAttributes } = require('@tiptap/core');
 const { StarterKit } = require('@tiptap/starter-kit');
 const Underline = require('@tiptap/extension-underline');
@@ -8,6 +8,7 @@ const TextStyle = require('@tiptap/extension-text-style');
 // PopoverMenu removed
 const Substitutions = require('./extensions/substitutions');
 const InternalLink = require('./extensions/internallink');
+const CommentMark = require('./extensions/comment-mark');
 
 const FOOTNOTE_VIEW_TYPE = 'colophon-footnote-view';
 
@@ -72,8 +73,14 @@ class FootnoteView extends ItemView {
 
         if (this.adapter) {
             // Subscribe to updates
-            this.unsubscribe = this.adapter.subscribe(() => {
-                this.render();
+            this.unsubscribe = this.adapter.subscribe((event) => {
+                if (event && event.type === 'remove-comment-mark') {
+                    this.removeCommentMark(event.id);
+                } else if (event && event.type === 'scroll-to-comment') {
+                    this.scrollToComment(event.id);
+                } else {
+                    this.render();
+                }
             });
         }
 
@@ -159,7 +166,8 @@ class FootnoteView extends ItemView {
                         }),
                         InternalLink.configure({
                             app: this.app
-                        })
+                        }),
+                        CommentMark
                     ],
                     content: fn.content, // Handles string or JSON
                     onUpdate: ({ editor }) => {
@@ -172,6 +180,71 @@ class FootnoteView extends ItemView {
                             class: 'colophon-footnote-editor-content',
                             spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                         },
+                        handleDOMEvents: {
+                            contextmenu: (view, event) => {
+                                if (!view.state.selection.empty) {
+                                    event.preventDefault();
+                                    const menu = new Menu();
+                                    menu.addItem((item) => {
+                                        item
+                                            .setTitle('Add comment')
+                                            .setIcon('message-square')
+                                            .onClick(() => {
+                                                // We need to call addComment on the adapter
+                                                // But adapter.addComment uses adapter.editor (main editor)
+                                                // We need to add comment to THIS editor (footnote editor)
+                                                // Does adapter support adding comment to arbitrary editor?
+                                                // No, adapter.addComment uses this.editor.
+                                                // We need to implement addComment logic for footnote editor here.
+
+                                                const id = `comment-${Date.now()}`;
+                                                editor.chain().focus().setComment(id).run();
+
+                                                // Add data via adapter
+                                                // We need to ensure adapter.commentsManager adds it
+                                                if (this.adapter) {
+                                                    this.adapter.commentsManager.addComment(id, this.adapter.settings.authorName);
+                                                    this.adapter.triggerUpdate();
+
+                                                    // Request panel open
+                                                    if (this.adapter.listeners) {
+                                                        this.adapter.listeners.forEach(listener => listener({ type: 'open-comments-panel' }));
+                                                    }
+
+                                                    // Focus the new comment card
+                                                    setTimeout(() => {
+                                                        if (this.adapter.listeners) {
+                                                            this.adapter.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
+                                                        }
+                                                    }, 100);
+                                                }
+                                            });
+                                    });
+                                    menu.showAtMouseEvent(event);
+                                    return true;
+                                }
+                                return false;
+                            },
+                            dblclick: (view, event) => {
+                                const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                                if (pos) {
+                                    const $pos = view.state.doc.resolve(pos.pos);
+                                    const commentMark = $pos.marks().find(m => m.type.name === 'comment');
+
+                                    if (commentMark) {
+                                        const id = commentMark.attrs.id;
+                                        if (this.adapter && this.adapter.listeners) {
+                                            this.adapter.listeners.forEach(listener => listener({ type: 'open-comments-panel' }));
+                                            setTimeout(() => {
+                                                this.adapter.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
+                                            }, 50);
+                                        }
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            }
+                        }
                     },
                     onFocus: ({ editor }) => {
                         if (this.adapter && this.adapter.toolbar) {
@@ -228,6 +301,72 @@ class FootnoteView extends ItemView {
             }
         }
         return null;
+    }
+
+    removeCommentMark(id) {
+        this.editors.forEach(editor => {
+            if (!editor || editor.isDestroyed) return;
+
+            const ranges = [];
+            editor.state.doc.descendants((node, pos) => {
+                if (node.marks) {
+                    const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                    if (mark) {
+                        ranges.push({ from: pos, to: pos + node.nodeSize });
+                    }
+                }
+            });
+
+            if (ranges.length > 0) {
+                const tr = editor.state.tr;
+                ranges.forEach(range => {
+                    tr.removeMark(range.from, range.to, editor.schema.marks.comment);
+                });
+                editor.view.dispatch(tr);
+
+                // Also update the footnote content in adapter
+                // We need to find which footnote this editor belongs to
+                // We can iterate map entries
+                for (const [fnId, ed] of this.editors.entries()) {
+                    if (ed === editor) {
+                        this.adapter.updateFootnote(fnId, editor.getJSON());
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    scrollToComment(id) {
+        for (const [fnId, editor] of this.editors.entries()) {
+            let from = null;
+            let to = null;
+            editor.state.doc.descendants((node, pos) => {
+                if (node.marks) {
+                    const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                    if (mark) {
+                        if (from === null) from = pos;
+                        to = pos + node.nodeSize;
+                    }
+                }
+            });
+
+            if (from !== null && to !== null) {
+                // Found it
+                editor.chain()
+                    .focus()
+                    .setTextSelection({ from, to })
+                    .scrollIntoView()
+                    .run();
+
+                // Also scroll the footnote item into view in the sidebar
+                const item = this.contentEl.querySelector(`[data-footnote-id="${fnId}"]`);
+                if (item) {
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return;
+            }
+        }
     }
 }
 

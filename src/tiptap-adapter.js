@@ -19,7 +19,7 @@ const StandardLink = require('./extensions/standard-link');
 const DocxSerializer = require('./extensions/docx-serializer');
 const StyleManager = require('./style-manager');
 const DEFAULT_STYLES = require('./default-styles');
-const { parseYaml } = require('obsidian');
+const { parseYaml, Menu } = require('obsidian');
 
 // Custom extension to handle the Enter key
 const EnterKeyHandler = Extension.create({
@@ -221,9 +221,11 @@ class TiptapAdapter {
             }
         }
 
-        // Load comments if available in new structure
+        // Load comments if available in new structure, otherwise clear
         if (data && data.comments) {
             this.commentsManager.load(data.comments);
+        } else {
+            this.commentsManager.load([]);
         }
 
         // Fallback to parsing Markdown if no data
@@ -243,6 +245,9 @@ class TiptapAdapter {
 
         this.initEditor(content);
         this.isLoaded = true;
+
+        // Trigger initial update to sync listeners (e.g. CommentsPanel)
+        this.triggerUpdate();
     }
 
     initEditor(content) {
@@ -298,6 +303,45 @@ class TiptapAdapter {
                 attributes: {
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                 },
+                handleDOMEvents: {
+                    contextmenu: (view, event) => {
+                        if (!view.state.selection.empty) {
+                            event.preventDefault();
+                            const menu = new Menu();
+                            menu.addItem((item) => {
+                                item
+                                    .setTitle('Add comment')
+                                    .setIcon('message-square')
+                                    .onClick(() => {
+                                        this.addComment(this.settings.authorName);
+                                    });
+                            });
+                            menu.showAtMouseEvent(event);
+                            return true;
+                        }
+                        return false;
+                    },
+                    dblclick: (view, event) => {
+                        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+                        if (pos) {
+                            const node = view.state.doc.nodeAt(pos.pos);
+                            const marks = node ? node.marks : [];
+                            // Or better: resolve position
+                            const $pos = view.state.doc.resolve(pos.pos);
+                            const commentMark = $pos.marks().find(m => m.type.name === 'comment');
+
+                            if (commentMark) {
+                                const id = commentMark.attrs.id;
+                                this.listeners.forEach(listener => listener({ type: 'open-comments-panel' }));
+                                setTimeout(() => {
+                                    this.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
+                                }, 50);
+                                return true; // Prevent default double-click behavior (selection)? Maybe not.
+                            }
+                        }
+                        return false;
+                    }
+                }
             },
             content: content,
             onUpdate: ({ editor }) => {
@@ -573,6 +617,9 @@ class TiptapAdapter {
         this.commentsManager.addComment(id, authorName);
         this.triggerUpdate();
 
+        // Request panel open
+        this.listeners.forEach(listener => listener({ type: 'open-comments-panel' }));
+
         // Focus the new comment card
         setTimeout(() => {
             this.listeners.forEach(listener => listener({ type: 'focus-comment', id }));
@@ -632,27 +679,68 @@ class TiptapAdapter {
 
         this.commentsManager.resolveComment(id);
         this.triggerUpdate();
+
+        // Notify listeners to remove mark from other editors (e.g. footnotes)
+        this.listeners.forEach(listener => listener({ type: 'remove-comment-mark', id }));
+    }
+
+    deleteComment(id) {
+        // Remove mark from editor
+        if (!this.editor) return;
+
+        // Find all ranges with this mark ID
+        const ranges = [];
+        this.editor.state.doc.descendants((node, pos) => {
+            if (node.marks) {
+                const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
+                if (mark) {
+                    ranges.push({ from: pos, to: pos + node.nodeSize });
+                }
+            }
+        });
+
+        if (ranges.length > 0) {
+            // Create a transaction to remove marks
+            const tr = this.editor.state.tr;
+            ranges.forEach(range => {
+                tr.removeMark(range.from, range.to, this.editor.schema.marks.comment);
+            });
+            this.editor.view.dispatch(tr);
+        }
+
+        this.commentsManager.deleteComment(id);
+        this.triggerUpdate();
+
+        // Notify listeners to remove mark from other editors (e.g. footnotes)
+        this.listeners.forEach(listener => listener({ type: 'remove-comment-mark', id }));
     }
 
     scrollToComment(id) {
         if (!this.editor) return;
 
-        // Find the mark
-        let targetPos = null;
+        // Find the mark range
+        let from = null;
+        let to = null;
         this.editor.state.doc.descendants((node, pos) => {
-            if (targetPos !== null) return false;
             if (node.marks) {
                 const mark = node.marks.find(m => m.type.name === 'comment' && m.attrs.id === id);
                 if (mark) {
-                    targetPos = pos;
+                    if (from === null) from = pos;
+                    to = pos + node.nodeSize;
                 }
             }
         });
 
-        if (targetPos !== null) {
-            this.editor.commands.setTextSelection(targetPos);
-            this.editor.commands.scrollIntoView();
+        if (from !== null && to !== null) {
+            this.editor.chain()
+                .setTextSelection({ from, to })
+                .scrollIntoView()
+                .run();
+            return;
         }
+
+        // Not found in main editor, try listeners (FootnoteView)
+        this.listeners.forEach(listener => listener({ type: 'scroll-to-comment', id }));
     }
 
     getComments() {
