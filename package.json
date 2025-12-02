@@ -1,6 +1,6 @@
 {
     "name": "obsidian-colophon",
-    "version": "1.2.5",
+    "version": "1.2.6",
     "description": "A dedicated writing environment for Obsidian.",
     "main": "main.js",
     "scripts": {

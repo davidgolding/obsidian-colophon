@@ -13,7 +13,7 @@ class CommentsPanel {
 
     create() {
         this.el = this.containerEl.createDiv('colophon-comments-panel');
-        this.el.style.display = 'none'; // Hidden by default
+        // Initial state is hidden by CSS default
         this.render();
     }
 
@@ -30,7 +30,7 @@ class CommentsPanel {
     toggle(show) {
         this.isVisible = show;
         if (this.el) {
-            this.el.style.display = show ? 'flex' : 'none';
+            this.el.classList.toggle('is-visible', show);
             if (show) {
                 this.render();
             }
