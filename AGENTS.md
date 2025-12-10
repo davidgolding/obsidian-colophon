@@ -52,6 +52,15 @@
 - **List Support**: Richly customizable bullet/ordered lists.
 - **DOCX Export**: High-fidelity export via `src/extensions/docx-serializer.js` and `src/minimal-docx.js`.
 
+### 4. State Persistence (New)
+- **Cursor Persistence**:
+  - Implemented via both `FileView` lifecycle methods (`get/setEphemeralState`) for reload persistence, and `active-leaf-change` listener in `view.js` for tab switching.
+  - `TiptapAdapter` actively tracks `lastCursorState` (anchor/head).
+  - Explicitly restores focus with a 20ms delay to handle browser focus timing issues during tab transitions.
+- **Footnote Scroll Persistence**:
+  - Since `FootnoteView` is a singleton that swaps context, scroll state is stored on the **Adapter** (`activeView.adapter.footnoteScrollState`).
+  - `FootnoteView.setAdapter` saves scroll position to the *outgoing* adapter and restores it from the *incoming* adapter.
+
 ## Key Files Map
 - `src/main.js`: Plugin entry, command patching (with predicates), settings tab.
 - `src/view.js`: View container, theme logic, word count, icon logic.
