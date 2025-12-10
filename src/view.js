@@ -101,7 +101,6 @@ class ColophonView extends FileView {
             this.data = newData;
             this.save();
             this.updateWordCount();
-            this.plugin.activateFootnoteView();
             // Update comments panel
             if (this.commentsPanel) {
                 this.commentsPanel.render();
@@ -121,6 +120,9 @@ class ColophonView extends FileView {
                 this.updateCanvasTheme();
             }
         }));
+
+        // Ensure footnote view is loaded (but do not reveal)
+        await this.plugin.activateFootnoteView(false);
     }
 
     onPaneMenu(menu, source) {

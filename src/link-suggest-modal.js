@@ -55,10 +55,14 @@ class LinkSuggestModal extends SuggestModal {
         if (!query) return files;
 
         const lowerCaseQuery = query.toLowerCase();
-        return files.filter(file =>
-            file.path.toLowerCase().includes(lowerCaseQuery) ||
-            file.basename.toLowerCase().includes(lowerCaseQuery)
-        );
+        // Split by whitespace and filter out empty strings
+        const searchTokens = lowerCaseQuery.split(/\s+/).filter(t => t.length > 0);
+
+        return files.filter(file => {
+            const filePath = file.path.toLowerCase();
+            // Check if ALL tokens are present in the file path
+            return searchTokens.every(token => filePath.includes(token));
+        });
     }
 
     renderSuggestion(file, el) {
