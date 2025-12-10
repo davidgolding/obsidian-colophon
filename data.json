@@ -10,7 +10,7 @@
   "enabledStyles": [
     "paragraph-styles.yaml"
   ],
-  "showWordCount": true,
+  "showWordCount": false,
   "authorName": "David Golding",
   "textColumnBottomPadding": 0
 }
