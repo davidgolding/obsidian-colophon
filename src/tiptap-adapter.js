@@ -365,6 +365,14 @@ class TiptapAdapter {
                 this.handleScroll();
                 if (this.toolbar) this.toolbar.update();
                 this.checkActiveComment();
+
+                // Track cursor state locally for restore
+                if (!editor.state.selection.empty) {
+                    // Can track range too if desired, but for tab switch, usually just anchor is enough?
+                    // Tiptap selection object has anchor/head.
+                }
+                const { anchor, head } = editor.state.selection;
+                this.lastCursorState = { anchor, head };
             },
             onFocus: ({ editor }) => {
                 if (this.toolbar) this.toolbar.setActiveEditor(editor);
@@ -381,6 +389,11 @@ class TiptapAdapter {
             this.toolbar.setActiveEditor(this.editor);
             this.toolbar.updateStyleOptions(this.paragraphOptions || [], this.listOptions || []);
         }
+    }
+
+    restoreCursor() {
+        if (!this.editor || !this.lastCursorState) return;
+        this.setCursorState(this.lastCursorState);
     }
 
     async loadStyles() {
@@ -797,6 +810,35 @@ class TiptapAdapter {
             }
         }
     }
+
+    getCursorState() {
+        if (!this.editor) return null;
+        const { anchor, head } = this.editor.state.selection;
+        return { anchor, head };
+    }
+
+    setCursorState(state) {
+        if (!this.editor || !state) return;
+
+        // Wait a tick to ensure the view is active/visible before focusing
+        setTimeout(() => {
+            if (this.editor && !this.editor.isDestroyed) {
+                try {
+                    this.editor.chain()
+                        .focus()
+                        .setTextSelection({ from: state.anchor, to: state.head })
+                        .run();
+                    // Double ensure DOM focus
+                    this.editor.view.focus();
+                } catch (e) {
+                    console.error("Colophon: Failed to restore cursor state", e);
+                }
+            }
+        }, 20);
+    }
+
+
+
 
     getFootnotes() {
         return this.footnotes;

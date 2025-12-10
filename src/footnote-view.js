@@ -34,6 +34,7 @@ class FootnoteView extends ItemView {
     }
 
     async onOpen() {
+        await super.onOpen();
         const container = this.contentEl;
         container.empty();
         container.addClass('colophon-footnote-view');
@@ -41,6 +42,19 @@ class FootnoteView extends ItemView {
         // Initialize Popover removed
 
         this.render();
+    }
+
+    getEphemeralState() {
+        const state = super.getEphemeralState();
+        state.scroll = this.contentEl.scrollTop;
+        return state;
+    }
+
+    setEphemeralState(state) {
+        super.setEphemeralState(state);
+        if (state.scroll) {
+            this.contentEl.scrollTop = state.scroll;
+        }
     }
 
     async onClose() {
@@ -63,6 +77,11 @@ class FootnoteView extends ItemView {
     }
 
     setAdapter(adapter) {
+        // Save scroll state to current adapter before switching
+        if (this.adapter) {
+            this.adapter.footnoteScrollState = this.contentEl.scrollTop;
+        }
+
         // Unsubscribe from previous adapter if exists
         if (this.unsubscribe) {
             this.unsubscribe();
@@ -85,6 +104,16 @@ class FootnoteView extends ItemView {
         }
 
         this.render();
+
+        // Restore scroll state if available
+        if (this.adapter && this.adapter.footnoteScrollState !== undefined) {
+            // We need to wait for DOM update? synchronous render should be fine unless images load.
+            // But let's set it.
+            this.contentEl.scrollTop = this.adapter.footnoteScrollState;
+        } else {
+            // Reset to top if no state
+            this.contentEl.scrollTop = 0;
+        }
     }
 
     render(force = false) {

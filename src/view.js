@@ -44,6 +44,8 @@ class ColophonView extends FileView {
 
 
     async onOpen() {
+        await super.onOpen();
+
         // Create the container for Tiptap
         this.contentEl.empty();
         this.contentEl.addClass('colophon-workspace');
@@ -130,17 +132,26 @@ class ColophonView extends FileView {
         await this.plugin.activateFootnoteView(false);
 
         // Register Search Shortcuts (Override Global Graph View)
-        this.scope.register(['Mod'], 'g', (evt) => {
-            evt.preventDefault();
-            if (this.searchPanel) this.searchPanel.findNext();
-            return false;
-        });
+        if (this.scope) {
+            this.scope.register(['Mod'], 'g', (evt) => {
+                evt.preventDefault();
+                if (this.searchPanel) this.searchPanel.findNext();
+                return false;
+            });
 
-        this.scope.register(['Mod', 'Shift'], 'g', (evt) => {
-            evt.preventDefault();
-            if (this.searchPanel) this.searchPanel.findPrevious();
-            return false;
-        });
+            this.scope.register(['Mod', 'Shift'], 'g', (evt) => {
+                evt.preventDefault();
+                if (this.searchPanel) this.searchPanel.findPrevious();
+                return false;
+            });
+        }
+
+        // Listen for active leaf change to restore cursor
+        this.registerEvent(this.app.workspace.on('active-leaf-change', (leaf) => {
+            if (leaf === this.leaf && this.adapter) {
+                this.adapter.restoreCursor();
+            }
+        }));
     }
 
     onPaneMenu(menu, source) {
@@ -294,6 +305,7 @@ class ColophonView extends FileView {
     }
 
     async onClose() {
+        await super.onClose();
         if (this.toolbar) {
             this.toolbar.destroy();
             // Also remove the container we added to the header
@@ -335,6 +347,15 @@ class ColophonView extends FileView {
 
             // Hide loader once loaded
             this.hideLoader();
+
+            // Apply pending state if exists
+            if (this.pendingState && this.pendingState.cursor) {
+                this.adapter.setCursorState(this.pendingState.cursor);
+                if (this.pendingState.scroll && this.scrollEl) {
+                    this.scrollEl.scrollTop = this.pendingState.scroll;
+                }
+                this.pendingState = null;
+            }
         }
 
         if (this.toolbar) {
@@ -395,6 +416,39 @@ class ColophonView extends FileView {
     openSearch() {
         if (this.searchPanel) {
             this.searchPanel.open();
+        }
+    }
+
+    getEphemeralState() {
+        const state = super.getEphemeralState();
+
+        if (this.adapter) {
+            const cursor = this.adapter.getCursorState();
+            if (cursor) {
+                state.cursor = cursor;
+            }
+        }
+
+        if (this.scrollEl) {
+            state.scroll = this.scrollEl.scrollTop;
+        }
+
+        return state;
+    }
+
+    setEphemeralState(state) {
+        super.setEphemeralState(state);
+
+        if (state.scroll && this.scrollEl) {
+            this.scrollEl.scrollTop = state.scroll;
+        }
+
+        if (state.cursor) {
+            if (this.adapter && this.adapter.isLoaded) {
+                this.adapter.setCursorState(state.cursor);
+            } else {
+                this.pendingState = state;
+            }
         }
     }
 }
