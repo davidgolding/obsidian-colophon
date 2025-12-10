@@ -145,6 +145,22 @@ module.exports = class ColophonPlugin extends Plugin {
             }
         });
 
+        // COMMAND: Find
+        this.addCommand({
+            id: 'find-colophon',
+            name: 'Find',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view) {
+                    if (!checking) {
+                        view.openSearch();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // COMMAND: Toggle Comments Panel
         this.addCommand({
             id: 'toggle-colophon-comments',
@@ -260,7 +276,12 @@ module.exports = class ColophonPlugin extends Plugin {
             patchCommand('editor:toggle-bold', (editor) => editor.chain().focus().toggleBold().run());
             patchCommand('editor:toggle-italics', (editor) => editor.chain().focus().toggleItalic().run());
             patchCommand('editor:toggle-strikethrough', (editor) => editor.chain().focus().toggleStrike().run());
-            // patchCommand('editor:toggle-code', (editor) => editor.chain().focus().toggleCode().run()); // If needed
+
+            // Patch Find Command
+            patchCommand('editor:open-search', (editor) => {
+                const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (colophonView) colophonView.openSearch();
+            });
         });
     }
 
