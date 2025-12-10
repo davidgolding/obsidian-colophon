@@ -286,19 +286,6 @@
 
 .colophon-context-menu {
     width: 220px;
-    /* Position handled by JS or relative to button? 
-       For now, let's assume absolute positioning or relative to parent.
-       If appended to toolbar, it might need top/left.
-       Actually, in toolbar.js I appended it to button parent? No, to toolbar el.
-       I need to position it.
-       Let's make it fixed or absolute relative to button.
-       CSS alone is hard for absolute positioning relative to a button in a flex row unless button is relative.
-       I'll make .ui-btn relative? No, dropdown is child of toolbar.
-       I'll update toolbar.js to position it or append to button.
-       Wait, I appended dropdown to `row1` (which is flex).
-       So `position: absolute` will be relative to `colophon-toolbar` (if relative) or `row1` (if relative).
-       Let's make `toolbar-row` relative?
-    */
 }
 
 .colophon-menu-item {
@@ -799,8 +786,8 @@
 /* Root Scope */
 .colophon-editor-host.is-script-mode .ProseMirror {
     font-family: 'Courier Prime', 'Courier New', Courier, monospace;
-    font-size: 12pt;
-    line-height: 1.0;
+    font-size: 1rem;
+    line-height: 1.2rem;
     /* Single spacing standard */
     color: var(--text-normal);
     max-width: 8.5in;

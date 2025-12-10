@@ -300,7 +300,7 @@ module.exports = class ColophonPlugin extends Plugin {
         });
     }
 
-    async activateFootnoteView() {
+    async activateFootnoteView(reveal = true) {
         const { workspace } = this.app;
 
         let leaf = null;
@@ -317,7 +317,18 @@ module.exports = class ColophonPlugin extends Plugin {
         }
 
         // "Reveal" the leaf in case it is in a collapsed sidebar
-        workspace.revealLeaf(leaf);
+        if (reveal) {
+            workspace.revealLeaf(leaf);
+        }
+
+        // Ensure the view has the correct adapter linked
+        const view = leaf.view;
+        if (view instanceof FootnoteView) {
+            const activeView = workspace.getActiveViewOfType(ColophonView);
+            if (activeView && activeView.adapter) {
+                view.setAdapter(activeView.adapter);
+            }
+        }
     }
 
     async activateCommentsView() {
