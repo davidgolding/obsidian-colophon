@@ -2,6 +2,7 @@ const { FileView, WorkspaceLeaf, Notice, debounce } = require('obsidian');
 const Toolbar = require('./toolbar');
 const TiptapAdapter = require('./tiptap-adapter');
 const CommentsPanel = require('./comments-panel');
+const SearchPanel = require('./search-panel');
 const { parseFile, serializeFile } = require('./io');
 
 const VIEW_TYPE = 'colophon-view';
@@ -110,6 +111,10 @@ class ColophonView extends FileView {
         // Connect Adapter to Comments Panel
         this.commentsPanel.setAdapter(this.adapter);
 
+        // Create Search Panel
+        this.searchPanel = new SearchPanel(this, this.adapter);
+        this.searchPanel.create();
+
         if (this.plugin.settings.showWordCount) {
             this.toggleWordCount(true);
         }
@@ -123,6 +128,19 @@ class ColophonView extends FileView {
 
         // Ensure footnote view is loaded (but do not reveal)
         await this.plugin.activateFootnoteView(false);
+
+        // Register Search Shortcuts (Override Global Graph View)
+        this.scope.register(['Mod'], 'g', (evt) => {
+            evt.preventDefault();
+            if (this.searchPanel) this.searchPanel.findNext();
+            return false;
+        });
+
+        this.scope.register(['Mod', 'Shift'], 'g', (evt) => {
+            evt.preventDefault();
+            if (this.searchPanel) this.searchPanel.findPrevious();
+            return false;
+        });
     }
 
     onPaneMenu(menu, source) {
@@ -371,6 +389,12 @@ class ColophonView extends FileView {
             if (this.commentsToggleBtn) {
                 this.commentsToggleBtn.classList.toggle('is-active', isVisible);
             }
+        }
+    }
+
+    openSearch() {
+        if (this.searchPanel) {
+            this.searchPanel.open();
         }
     }
 }

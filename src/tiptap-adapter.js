@@ -21,6 +21,7 @@ const StyleManager = require('./style-manager');
 const DEFAULT_STYLES = require('./default-styles');
 const { parseYaml, Menu } = require('obsidian');
 const ScriptFormatting = require('./extensions/script-formatting');
+const Search = require('./extensions/search');
 
 // Custom extension to handle the Enter key
 const EnterKeyHandler = Extension.create({
@@ -301,6 +302,7 @@ class TiptapAdapter {
                 app: this.app,
                 getFilePath: () => this.filePath
             }),
+            Search,
             DocxSerializer
         ];
 
@@ -366,6 +368,11 @@ class TiptapAdapter {
             },
             onFocus: ({ editor }) => {
                 if (this.toolbar) this.toolbar.setActiveEditor(editor);
+            },
+            onTransaction: ({ transaction }) => {
+                if (transaction.getMeta('search')) {
+                    this.triggerUpdate();
+                }
             }
         });
 

@@ -875,3 +875,109 @@
 .colophon-editor-host.is-script-mode .ProseMirror u {
     text-decoration: underline;
 }
+
+/* Search Panel */
+.colophon-search-panel {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: var(--font-ui-small);
+    color: var(--text-normal);
+}
+
+.colophon-search-input-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+    margin-right: 8px;
+}
+
+.colophon-search-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    width: 150px;
+    padding-right: 40px;
+    /* Space for counter */
+}
+
+.colophon-search-input:focus {
+    box-shadow: none;
+    border-color: transparent;
+}
+
+.colophon-search-input.no-matches {
+    color: var(--text-error);
+}
+
+.colophon-search-counter {
+    position: absolute;
+    right: 0;
+    color: var(--text-muted);
+    font-size: 0.85em;
+    pointer-events: none;
+}
+
+.colophon-search-buttons {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-left: 1px solid var(--background-modifier-border);
+    padding-left: 8px;
+}
+
+.colophon-search-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+
+.colophon-search-button:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.colophon-search-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.colophon-search-close {
+    margin-left: 4px;
+}
+
+/* Search Highlights */
+.colophon-search-match {
+    background-color: rgba(255, 255, 0, 0.4);
+    border-radius: 2px;
+}
+
+.theme-dark .colophon-search-match {
+    background-color: rgba(255, 215, 0, 0.4);
+}
+
+.colophon-search-match-active {
+    background-color: rgba(255, 165, 0, 0.8);
+    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.4);
+    z-index: 1;
+}
+
+.theme-dark .colophon-search-match-active {
+    background-color: rgba(255, 140, 0, 0.8);
+}
