@@ -540,7 +540,12 @@ colophon-plugin: manuscript
 
         try {
             const newFile = await this.app.vault.create(finalPath, initialContent);
-            await this.app.workspace.getLeaf(false).openFile(newFile);
+            const leaf = this.app.workspace.getLeaf(false);
+            await leaf.setViewState({
+                type: VIEW_TYPE,
+                active: true,
+                state: { file: newFile.path }
+            });
         } catch (e) {
             new Notice(`Failed to create manuscript: ${e.toString()}`);
         }
@@ -569,7 +574,12 @@ colophon-plugin: script
 
         try {
             const newFile = await this.app.vault.create(finalPath, initialContent);
-            await this.app.workspace.getLeaf(false).openFile(newFile);
+            const leaf = this.app.workspace.getLeaf(false);
+            await leaf.setViewState({
+                type: VIEW_TYPE,
+                active: true,
+                state: { file: newFile.path }
+            });
         } catch (e) {
             new Notice(`Failed to create script: ${e.toString()}`);
         }
