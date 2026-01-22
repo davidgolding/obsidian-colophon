@@ -168,7 +168,7 @@ function processDocument(view, doc, stylesConfig) {
 
 function processFootnotes(footnoteView, mainEditor) {
     const footnotes = {};
-    if (!footnoteView) return footnotes;
+    if (!footnoteView || !footnoteView.editors) return footnotes;
 
     footnoteView.editors.forEach((editor, id) => {
         const view = editor.view;
