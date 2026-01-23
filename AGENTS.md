@@ -81,8 +81,14 @@
 ### 2. Track Changes (Phase 4)
 - **Goal**: Track Changes mode (CriticMarkup).
 
+## Agent Skills
+- **Obsidian Markdown**: Located at `~/.agents/skills/obsidian-markdown`.
+  - **Requirement**: This skill DEFINES the Obsidian-flavored Markdown specification for this project.
+  - **Usage**: When writing or parsing Markdown, you MUST refer to this skill rather than general internet knowledge.
+
 ## How to Resume
-1.  **Run Build**: `npm run build` (or `pnpm`).
+1.  **Run Build**: `pnpm build`. Always use `pnpm` instead of `npm`.
 2.  **Verify Script Mode**: Create a script, test formatting (Scene/Action/Dialogue), check disabled footnote command.
 3.  **Verify Manuscript**: Check word count, white canvas mode, footnotes.
 4.  **Continue Comments**: Proceed with the Commenting System implementation.
+5.  **Markdown Compliance**: Always consult `~/.agents/skills/obsidian-markdown` for Markdown specifications.
