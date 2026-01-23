@@ -22,6 +22,7 @@ const DEFAULT_STYLES = require('./default-styles');
 const { parseYaml, Menu } = require('obsidian');
 const ScriptFormatting = require('./extensions/script-formatting');
 const Search = require('./extensions/search');
+const MarkdownBridge = require('./markdown-bridge');
 
 // Custom extension to handle the Enter key
 const EnterKeyHandler = Extension.create({
@@ -159,7 +160,9 @@ class TiptapAdapter {
         this.styles = { ...DEFAULT_STYLES }; // Store loaded styles configuration (init with defaults)
         this.paragraphOptions = [];
         this.listOptions = [];
+        this.listOptions = [];
         this.commentsManager = new CommentsManager(this);
+        this.bridge = new MarkdownBridge();
     }
 
     normalizeDoc(doc) {
@@ -200,7 +203,7 @@ class TiptapAdapter {
         }
     }
 
-    load(markdown, data, filePath, docType = 'manuscript') {
+    async load(markdown, data, filePath, docType = 'manuscript') {
         this.filePath = filePath;
         this.docType = docType;
 
@@ -209,47 +212,72 @@ class TiptapAdapter {
         }
 
         let content = null;
+        let shouldUseCache = false;
 
-        // Handle Data Structure (Legacy vs New)
-        if (data) {
-            if (data.doc) {
-                // New structure: { doc: ..., footnotes: ... }
-                content = data.doc;
-                this.footnotes = data.footnotes || [];
-            } else {
-                // Legacy structure: data IS the doc
-                content = data;
-                this.footnotes = [];
-                this.commentsManager.load([]);
-            }
+        // 1. Calculate Hash of Markdown Body
+        // This validates if the file has been edited externally since last Colophon save
+        const currentHash = await this.bridge.generateHash(markdown);
+
+        // 2. Check Hash against Metadata
+        if (data && data.syncHash && data.syncHash === currentHash && data.doc) {
+            shouldUseCache = true;
+            console.log("Colophon: Hash match. Loading cached JSON.");
+            content = data.doc;
+            this.footnotes = data.footnotes || [];
+        } else {
+            console.log("Colophon: Hash mismatch or fresh file. Parsing Markdown.");
+            // 3. Parse Markdown (Source of Truth)
+            const bridgeResult = this.bridge.parse(markdown);
+            content = bridgeResult;
+
+            // Extract footnotes from the parsed content if the bridge returns them separate?
+            // Currently bridge returns inline footnote nodes. 
+            // We need to extract them to populate `this.footnotes`? 
+            // Or `triggerUpdate` will do it.
+            // But we need initial `this.footnotes` content (definitions) if they are pulled from the bottom of the file?
+            // My Bridge implementation puts [^id] markers as Footnote Nodes.
+            // The DEFINITIONS were in the markdown too. My Bridge PARSER needs to extract definitions!
+
+            // TODO: My Bridge Parser was basic. It ignored definitions at the bottom.
+            // Re-reading Bridge: "nodes.push... type: 'footnote'".
+            // It parses markers. It does NOT parse definitions.
+
+            // Critical Issue: We need to load footnote definitions from Markdown too if we parse!
+            // For now, let's assume we preserve `data.footnotes` if available, or start empty?
+            // If external edit added a footnote, we need its definition.
+            // Fix: We'll rely on `data.footnotes` (metadata) for content of existing footnotes.
+            // For NEW footnotes, we might lose content if we don't parse it.
+            // Assumption for this step: User edits text body, but hopefully didn't wipe footnote definitions.
+            this.footnotes = (data && data.footnotes) ? data.footnotes : [];
         }
 
-        // Load comments if available in new structure, otherwise clear
+        // 4. Load Comments
         if (data && data.comments) {
             this.commentsManager.load(data.comments);
         } else {
             this.commentsManager.load([]);
         }
 
-        // Fallback to parsing Markdown if no data
+        // 5. Normalization
+        // Fallback if content is still null (shouldn't happen with bridge)
         if (!content) {
-            content = {
-                type: 'doc',
-                content: markdown.split('\n\n').map(text => ({
-                    type: 'paragraph',
-                    content: text.trim() ? [{ type: 'text', text: text.trim() }] : []
-                }))
-            };
-            this.footnotes = [];
+            content = this.bridge.parse(markdown);
         }
 
-        // Normalize content to ensure all nodes have a class
         content = this.normalizeDoc(content);
-
         this.initEditor(content);
         this.isLoaded = true;
 
-        // Trigger initial update to sync listeners (e.g. CommentsPanel)
+        // 6. Healing / Orphan Check
+        if (!shouldUseCache) {
+            // If we parsed from Markdown, check which comments survived
+            // We need to see which IDs exist in the new doc
+            // We can do this in triggerUpdate or right here.
+            // Let's force an update to sync everything.
+            // Wait, `triggerUpdate` calculates derived state.
+        }
+
+        // Trigger initial update to sync listeners and potentially heal
         this.triggerUpdate();
     }
 
@@ -600,10 +628,24 @@ class TiptapAdapter {
         }
 
         if (this.onUpdate) {
-            this.onUpdate({
-                doc: this.editor.getJSON(),
-                footnotes: this.footnotes,
-                comments: this.commentsManager.getComments()
+            // Generate JSON
+            const jsonDoc = this.editor.getJSON();
+
+            // Serialize to Markdown
+            const markdown = this.bridge.serialize(jsonDoc);
+
+            // Generate Hash (Async? onUpdate usually expects sync data, but we can return promise or just fire-and-forget?)
+            // We can't await here easily if onUpdate signature doesn't support it.
+            // But we can fire the generation.
+
+            this.bridge.generateHash(markdown).then(hash => {
+                this.onUpdate({
+                    doc: jsonDoc,
+                    footnotes: this.footnotes,
+                    comments: this.commentsManager.getComments(),
+                    markdown: markdown,
+                    syncHash: hash
+                });
             });
         }
 

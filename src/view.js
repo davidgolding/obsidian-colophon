@@ -376,9 +376,21 @@ class ColophonView extends FileView {
     async save() {
         if (!this.file || !this.data) return;
 
-        // For now, we are NOT updating the markdown body based on Tiptap content.
-        // We only save the sidecar data.
-        const newContent = serializeFile(this.markdownBody, this.data, this.frontmatter);
+        // Update markdown body if provided by adapter
+        if (this.data.markdown) {
+            this.markdownBody = this.data.markdown;
+        }
+
+        // Prepare metadata for sidecar
+        // Filter out the markdown string itself
+        const sidecarData = {
+            doc: this.data.doc,
+            comments: this.data.comments,
+            footnotes: this.data.footnotes,
+            syncHash: this.data.syncHash
+        };
+
+        const newContent = serializeFile(this.markdownBody, sidecarData, this.frontmatter);
         await this.app.vault.modify(this.file, newContent);
     }
 

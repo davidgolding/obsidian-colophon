@@ -26,17 +26,33 @@ function parseFile(content) {
         markdown = markdown.substring(frontmatter.length);
     }
 
-    // 2. Extract Sidecar
-    const sidecarRegex = /%% colophon:data\s*(\{[\s\S]*?\})\s*%%$/;
-    const scMatch = markdown.match(sidecarRegex);
+    // 2. Extract Sidecar (Metadata Only)
+    // New format: %% colophon:meta { ... } %%
+    // Legacy format support could be added here if migration is needed, but for now we target the new format.
+    const metaRegex = /%% colophon:meta\s*(\{[\s\S]*?\})\s*%%$/;
+    const metaMatch = markdown.match(metaRegex);
 
-    if (scMatch) {
+    if (metaMatch) {
         try {
-            data = JSON.parse(scMatch[1]);
-            // Remove the sidecar from the markdown content
-            markdown = markdown.replace(sidecarRegex, '').trimEnd();
+            data = JSON.parse(metaMatch[1]);
+            // Remove the metadata block from the markdown content
+            markdown = markdown.replace(metaRegex, '').trimEnd();
         } catch (e) {
-            console.error("Colophon: Failed to parse sidecar data", e);
+            console.error("Colophon: Failed to parse metadata block", e);
+        }
+    } else {
+        // Fallback: Check for legacy data block to avoid data loss during transition/dev
+        const legacyRegex = /%% colophon:data\s*(\{[\s\S]*?\})\s*%%$/;
+        const legacyMatch = markdown.match(legacyRegex);
+        if (legacyMatch) {
+            try {
+                data = JSON.parse(legacyMatch[1]);
+                markdown = markdown.replace(legacyRegex, '').trimEnd();
+                // We might want to flag this data as legacy structure?
+                // For now, the adapter deals with structure.
+            } catch (e) {
+                console.error("Colophon: Failed to parse legacy data block", e);
+            }
         }
     }
 
@@ -44,10 +60,11 @@ function parseFile(content) {
 }
 
 /**
- * Serializes the Markdown body, Sidecar data, and Frontmatter into a single string.
+ * Serializes the Markdown body, Metadata, and Frontmatter into a single string.
+ * This does NOT generate the hash; the caller (Adapter/Bridge) should provide the complete metadata object.
  * 
  * @param {string} markdown 
- * @param {object} data 
+ * @param {object} data - The metadata object (including syncHash, richData, etc.)
  * @param {string} frontmatter
  * @returns {string}
  */
@@ -55,8 +72,9 @@ function serializeFile(markdown, data, frontmatter = '') {
     let content = frontmatter + markdown;
 
     if (data) {
+        // Ensure consistent key order or formatting?
         const json = JSON.stringify(data, null, 2);
-        content = `${content.trimEnd()}\n\n%% colophon:data ${json} %%`;
+        content = `${content.trimEnd()}\n\n%% colophon:meta ${json} %%`;
     }
 
     return content;
