@@ -381,13 +381,13 @@ class ColophonView extends FileView {
             this.markdownBody = this.data.markdown;
         }
 
-        // Prepare metadata for sidecar
-        // Filter out the markdown string itself
+        // Prepare metadata for sidecar (NO DUPLICATION)
+        // We remove 'doc' (JSON content) and 'markdown' (Raw text)
         const sidecarData = {
-            doc: this.data.doc,
             comments: this.data.comments,
             footnotes: this.data.footnotes,
-            syncHash: this.data.syncHash
+            syncHash: this.data.syncHash,
+            linesMeta: this.data.linesMeta // New Line-Based Metadata
         };
 
         const newContent = serializeFile(this.markdownBody, sidecarData, this.frontmatter);

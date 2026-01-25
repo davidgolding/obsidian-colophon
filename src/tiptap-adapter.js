@@ -211,45 +211,19 @@ class TiptapAdapter {
             this.editor.destroy();
         }
 
-        let content = null;
-        let shouldUseCache = false;
+        // 1. Hydrate Content using Bridge
+        // The bridge handles parsing, validation, and healing.
+        const storedHash = (data && data.syncHash) ? data.syncHash : null;
 
-        // 1. Calculate Hash of Markdown Body
-        // This validates if the file has been edited externally since last Colophon save
-        const currentHash = await this.bridge.generateHash(markdown);
+        // Use 'linesMeta' if available (New format), or 'blockMeta' (Previous format)
+        // Ideally we migrate or normalize here.
+        // For line-based healing, we expect 'linesMeta' (array of line metadata).
+        const linesMeta = (data && data.linesMeta) ? data.linesMeta : (data && data.blockMeta) ? data.blockMeta : [];
 
-        // 2. Check Hash against Metadata
-        if (data && data.syncHash && data.syncHash === currentHash && data.doc) {
-            shouldUseCache = true;
-            console.log("Colophon: Hash match. Loading cached JSON.");
-            content = data.doc;
-            this.footnotes = data.footnotes || [];
-        } else {
-            console.log("Colophon: Hash mismatch or fresh file. Parsing Markdown.");
-            // 3. Parse Markdown (Source of Truth)
-            const bridgeResult = this.bridge.parse(markdown);
-            content = bridgeResult;
+        const contentResult = await this.bridge.hydrate(markdown, linesMeta, storedHash);
+        let content = contentResult;
 
-            // Extract footnotes from the parsed content if the bridge returns them separate?
-            // Currently bridge returns inline footnote nodes. 
-            // We need to extract them to populate `this.footnotes`? 
-            // Or `triggerUpdate` will do it.
-            // But we need initial `this.footnotes` content (definitions) if they are pulled from the bottom of the file?
-            // My Bridge implementation puts [^id] markers as Footnote Nodes.
-            // The DEFINITIONS were in the markdown too. My Bridge PARSER needs to extract definitions!
-
-            // TODO: My Bridge Parser was basic. It ignored definitions at the bottom.
-            // Re-reading Bridge: "nodes.push... type: 'footnote'".
-            // It parses markers. It does NOT parse definitions.
-
-            // Critical Issue: We need to load footnote definitions from Markdown too if we parse!
-            // For now, let's assume we preserve `data.footnotes` if available, or start empty?
-            // If external edit added a footnote, we need its definition.
-            // Fix: We'll rely on `data.footnotes` (metadata) for content of existing footnotes.
-            // For NEW footnotes, we might lose content if we don't parse it.
-            // Assumption for this step: User edits text body, but hopefully didn't wipe footnote definitions.
-            this.footnotes = (data && data.footnotes) ? data.footnotes : [];
-        }
+        this.footnotes = (data && data.footnotes) ? data.footnotes : [];
 
         // 4. Load Comments
         if (data && data.comments) {
@@ -258,28 +232,15 @@ class TiptapAdapter {
             this.commentsManager.load([]);
         }
 
-        // 5. Normalization
-        // Fallback if content is still null (shouldn't happen with bridge)
-        if (!content) {
-            content = this.bridge.parse(markdown);
-        }
-
+        // 5. Initialization
         content = this.normalizeDoc(content);
         this.initEditor(content);
         this.isLoaded = true;
 
-        // 6. Healing / Orphan Check
-        if (!shouldUseCache) {
-            // If we parsed from Markdown, check which comments survived
-            // We need to see which IDs exist in the new doc
-            // We can do this in triggerUpdate or right here.
-            // Let's force an update to sync everything.
-            // Wait, `triggerUpdate` calculates derived state.
-        }
-
-        // Trigger initial update to sync listeners and potentially heal
+        // Trigger initial update to sync listeners
         this.triggerUpdate();
     }
+
 
     initEditor(content) {
         // The editor is mounted in a child div to separate it from the scrollable container
@@ -631,20 +592,21 @@ class TiptapAdapter {
             // Generate JSON
             const jsonDoc = this.editor.getJSON();
 
-            // Serialize to Markdown
-            const markdown = this.bridge.serialize(jsonDoc);
+            // Dehydrate using Bridge
+            // This returns { markdown, linesMeta } (and later maybe hash if bridge does it sync? No bridge.generateHash is likely async so dehydrate probably doesn't hash.)
+            // My Bridge.dehydrate is SYNC, but hashing is ASYNC.
+            // Let's rely on standard bridge usage:
+            const dehydration = this.bridge.dehydrate(jsonDoc);
 
-            // Generate Hash (Async? onUpdate usually expects sync data, but we can return promise or just fire-and-forget?)
-            // We can't await here easily if onUpdate signature doesn't support it.
-            // But we can fire the generation.
-
-            this.bridge.generateHash(markdown).then(hash => {
+            // Hash the markdown (async)
+            this.bridge.generateHash(dehydration.markdown).then(hash => {
                 this.onUpdate({
-                    doc: jsonDoc,
+                    doc: jsonDoc, // Keeping for internal use/legacy but View strips it
                     footnotes: this.footnotes,
                     comments: this.commentsManager.getComments(),
-                    markdown: markdown,
-                    syncHash: hash
+                    markdown: dehydration.markdown,
+                    syncHash: hash,
+                    linesMeta: dehydration.linesMeta // New format
                 });
             });
         }
