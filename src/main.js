@@ -1,806 +1,98 @@
-const { Plugin, TFolder, Notice, normalizePath, WorkspaceLeaf, PluginSettingTab, Setting } = require('obsidian');
-const { ColophonView, VIEW_TYPE } = require('./view');
-const { FootnoteView, FOOTNOTE_VIEW_TYPE } = require('./footnote-view');
-const { CommentsView, COMMENT_VIEW_TYPE } = require('./comment-view');
-const ExportModal = require('./export-modal');
+import { Plugin, TFolder } from 'obsidian';
+import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 
-const DEFAULT_SETTINGS = {
-    textColumnWidth: 1080,
-    fixedFeedPosition: false,
-    feedPadding: 50,
-    smartQuotes: true,
-    smartDashes: true,
-    doubleQuoteStyle: '“|”',
-    singleQuoteStyle: '‘|’',
-    stylesFolder: 'snippets',
-    enabledStyles: [],
-    showWordCount: false,
-    authorName: 'Me'
-};
-
-const fs = require('fs');
-const electron = require('electron');
-
-module.exports = class ColophonPlugin extends Plugin {
+export default class ColophonPlugin extends Plugin {
     async onload() {
-        await this.loadSettings();
-
-        // Register the custom view
+        // 1. Register the View
         this.registerView(
-            VIEW_TYPE,
-            (leaf) => new ColophonView(leaf, this.settings, this)
+            VIEW_TYPE_COLOPHON,
+            (leaf) => new ColophonView(leaf)
         );
 
-        // Register Footnote View
-        const isSpellcheckEnabledForFootnotes = this.app.vault.getConfig('spellcheck');
-        this.registerView(
-            FOOTNOTE_VIEW_TYPE,
-            (leaf) => new FootnoteView(leaf, this.settings, isSpellcheckEnabledForFootnotes)
-        );
+        // 2. Register the File Extension
+        this.registerExtensions(['colophon'], VIEW_TYPE_COLOPHON);
 
-        // Register Comments View
-        this.registerView(
-            COMMENT_VIEW_TYPE,
-            (leaf) => new CommentsView(leaf, this.settings)
-        );
-
-        // Add Settings Tab
-        this.addSettingTab(new ColophonSettingTab(this.app, this));
-
-        // PATCH: Intercept WorkspaceLeaf.openFile to prevent FOUC (Flash of Unstyled Content)
-        this.patchOpenFile();
-
-        // EVENT LISTENER: Handle file opening (initial opens)
-        this.registerEvent(
-            this.app.workspace.on('file-open', this.handleFileOpen.bind(this))
-        );
-
-        // EVENT LISTENER: Handle switching between tabs
-        this.registerEvent(
-            this.app.workspace.on('active-leaf-change', this.handleActiveLeafChange.bind(this))
-        );
-
-        // RIBBON ICON: Create new Manuscript
-        this.addRibbonIcon('feather', 'New manuscript', async () => {
-            await this.createNewManuscript();
+        // 3. Ribbon Icon - New Manuscript
+        this.addRibbonIcon('feather', 'New Colophon Manuscript', () => {
+            this.createNewColophonFile('manuscript');
         });
 
-        // RIBBON ICON: Create new Script
-        this.addRibbonIcon('clapperboard', 'New script', async () => {
-            await this.createNewScript();
+        // 4. Commands
+        this.addCommand({
+            id: 'new-manuscript',
+            name: 'New Manuscript',
+            callback: () => this.createNewColophonFile('manuscript')
         });
 
-        // FILE MENU: Add "New Manuscript" and "New Script" to context menu
+        this.addCommand({
+            id: 'new-script',
+            name: 'New Script',
+            callback: () => this.createNewColophonFile('script')
+        });
+
+        // 5. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
-                const isFolder = file instanceof TFolder;
-                const path = isFolder ? file.path : file.parent.path;
-
-                menu.addItem((item) => {
-                    item
-                        .setTitle("New manuscript")
-                        .setIcon("feather")
-                        .onClick(async () => {
-                            await this.createNewManuscript(path);
-                        });
-                });
-
-                menu.addItem((item) => {
-                    item
-                        .setTitle("New script")
-                        .setIcon("clapperboard")
-                        .onClick(async () => {
-                            await this.createNewScript(path);
-                        });
-                });
-            })
-        );
-
-        // COMMAND: Add "New manuscript" to command list
-        this.addCommand({
-            id: 'create-new-colophon-manuscript',
-            name: 'New manuscript',
-            callback: () => this.createNewManuscript()
-        });
-
-        // COMMAND: Add "New script" to command list
-        this.addCommand({
-            id: 'create-new-colophon-script',
-            name: 'New script',
-            callback: () => this.createNewScript()
-        });
-
-        // COMMAND: Export to DOCX
-        this.addCommand({
-            id: 'export-to-docx',
-            name: 'Export to Word (.docx)',
-            callback: () => this.exportToDocx()
-        });
-
-        // COMMAND: Open Footnotes View
-        this.addCommand({
-            id: 'open-colophon-footnotes',
-            name: 'Open Footnotes Sidebar',
-            callback: async () => {
-                this.activateFootnoteView();
-            }
-        });
-
-        // COMMAND: Insert Footnote
-        this.addCommand({
-            id: 'insert-colophon-footnote',
-            name: 'Insert Footnote',
-            checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view) {
-                    // Disable in Script Mode
-                    if (view.adapter && view.adapter.docType === 'script') return false;
-
-                    if (!checking) {
-                        view.insertFootnote();
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        // COMMAND: Find
-        this.addCommand({
-            id: 'find-colophon',
-            name: 'Find',
-            checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view) {
-                    if (!checking) {
-                        view.openSearch();
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        // COMMAND: Toggle Comments Panel
-        this.addCommand({
-            id: 'toggle-colophon-comments',
-            name: 'Toggle Comments Panel',
-            checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view) {
-                    if (!checking) {
-                        view.toggleComments();
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        // COMMAND: Add Comment
-        this.addCommand({
-            id: 'add-colophon-comment',
-            name: 'Add Comment',
-            checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter && view.adapter.editor) {
-                    if (!checking) {
-                        view.adapter.addComment(this.settings.authorName);
-                        // Ensure panel is open
-                        if (view.commentsPanel && !view.commentsPanel.isVisible) {
-                            view.toggleComments();
-                        }
-                    }
-                    return true;
-                }
-                return false;
-            }
-        });
-
-        // INTERCEPT: Native "Insert Footnote" command and formatting commands
-        // We cannot remove the command as it breaks the native menu item.
-        // Instead, we will try to monkey-patch the existing command's checkCallback
-        // to allow it to run when ColophonView is active.
-
-        this.app.workspace.onLayoutReady(() => {
-            // Helper to patch commands
-            const patchCommand = (commandId, action, predicate) => {
-                const originalCommand = this.app.commands.commands[commandId];
-                if (originalCommand) {
-                    const originalCheckCallback = originalCommand.checkCallback;
-
-                    originalCommand.checkCallback = (checking) => {
-                        // Check for active Colophon View
-                        const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
-
-                        // Check for Footnote View
-                        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
-                        const footnoteView = footnoteLeaves.length > 0 ? footnoteLeaves[0].view : null;
-
-                        let targetEditor = null;
-
-                        // 1. Check Footnote Sidebar Focus
-                        const activeLeaf = this.app.workspace.activeLeaf;
-                        if (footnoteView && footnoteView instanceof FootnoteView && activeLeaf.view === footnoteView) {
-                            const focusedFootnoteEditor = footnoteView.getFocusedEditor();
-                            if (focusedFootnoteEditor) {
-                                targetEditor = focusedFootnoteEditor;
-                            }
-                        }
-
-                        // 2. Check Main View
-                        if (!targetEditor && activeView && activeView instanceof ColophonView && activeView.adapter && activeView.adapter.editor) {
-                            // If active view is Colophon, use it
-                            targetEditor = activeView.adapter.editor;
-                        }
-
-                        // If we found a target editor in our plugin
-                        if (targetEditor) {
-                            // Check predicate if provided (e.g. to disable in script mode)
-                            if (predicate && !predicate(activeView || footnoteView)) { // Pass context if needed
-                                // If predicate fails, we should fall back to original or return false?
-                                // For insert-footnote in script mode, we want to return false (disable).
-                                return false;
-                            }
-
-                            if (!checking) {
-                                action(targetEditor);
-                            }
-                            return true;
-                        }
-
-                        // Fallback to original
-                        if (originalCheckCallback) {
-                            return originalCheckCallback(checking);
-                        }
-                        return false;
-                    };
-                }
-            };
-
-            // Patch Insert Footnote
-            patchCommand('editor:insert-footnote', (editor) => {
-                const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (colophonView) colophonView.insertFootnote();
-            }, (view) => {
-                // Predicate: Disable in Script Mode
-                // We need to check the ACTIVE view's docType
-                const activeView = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (activeView && activeView.adapter && activeView.adapter.docType === 'script') {
-                    return false;
-                }
-                return true;
-            });
-
-            // Patch Formatting Commands
-            patchCommand('editor:toggle-bold', (editor) => editor.chain().focus().toggleBold().run());
-            patchCommand('editor:toggle-italics', (editor) => editor.chain().focus().toggleItalic().run());
-            patchCommand('editor:toggle-strikethrough', (editor) => editor.chain().focus().toggleStrike().run());
-
-            // Patch Find Command
-            patchCommand('editor:open-search', (editor) => {
-                const colophonView = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (colophonView) colophonView.openSearch();
-            });
-        });
-    }
-
-    async exportToDocx(view) {
-        if (!view) {
-            view = this.app.workspace.getActiveViewOfType(ColophonView);
-        }
-
-        if (!view || !(view instanceof ColophonView)) {
-            new Notice('No active Colophon editor found.');
-            return;
-        }
-
-        new ExportModal(this.app, (settings) => {
-            this.performDocxExport(view, settings);
-        }).open();
-    }
-
-    async performDocxExport(view, exportSettings) {
-        if (!view || !view.adapter.editor) {
-            new Notice('No active Colophon editor found.');
-            return;
-        }
-
-        const editor = view.adapter.editor;
-
-        // Get Footnote View instance
-        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
-        const footnoteView = footnoteLeaves.length > 0 ? footnoteLeaves[0].view : null;
-
-        // Execute the export command provided by the extension
-        // We pass the settings, the footnote view instance, and the source styles
-        editor.commands.exportToDocx({
-            settings: exportSettings,
-            footnoteView: footnoteView,
-            stylesConfig: view.adapter.styles
-        });
-    }
-
-    async activateFootnoteView(reveal = true) {
-        const { workspace } = this.app;
-
-        let leaf = null;
-        const leaves = workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
-
-        if (leaves.length > 0) {
-            // A leaf with our view already exists, use that
-            leaf = leaves[0];
-        } else {
-            // Our view could not be found in the workspace, create a new leaf
-            // in the right sidebar for it
-            leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({ type: FOOTNOTE_VIEW_TYPE, active: true });
-        }
-
-        // "Reveal" the leaf in case it is in a collapsed sidebar
-        if (reveal) {
-            workspace.revealLeaf(leaf);
-        }
-
-        // Ensure the view has the correct adapter linked
-        const view = leaf.view;
-        if (view instanceof FootnoteView) {
-            const activeView = workspace.getActiveViewOfType(ColophonView);
-            if (activeView && activeView.adapter) {
-                view.setAdapter(activeView.adapter);
-            }
-        }
-    }
-
-    async activateCommentsView() {
-        const { workspace } = this.app;
-
-        let leaf = null;
-        const leaves = workspace.getLeavesOfType(COMMENT_VIEW_TYPE);
-
-        if (leaves.length > 0) {
-            leaf = leaves[0];
-        } else {
-            leaf = workspace.getRightLeaf(false);
-            await leaf.setViewState({ type: COMMENT_VIEW_TYPE, active: true });
-        }
-
-        workspace.revealLeaf(leaf);
-    }
-
-
-
-    async loadSettings() {
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    }
-
-    async saveSettings() {
-        await this.saveData(this.settings);
-        // Trigger update in active views
-        this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(leaf => {
-            if (leaf.view instanceof ColophonView) {
-                leaf.view.updateSettings(this.settings);
-            }
-        });
-        // Trigger update in footnote views
-        this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE).forEach(leaf => {
-            if (leaf.view instanceof FootnoteView) {
-                leaf.view.updateSettings(this.settings);
-            }
-        });
-    }
-
-    patchOpenFile() {
-        const plugin = this;
-        const originalOpenFile = WorkspaceLeaf.prototype.openFile;
-
-        WorkspaceLeaf.prototype.openFile = async function (file, openState) {
-            const app = this.app || plugin.app;
-            const cache = app.metadataCache.getFileCache(file);
-
-            if (cache?.frontmatter && (cache.frontmatter['colophon-plugin'] === 'manuscript' || cache.frontmatter['colophon-plugin'] === 'script')) {
-                const currentViewType = this.view.getViewType();
-
-                if (currentViewType !== VIEW_TYPE) {
-                    await this.setViewState({
-                        type: VIEW_TYPE,
-                        state: openState,
-                        active: true
+                if (file instanceof TFolder) {
+                    menu.addItem((item) => {
+                        item
+                            .setTitle('New manuscript')
+                            .setIcon('feather')
+                            .onClick(async () => {
+                                await this.createNewColophonFile('manuscript', file.path);
+                            });
+                    });
+                    menu.addItem((item) => {
+                        item
+                            .setTitle('New script')
+                            .setIcon('clapperboard')
+                            .onClick(async () => {
+                                await this.createNewColophonFile('script', file.path);
+                            });
                     });
                 }
-
-                if (this.view instanceof ColophonView) {
-                    await this.view.loadFile(file);
-                    if (openState && openState.eState) {
-                        this.view.setEphemeralState(openState.eState);
-                    }
-                    return;
-                }
-            }
-            return originalOpenFile.call(this, file, openState);
-        };
-
-        this.register(() => {
-            WorkspaceLeaf.prototype.openFile = originalOpenFile;
-        });
-    }
-
-    async handleActiveLeafChange(leaf) {
-        if (!leaf) return;
-
-        // Update Footnote View if it exists
-        this.updateFootnoteView(leaf.view);
-        // Update Comments View if it exists
-        this.updateCommentsView(leaf.view);
-
-        const file = leaf.view.file;
-        if (!file) return;
-        await this.ensureCorrectView(leaf, file);
-    }
-
-    async handleFileOpen(file) {
-        if (!file) return;
-        const leaf = this.app.workspace.activeLeaf;
-        if (!leaf) return;
-
-        // Update Footnote View
-        this.updateFootnoteView(leaf.view);
-        this.updateCommentsView(leaf.view);
-
-        await this.ensureCorrectView(leaf, file);
-    }
-
-    updateFootnoteView(activeView) {
-        const footnoteLeaves = this.app.workspace.getLeavesOfType(FOOTNOTE_VIEW_TYPE);
-        if (footnoteLeaves.length === 0) return;
-
-        const footnoteView = footnoteLeaves[0].view;
-
-        if (!(footnoteView instanceof FootnoteView)) {
-            // This can happen during hot-reload if the view instance is stale
-            // or if the class definition has changed.
-            // We should probably try to detach it?
-            // For now, just return to avoid error.
-            return;
-        }
-
-        if (typeof footnoteView.setAdapter !== 'function') {
-            console.error('Colophon: FootnoteView instance does not have setAdapter method.');
-            return;
-        }
-
-        // If the active view is the FootnoteView itself, DO NOT clear the adapter.
-        // This allows interaction with the sidebar without losing context.
-        if (activeView instanceof FootnoteView) {
-            return;
-        }
-
-        if (activeView instanceof ColophonView && activeView.adapter) {
-            footnoteView.setAdapter(activeView.adapter);
-        } else {
-            // Only clear if we switched to a completely different view (like a normal markdown file)
-            // or if we closed the file.
-            // But wait, if we switch to another tab, we should clear.
-            // If we click the sidebar, the active leaf becomes the sidebar.
-            // So the check `activeView instanceof FootnoteView` above handles the sidebar click.
-            footnoteView.setAdapter(null);
-        }
-    }
-
-    updateCommentsView(activeView) {
-        // Now handled internally by ColophonView via CommentsPanel
-        // We can just ensure the panel is updated if the view is active
-        if (activeView instanceof ColophonView && activeView.commentsPanel) {
-            activeView.commentsPanel.render();
-        }
-    }
-
-    async ensureCorrectView(leaf, file) {
-        const cache = this.app.metadataCache.getFileCache(file);
-        const isColophon = cache?.frontmatter && (cache.frontmatter['colophon-plugin'] === 'manuscript' || cache.frontmatter['colophon-plugin'] === 'script');
-        const currentViewType = leaf.view.getViewType();
-
-        if (isColophon && currentViewType === 'markdown') {
-            const state = leaf.view.getState();
-            await leaf.setViewState({
-                type: VIEW_TYPE,
-                state: state,
-                active: true
-            });
-        } else if (!isColophon && currentViewType === VIEW_TYPE) {
-            const state = leaf.view.getState();
-            await leaf.setViewState({
-                type: 'markdown',
-                state: state,
-                active: true
-            });
-        }
-    }
-
-    async createNewManuscript(folder) {
-        let target;
-        if (folder) {
-            target = typeof folder === 'string' ? this.app.vault.getAbstractFileByPath(folder) : folder;
-        } else {
-            target = this.app.fileManager.getNewFileParent(
-                this.app.workspace.getActiveFile()?.path || ''
-            );
-        }
-
-        if (!target || !target.path) {
-            new Notice('Invalid folder location');
-            return;
-        }
-
-        const initialContent = `---
-colophon-plugin: manuscript
----
-`;
-        const finalPath = await this.getUniqueFilePath(target);
-
-        try {
-            const newFile = await this.app.vault.create(finalPath, initialContent);
-            const leaf = this.app.workspace.getLeaf(false);
-            await leaf.setViewState({
-                type: VIEW_TYPE,
-                active: true,
-                state: { file: newFile.path }
-            });
-        } catch (e) {
-            new Notice(`Failed to create manuscript: ${e.toString()}`);
-        }
-    }
-
-    async createNewScript(folder) {
-        let target;
-        if (folder) {
-            target = typeof folder === 'string' ? this.app.vault.getAbstractFileByPath(folder) : folder;
-        } else {
-            target = this.app.fileManager.getNewFileParent(
-                this.app.workspace.getActiveFile()?.path || ''
-            );
-        }
-
-        if (!target || !target.path) {
-            new Notice('Invalid folder location');
-            return;
-        }
-
-        const initialContent = `---
-colophon-plugin: script
----
-`;
-        const finalPath = await this.getUniqueFilePath(target);
-
-        try {
-            const newFile = await this.app.vault.create(finalPath, initialContent);
-            const leaf = this.app.workspace.getLeaf(false);
-            await leaf.setViewState({
-                type: VIEW_TYPE,
-                active: true,
-                state: { file: newFile.path }
-            });
-        } catch (e) {
-            new Notice(`Failed to create script: ${e.toString()}`);
-        }
-    }
-
-    async getUniqueFilePath(folder) {
-        let counter = 0;
-        while (true) {
-            const suffix = counter === 0 ? '' : ` ${counter}`;
-            const fileName = `Untitled${suffix}.md`;
-            const filePath = normalizePath(`${folder.path}/${fileName}`);
-            if (!await this.app.vault.exists(filePath)) {
-                return filePath;
-            }
-            counter++;
-        }
+            })
+        );
     }
 
     onunload() {
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE);
-        this.app.workspace.detachLeavesOfType(FOOTNOTE_VIEW_TYPE);
-        this.app.workspace.detachLeavesOfType(COMMENT_VIEW_TYPE);
-    }
-};
-
-class ColophonSettingTab extends PluginSettingTab {
-    constructor(app, plugin) {
-        super(app, plugin);
-        this.plugin = plugin;
     }
 
-    display() {
-        const { containerEl } = this;
-        containerEl.empty();
+    async createNewColophonFile(type, folderPath = '') {
+        // Determine filename
+        let baseName = type === 'script' ? 'Untitled Script' : 'Untitled Manuscript';
+        let path = folderPath ? `${folderPath}/${baseName}.colophon` : `${baseName}.colophon`;
+        let count = 1;
 
-        // Layout Settings
-        new Setting(containerEl)
-            .setName('Text column width')
-            .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
-            .addSlider(slider => slider
-                .setLimits(500, 1240, 10)
-                .setValue(this.plugin.settings.textColumnWidth)
-                .setDynamicTooltip()
-                .onChange(async (value) => {
-                    this.plugin.settings.textColumnWidth = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Fixed feed position')
-            .setDesc('Enforce a typewriter-style fixed active line position.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.fixedFeedPosition)
-                .onChange(async (value) => {
-                    this.plugin.settings.fixedFeedPosition = value;
-                    await this.plugin.saveSettings();
-                    this.display();
-                }));
-
-        if (this.plugin.settings.fixedFeedPosition) {
-            new Setting(containerEl)
-                .setName('Feed padding')
-                .setDesc('Vertical position of the active line (0% = bottom, 75% = top quarter).')
-                .addSlider(slider => slider
-                    .setLimits(0, 75, 1)
-                    .setValue(this.plugin.settings.feedPadding)
-                    .setDynamicTooltip()
-                    .onChange(async (value) => {
-                        this.plugin.settings.feedPadding = value;
-                        await this.plugin.saveSettings();
-                    }));
+        // Simple duplicate check
+        while (await this.app.vault.adapter.exists(path)) {
+            path = folderPath 
+                ? `${folderPath}/${baseName} ${count}.colophon` 
+                : `${baseName} ${count}.colophon`;
+            count++;
         }
 
-        // Substitution Settings
-        new Setting(containerEl)
-            .setName('Smart quotes')
-            .setDesc('Automatically replace straight quotes with smart quotes.')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.smartQuotes)
-                .onChange(async (value) => {
-                    this.plugin.settings.smartQuotes = value;
-                    await this.plugin.saveSettings();
-                    this.display(); // Refresh to show/hide sub-options
-                }));
+        // Initial Data Structure
+        const initialData = {
+            type: type,
+            doc: {
+                type: 'doc',
+                content: [
+                    {
+                        type: 'paragraph',
+                        content: []
+                    }
+                ]
+            }
+        };
 
-        if (this.plugin.settings.smartQuotes) {
-            new Setting(containerEl)
-                .setName('Double quote style')
-                .setDesc('Choose the style for double quotes.')
-                .addDropdown(dropdown => dropdown
-                    .addOption('“|”', '“abc”')
-                    .addOption('„|“', '„abc“')
-                    .addOption('„|”', '„abc”')
-                    .addOption('”|”', '”abc”')
-                    .addOption('«|»', '«abc»')
-                    .addOption('»|«', '»abc«')
-                    .addOption('"|"', '"abc"')
-                    .setValue(this.plugin.settings.doubleQuoteStyle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.doubleQuoteStyle = value;
-                        await this.plugin.saveSettings();
-                    }));
-
-            new Setting(containerEl)
-                .setName('Single quote style')
-                .setDesc('Choose the style for single quotes.')
-                .addDropdown(dropdown => dropdown
-                    .addOption('‘|’', '‘abc’')
-                    .addOption('‚|‘', '‚abc‘')
-                    .addOption('‚|’', '‚abc’')
-                    .addOption('’|’', '’abc’')
-                    .addOption('‹|›', '‹abc›')
-                    .addOption('›|‹', '›abc‹')
-                    .addOption('\'|\'', '\'abc\'')
-                    .setValue(this.plugin.settings.singleQuoteStyle)
-                    .onChange(async (value) => {
-                        this.plugin.settings.singleQuoteStyle = value;
-                        await this.plugin.saveSettings();
-                    }));
-        }
-
-        new Setting(containerEl)
-            .setName('Smart dashes')
-            .setDesc('Replace -- with em-dash (—) and --- with en-dash (–).')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.smartDashes)
-                .onChange(async (value) => {
-                    this.plugin.settings.smartDashes = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        // Paragraph Style Settings
-        new Setting(containerEl)
-            .setName('Styles folder')
-            .setDesc('Folder containing YAML style definitions (relative to vault config directory).')
-            .addText(text => text
-                .setPlaceholder('snippets')
-                .setValue(this.plugin.settings.stylesFolder)
-                .onChange(async (value) => {
-                    this.plugin.settings.stylesFolder = value;
-                    await this.plugin.saveSettings();
-                    this.display();
-                }))
-            .addExtraButton(btn => btn
-                .setIcon('folder-open')
-                .setTooltip('Open folder')
-                .onClick(() => {
-                    const path = this.plugin.app.vault.adapter.getBasePath() + '/' + this.plugin.app.vault.configDir + '/' + this.plugin.settings.stylesFolder;
-                    electron.shell.openPath(path);
-                }));
-
-        // List files in the folder
-        this.displayStyleFiles(containerEl);
-
-        // Comments Settings
-        containerEl.createEl('h3', { text: 'Comments' });
-
-        new Setting(containerEl)
-            .setName('Author Name')
-            .setDesc('Name to display on your comments.')
-            .addText(text => text
-                .setPlaceholder('Me')
-                .setValue(this.plugin.settings.authorName)
-                .onChange(async (value) => {
-                    this.plugin.settings.authorName = value;
-                    await this.plugin.saveSettings();
-                }));
-    }
-
-    async displayStyleFiles(containerEl) {
-        const { app, settings } = this.plugin;
-        const adapter = app.vault.adapter;
-        const configDir = app.vault.configDir;
-        const stylesFolder = settings.stylesFolder || 'snippets';
-        const folderPath = `${configDir}/${stylesFolder}`;
-
-        if (!(await adapter.exists(folderPath))) {
-            new Setting(containerEl)
-                .setName('Folder not found')
-                .setDesc(`The folder "${folderPath}" does not exist.`)
-                .addButton(btn => btn
-                    .setButtonText('Create folder')
-                    .onClick(async () => {
-                        await adapter.mkdir(folderPath);
-                        this.display();
-                    }));
-            return;
-        }
-
-        const files = await adapter.list(folderPath);
-        const yamlFiles = files.files.filter(path => path.endsWith('.yaml') || path.endsWith('.yml'));
-
-        if (yamlFiles.length === 0) {
-            containerEl.createDiv({ text: 'No YAML files found in this folder.', cls: 'setting-item-description' });
-            return;
-        }
-
-        // Use a div with bold text instead of H3
-        const headerDiv = containerEl.createDiv();
-        headerDiv.style.marginTop = "20px";
-        headerDiv.style.marginBottom = "10px";
-        headerDiv.createEl('strong', { text: 'Enabled Styles' });
-
-        for (const filePath of yamlFiles) {
-            const fileName = filePath.split('/').pop();
-            const isEnabled = settings.enabledStyles.includes(fileName);
-
-            new Setting(containerEl)
-                .setName(fileName)
-                .addToggle(toggle => toggle
-                    .setValue(isEnabled)
-                    .onChange(async (value) => {
-                        if (value) {
-                            if (!settings.enabledStyles.includes(fileName)) {
-                                settings.enabledStyles.push(fileName);
-                            }
-                        } else {
-                            settings.enabledStyles = settings.enabledStyles.filter(f => f !== fileName);
-                        }
-                        await this.plugin.saveSettings();
-                    }));
+        // Create and Open
+        try {
+            const file = await this.app.vault.create(path, JSON.stringify(initialData, null, 2));
+            const leaf = this.app.workspace.getLeaf(true);
+            await leaf.openFile(file);
+        } catch (err) {
+            console.error('Failed to create Colophon file:', err);
         }
     }
 }
