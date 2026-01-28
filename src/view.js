@@ -17,7 +17,7 @@ export class ColophonView extends TextFileView {
     getDisplayText() {
         return this.file ? this.file.basename : 'No File';
     }
-    
+
     getIcon() {
         return this.docType === 'script' ? 'clapperboard' : 'feather';
     }
@@ -27,18 +27,7 @@ export class ColophonView extends TextFileView {
         this.contentEl.addClass('colophon-workspace');
         this.editorContainer = this.contentEl.createDiv({ cls: 'colophon-editor-wrapper' });
 
-        // Register Key Scope for formatting
-        this.scope.register(['Mod'], 'B', (evt) => {
-            evt.preventDefault();
-            this.toggleBold();
-            return false;
-        });
 
-        this.scope.register(['Mod'], 'I', (evt) => {
-            evt.preventDefault();
-            this.toggleItalic();
-            return false;
-        });
     }
 
     async onClose() {

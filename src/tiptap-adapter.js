@@ -59,6 +59,12 @@ export class TiptapAdapter {
         }
     }
 
+    toggleStrike() {
+        if (this.editor) {
+            this.editor.chain().focus().toggleStrike().run();
+        }
+    }
+
     destroy() {
         if (this.editor) {
             this.editor.destroy();
