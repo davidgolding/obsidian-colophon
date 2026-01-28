@@ -1,13 +1,12 @@
 import { TextFileView } from 'obsidian';
-import { Editor } from '@tiptap/core';
-import StarterKit from '@tiptap/starter-kit';
+import { TiptapAdapter } from './tiptap-adapter';
 
 export const VIEW_TYPE_COLOPHON = 'colophon-view';
 
 export class ColophonView extends TextFileView {
     constructor(leaf) {
         super(leaf);
-        this.editor = null;
+        this.adapter = null;
         this.docType = 'manuscript'; // 'manuscript' | 'script'
     }
 
@@ -21,13 +20,30 @@ export class ColophonView extends TextFileView {
 
     async onOpen() {
         this.contentEl.addClass('colophon-view');
-        // We defer editor initialization to setViewData when we have the content/type
+        this.contentEl.addClass('colophon-workspace');
+        this.editorContainer = this.contentEl.createDiv({ cls: 'colophon-editor-wrapper' });
+
+        // Register Key Scope for formatting
+        this.scope.register(['Mod'], 'B', (evt) => {
+            evt.preventDefault();
+            this.toggleBold();
+            return false;
+        });
+
+        this.scope.register(['Mod'], 'I', (evt) => {
+            evt.preventDefault();
+            this.toggleItalic();
+            return false;
+        });
     }
 
     async onClose() {
-        if (this.editor) {
-            this.editor.destroy();
-            this.editor = null;
+        if (this.adapter) {
+            this.adapter.destroy();
+            this.adapter = null;
+        }
+        if (this.editorContainer) {
+            this.editorContainer.empty();
         }
     }
 
@@ -43,24 +59,38 @@ export class ColophonView extends TextFileView {
             }
         } catch (e) {
             console.error('Colophon: Error parsing file data', e);
-            // Fallback or error handling could go here
         }
 
         this.docType = parsedData.type || 'manuscript';
-        
+
         // Apply class for specific styling
         this.contentEl.removeClass('type-manuscript', 'type-script');
         this.contentEl.addClass(`type-${this.docType}`);
 
-        if (!this.editor) {
-            this.mountEditor(parsedData.doc);
+        if (!this.adapter) {
+            this.adapter = new TiptapAdapter(this.editorContainer, {
+                content: parsedData.doc,
+                type: this.docType,
+                onUpdate: () => {
+                    this.requestSave();
+                }
+            });
         } else {
             // If clear is true, it means we are reloading the file entirely
             if (clear) {
-                // If the editor exists, we should probably destroy and recreate 
-                // if the type might have changed or extensions need to change.
-                // For now, simple content update:
-                this.editor.commands.setContent(parsedData.doc || {});
+                this.adapter.type = this.docType; // Update type if it changed
+                this.adapter.setContent(parsedData.doc || {});
+
+                // Force update attributes if type changed (optional optimization: check if changed)
+                if (this.adapter.editor) {
+                    this.adapter.editor.setOptions({
+                        editorProps: {
+                            attributes: {
+                                class: `colophon-editor type-${this.docType}`,
+                            },
+                        }
+                    });
+                }
             }
         }
     }
@@ -69,35 +99,30 @@ export class ColophonView extends TextFileView {
      * Called to save the file.
      */
     getViewData() {
-        if (!this.editor) return '';
+        if (!this.adapter) return '';
 
         const data = {
             type: this.docType,
-            doc: this.editor.getJSON()
+            doc: this.adapter.getJSON()
         };
         return JSON.stringify(data, null, 2);
     }
 
     clear() {
-        if (this.editor) {
-            this.editor.commands.clearContent();
+        if (this.adapter && this.adapter.editor) {
+            this.adapter.editor.commands.clearContent();
         }
     }
 
-    mountEditor(content) {
-        // Here we can conditionally load extensions based on this.docType
-        const extensions = [
-            StarterKit,
-        ];
+    toggleBold() {
+        if (this.adapter) {
+            this.adapter.toggleBold();
+        }
+    }
 
-        this.editor = new Editor({
-            element: this.contentEl,
-            extensions: extensions,
-            content: content || { type: 'doc', content: [{ type: 'paragraph' }] },
-            onUpdate: () => {
-                // Trigger auto-save
-                this.requestSave();
-            }
-        });
+    toggleItalic() {
+        if (this.adapter) {
+            this.adapter.toggleItalic();
+        }
     }
 }

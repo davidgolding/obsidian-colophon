@@ -53,9 +53,52 @@ export default class ColophonPlugin extends Plugin {
                 }
             })
         );
+
+        // 6. Patch Native Commands
+        this.app.workspace.onLayoutReady(() => {
+            this.patchCommand('editor:toggle-bold', (adapter) => adapter.toggleBold());
+            this.patchCommand('editor:toggle-italics', (adapter) => adapter.toggleItalic());
+            // this.patchCommand('editor:toggle-strikethrough', (adapter) => adapter.toggleStrike()); // Needed?
+        });
+    }
+
+    patchCommand(commandId, handler) {
+        const command = this.app.commands.commands[commandId];
+        if (!command) return;
+
+        const originalCallback = command.callback;
+        const originalCheckCallback = command.checkCallback;
+
+        // We replace checkCallback to handle both checking and execution
+        command.checkCallback = (checking) => {
+            const view = this.app.workspace.getActiveViewOfType(ColophonView);
+            if (view && view.adapter) {
+                if (!checking) {
+                    handler(view.adapter);
+                }
+                return true;
+            }
+
+            // Fallback to original
+            if (originalCheckCallback) {
+                return originalCheckCallback(checking);
+            }
+            if (originalCallback && !checking) {
+                originalCallback();
+                return true; // assumed
+            }
+            return false;
+        };
+
+        // Clear simple callback to ensure checkCallback is used
+        if (command.callback) command.callback = null;
     }
 
     onunload() {
+        // Obsidian doesn't support unpatching cleanly without storing originals globally,
+        // but since we modify the app instance, reloading the plugin might leak if not careful.
+        // For a simple reload it's usually fine as the app object persists. 
+        // Ideally we would restore commands here.
     }
 
     async createNewColophonFile(type, folderPath = '') {

@@ -29,7 +29,7 @@ You can create a new Colophon document in several ways:
 ## Key Features (v2.0)
 
 - **Dedicated File Format**: Files saved as `.colophon` (JSON) to preserve complex structures like footnotes and comments without cluttering your Markdown notes.
-- **Native Integration**: Works seamlessly with Obsidian's workspace, tabs, and file management.
+- **Native Integration**: Works seamlessly with Obsidian's workspace, tabs, hotkeys (`Cmd+B`/`I`), and file management.
 - **Word Processing Feel**: A distraction-free "white canvas" experience that feels more like a modern word processor than a code editor.
 
 ## Features (In Progress)

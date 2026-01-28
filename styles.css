@@ -98,6 +98,17 @@
     font-weight: normal;
 }
 
+/* Explicit Bold/Italic Styling */
+.colophon-workspace .ProseMirror strong,
+.colophon-workspace .ProseMirror b {
+    font-weight: bold;
+}
+
+.colophon-workspace .ProseMirror em,
+.colophon-workspace .ProseMirror i {
+    font-style: italic;
+}
+
 /* Footnotes */
 .colophon-workspace .ProseMirror .footnote-list {
     font-size: 0.9rem;
