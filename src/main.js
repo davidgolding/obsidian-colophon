@@ -58,7 +58,7 @@ export default class ColophonPlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => {
             this.patchCommand('editor:toggle-bold', (adapter) => adapter.toggleBold());
             this.patchCommand('editor:toggle-italics', (adapter) => adapter.toggleItalic());
-            // this.patchCommand('editor:toggle-strikethrough', (adapter) => adapter.toggleStrike()); // Needed?
+            this.patchCommand('editor:toggle-strikethrough', (adapter) => adapter.toggleStrike());
         });
     }
 
