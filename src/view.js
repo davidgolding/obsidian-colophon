@@ -15,7 +15,11 @@ export class ColophonView extends TextFileView {
     }
 
     getDisplayText() {
-        return this.file ? this.file.basename : 'Colophon';
+        return this.file ? this.file.basename : 'No File';
+    }
+    
+    getIcon() {
+        return this.docType === 'script' ? 'clapperboard' : 'feather';
     }
 
     async onOpen() {
