@@ -13,27 +13,32 @@
 
 ## Current Implementation State (v2.0 Bare Bones)
 
-### 1. File Handling
-- **Registration**: `main.js` registers the `.colophon` extension and maps it to `ColophonView`.
-- **Creation**: Supports creating new files via Ribbon icon, Command Palette, and Folder context menu.
-- **Persistence**: `TextFileView` handles `setViewData` (loading) and `getViewData` (saving) automatically.
+### 1. File Creation Workflow
+- **Modal Interception**: `createNewColophonFile` creates an "Untitled" file, opens it, then immediately prompts with a `FileNameModal` for renaming. mimics native "Create & Rename" flow.
+- **Selection**: Ensures the new file is highlighted in the file explorer.
 
-### 2. ColophonView (`src/view.js`)
-- **Tiptap Integration**: Manages a Tiptap `Editor` instance.
-- **Dynamic Content**: Detects `docType` from the file JSON and applies CSS classes (`type-manuscript` or `type-script`) to the container for styling.
-- **Auto-save**: Calls `requestSave()` on Tiptap updates.
+### 2. Architecture Refactor
+- **`src/tiptap-adapter.js`**: Introduced to encapsulate all Editor interaction (Tiptap v3).
+- **`src/view.js`**: Simplified to handle only Obsidian View lifecycle.
+- **`styles.css`**: Scoped strictly to `.colophon-workspace`.
 
-### 3. Styling (`styles.css`)
-- (Styling logic from v1.0 is being ported/refactored to target `.colophon-view` and the new type-specific classes).
+### 3. Native Integration
+- **Command Patching**: `main.js` patches `editor:toggle-bold` and `editor:toggle-italics`.
+  - Routes commands to `ColophonView.adapter` if active.
+  - Fallbacks to native Obsidian behavior otherwise.
+- **Styling**: Explicit rules added for `strong`, `b`, `em`, `i` to ensure visibility in `styles.css`.
 
 ## Key Files Map
-- `src/main.js`: Plugin entry point, view registration, commands, and menu items.
-- `src/view.js`: Core `TextFileView` implementation and Tiptap lifecycle.
-- `styles.css`: Visual presentation for Manuscript and Script modes.
+- `src/main.js`: Plugin entry, command patching, file creation logic.
+- `src/tiptap-adapter.js`: Tiptap editor wrapper and state management.
+- `src/view.js`: Obsidian `TextFileView` implementation.
+- `styles.css`: Visual presentation.
 
 ## Next Steps / Roadmap
-- **Refine Styling**: Re-implement the high-fidelity typography for both modes in the new view structure.
-- **Extensions**: Port v1.0 extensions (Footnotes, Script Formatting, Substitutions, Word Count) to the new Tiptap 3.x setup.
+## Next Steps / Roadmap
+- **Headers & Block Styles**: Implement formatting for Headings, Blockquotes, etc.
+- **Comments System**: Begin implementation of comments (Data structure + UI).
+- **Extensions**: Port v1.0 extensions (Footnotes, Script Formatting, Word Count).
 - **DOCX Export**: Port the export logic to work with the JSON-based data structure.
 
 ## How to Resume
