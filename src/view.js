@@ -1,11 +1,13 @@
 import { TextFileView } from 'obsidian';
 import { TiptapAdapter } from './tiptap-adapter';
+import { ColophonToolbar } from './ui/toolbar';
 
 export const VIEW_TYPE_COLOPHON = 'colophon-view';
 
 export class ColophonView extends TextFileView {
-    constructor(leaf) {
+    constructor(leaf, plugin) {
         super(leaf);
+        this.plugin = plugin;
         this.adapter = null;
         this.docType = 'manuscript'; // 'manuscript' | 'script'
     }
@@ -26,6 +28,20 @@ export class ColophonView extends TextFileView {
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
         this.editorContainer = this.contentEl.createDiv({ cls: 'colophon-editor-wrapper' });
+
+        // Create Toolbar Container
+        // We want to inject it into the view header title container area if possible, 
+        // OR standard top of view.
+        // For now, let's put it at the top of contentEl
+        const toolbarContainer = this.contentEl.createDiv({ cls: 'colophon-toolbar-wrapper' }, (el) => {
+            el.style.borderBottom = '1px solid var(--background-modifier-border)';
+            el.style.padding = '4px 0';
+        });
+
+        // Move toolbar to top
+        this.contentEl.prepend(toolbarContainer);
+
+        this.toolbar = new ColophonToolbar(this, toolbarContainer);
 
 
     }
@@ -64,8 +80,10 @@ export class ColophonView extends TextFileView {
             this.adapter = new TiptapAdapter(this.editorContainer, {
                 content: parsedData.doc,
                 type: this.docType,
+                settings: this.plugin ? this.plugin.settings : null,
                 onUpdate: () => {
                     this.requestSave();
+                    if (this.toolbar) this.toolbar.update();
                 }
             });
         } else {
@@ -116,6 +134,12 @@ export class ColophonView extends TextFileView {
     toggleItalic() {
         if (this.adapter) {
             this.adapter.toggleItalic();
+        }
+    }
+
+    toggleStrike() {
+        if (this.adapter) {
+            this.adapter.toggleStrike();
         }
     }
 }

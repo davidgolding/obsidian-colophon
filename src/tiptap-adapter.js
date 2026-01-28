@@ -1,10 +1,12 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { generateExtensions } from './extensions/universal-block';
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, type, onUpdate }) {
+    constructor(parentElement, { content, type, settings, onUpdate }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
+        this.settings = settings;
         this.onUpdate = onUpdate;
         this.editor = null;
 
@@ -12,13 +14,21 @@ export class TiptapAdapter {
     }
 
     mount(content) {
+        const dynamicExtensions = this.settings ? generateExtensions(this.settings) : [];
+
         this.editor = new Editor({
             element: this.parentElement,
             extensions: [
                 StarterKit,
+                ...dynamicExtensions
             ],
-            content: content || { type: 'doc', content: [{ type: 'paragraph' }] },
+            content: content || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor }) => {
+                if (this.onUpdate) {
+                    this.onUpdate();
+                }
+            },
+            onSelectionUpdate: ({ editor }) => {
                 if (this.onUpdate) {
                     this.onUpdate();
                 }

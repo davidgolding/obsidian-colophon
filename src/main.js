@@ -1,12 +1,24 @@
 import { Plugin, TFolder, Modal } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
+import { DEFAULT_SETTINGS } from './settings-data';
+import { StyleManager } from './style-manager';
+import { ColophonSettingTab } from './settings-tab';
 
 export default class ColophonPlugin extends Plugin {
     async onload() {
+        // Load Settings
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+        // Initialize Style Manager
+        this.styleManager = new StyleManager();
+        this.styleManager.applyStyles(this.settings);
+
+        this.addSettingTab(new ColophonSettingTab(this.app, this));
+
         // 1. Register the View
         this.registerView(
             VIEW_TYPE_COLOPHON,
-            (leaf) => new ColophonView(leaf)
+            (leaf) => new ColophonView(leaf, this)
         );
 
         // 2. Register the File Extension
@@ -122,7 +134,7 @@ export default class ColophonPlugin extends Plugin {
                 type: 'doc',
                 content: [
                     {
-                        type: 'paragraph',
+                        type: 'body',
                         content: []
                     }
                 ]
