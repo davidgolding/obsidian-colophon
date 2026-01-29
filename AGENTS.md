@@ -3,66 +3,74 @@
 ## 1. Project Brief
 **Colophon** is an Obsidian plugin that implements a **Word Composition** environment, a third paradigm distinct from Word Processing and Markdown. It provides a dedicated writing canvas offering the typographic elegance and semantic structure of a word processor with the focus and clean input method of Markdown. It uses a custom `.colophon` JSON format to ensure absolute consistency in semantic blocks (`Y-Axis`) and rhetorical inflection (`X-Axis`) while removing the visual noise of syntax.
 
-## 2. Product Context
-The project solves the dichotomy between **Word Processing** (rich presentation but high friction/clutter) and **Markdown** (text focus but syntax noise/programmer aesthetic).
+**Core Innovation**:
+-   **Schema-First Architecture**: Unlike standard editors, the document schema is derived entirely from user settings (`settings-data.js`).
+-   **Universal Blocks**: A single Tiptap extension (`universal-block.js`) dynamically generates all block types (Heading, Body, Epigraph) based on this configuration.
+-   **v1.x Compatibility**: While the engine is new, the visual rendering is strictly aligned with v1.x CSS classes and HTML structure to ensure established themes work seamlessly.
 
-**Core Philosophy: Word Composition**
-- **Paradigm**: "What you see is word-craft."
-- **Aesthetic**: Bibliophile, editorial, distraction-free.
-- **Ontology**:
-    - **Y-Axis (Block)**: Structural intent (Paragraph, Header, Attestation). Locked geometry.
-    - **X-Axis (Inline)**: Rhetorical inflection (Focus/Bold, Voice/Italic). Modifies flow.
-    - **Z-Axis (Transversal)**: Relations (Footnotes, Comments). Exits the flow.
-    - **T-Axis (Temporal)**: State (Version history).
-- **UX Goal**: Text is marked up by interface triggers (e.g., standard shortcuts or transient syntax), but the result is a rendered semantic entity, not visible code.
+## 2. Product Context
+**Philosophy: Word Composition**
+-   **Paradigm**: "What you see is word-craft."
+-   **Aesthetic**: Bibliophile, editorial, distraction-free.
+-   **Ontology**:
+    -   **Y-Axis (Block)**: Structural intent (Paragraph, Header, Attestation). Locked geometry.
+    -   **X-Axis (Inline)**: Rhetorical inflection (Focus/Bold, Voice/Italic). Modifies flow.
+    -   **Z-Axis (Transversal)**: Relations (Footnotes, Comments). Exits the flow.
+    -   **T-Axis (Temporal)**: State (Version history).
 
 ## 3. Active Context
-**Current Focus**: Implementing the comprehensive UI/UX defined in `mockup.md`.
-- **Completed Phases (Recent Session)**:
-    1.  **Settings Engine**: Implemented `DEFAULT_SETTINGS` and a `StyleManager` that dynamically generates CSS variables from block definitions (e.g., Font sizes, margins).
-    2.  **Tiptap Core (Universal Blocks)**: Created a generic Tiptap extension (`universal-block.js`) that factory-generates nodes based on settings. Implemented "Type-to-Trigger" (Input Rules like `# `) and "Enter Logic" (e.g., Header -> Body).
-    3.  **Contextual Toolbar**: Implemented a floating toolbar (`ui/toolbar.js`) at the top of the view that tracks selection state and allows manual block switching.
-- **Active Decisions**:
-    - **Settings-Driven**: We avoid hardcoding node types. `Body`, `Heading`, `Epigraph` are all instances of a Universal Block configured via JSON.
-    - **Transient Syntax**: We use Markdown-like triggers (`# `) for familiar input, but they vanish instantly into the semantic block.
-- **Learnings**:
-    - **Layout**: Massive padding issue in `styles.css` (75vh) was fixed to `4rem`.
-    - **Tiptap Logic**: `splitBlock` command requires chaining `setNode` to correctly switch types on Enter.
-- **Next Steps**:
-    1.  **Phase 4 (Sidebars)**: Implement "Footnotes" as a Right Sidebar View and "Comments" as an in-editor resizeable pane. This requires sync logic (scrolling/focus).
-    2.  **Settings UI**: The backend data structure works, but the frontend Settings Tab is currently a placeholder. We need to build the complex UI to let users edit these block definitions.
+**Current Focus**: Stabilizing the v2.0 Core Engine and ensuring robust schema handling.
+-   **Recent Achievements**:
+    1.  **Strict Schema Enforcement**: Disabled default Tiptap/StarterKit extensions (Polygon, Heading, List) to force all content through `UniversalBlock`.
+    2.  **v1.x Rendering Alignment**:
+        -   Refactored `UniversalBlock` to output semantic tags (`h1`-`h6`, `p`) instead of generic divs.
+        -   Aligned classes to legacy names (`.body`, `.heading-1`) instead of namespaced `colophon-block-*`.
+        -   Updated `StyleManager` to generate CSS selectors matching this legacy structure (e.g., `.ProseMirror h1.heading-1`).
+    3.  **Schema Migration**: Implemented `migrateContent` in `view.js` to automatically convert legacy `paragraph` nodes to `body` nodes on load, preventing crashes.
+    4.  **Enter Key Handling**: Fixed `RangeError` bugs by explicitly handling Enter key logic in `UniversalBlock` with `splitBlock`.
+-   **Active Decisions**:
+    -   **Data-Driven**: We avoid hardcoding node types. `Body`, `Heading`, `Epigraph` are all instances of a Universal Block configured via JSON.
+    -   **Persistence**: We use `type: 'body'` in the JSON model (v2.0 architecture) but render it as `<p class="body">` (v1.x visual compatibility).
+-   **Learnings**:
+    -   **Tiptap Defaults**: Default extensions like `StarterKit`'s `Paragraph` aggressively capture content. They must be explicitly disabled to allow custom blocks to act as default.
+    -   **Input Rules**: `splitBlock` without `keepMarks: false` can cause schema errors when inheriting marks into new blocks.
+
+**Next Steps**:
+1.  **Sidebar Implementation**: Build the Right Sidebar for Footnotes and In-View pane for Comments.
+2.  **Settings UI**: Build the complex UI to let users edit the `data.json` block definitions.
 
 ## 4. System Patterns
-- **Architecture**:
-    - **Plugin Entry (`main.js`)**: Loads settings, initializes `StyleManager`, registers View and Settings Tab.
-    - **Obsidian View (`view.js`)**: Manages `TiptapAdapter` and mounts the `ColophonToolbar`.
-    - **Editor Adapter (`tiptap-adapter.js`)**: Initializes Tiptap with dynamic extensions generated by `universal-block.js`.
-    - **Toolbar (`ui/toolbar.js`)**: React-like Class Component that updates based on selection state.
-    - **Styling (`style-manager.js`)**: Injects dynamic CSS based on user settings into the document head.
-- **Component Relationships**: `ColophonPlugin` -> `Settings` -> `StyleManager` & `View` -> `Adapter` -> `UniversalBlock`.
-- **Styling**: All styles scoped to `.colophon-workspace`. Dynamic blocks use classes like `.colophon-block-[name]`.
+-   **Architecture**:
+    -   **Plugin Entry (`main.js`)**: Loads settings, initializes `StyleManager`, registers View.
+    -   **Obsidian View (`view.js`)**: Manages `TiptapAdapter` lifecycle and handles file IO. **Includes `migrateContent` logic**.
+    -   **Editor Adapter (`tiptap-adapter.js`)**: Initializes Tiptap. **Crucially disables StarterKit defaults** to use...
+    -   **Universal Block (`extensions/universal-block.js`)**: The factory that generates strict Node extensions from settings. Handles `parseHTML`/`renderHTML` for v1.x alignment.
+    -   **Style Manager (`style-manager.js`)**: Generates dynamic CSS. **Crucially maps settings to legacy v1.x selectors**.
+-   **Component Relationships**:
+    `Settings` -> `StyleManager` (CSS)
+    `Settings` -> `UniversalBlock` (Schema) -> `TiptapAdapter` (Editor)
 
 ## 5. Tech Context
-- **Framework**: Obsidian Plugin API (Vanilla JS).
-- **Editor Engine**: **Tiptap v3** (Headless ProseMirror wrapper).
-- **Build System**: `esbuild` to bundle into `main.js`.
-- **New Components**:
-    - `src/extensions/universal-block.js`: Generator for Tiptap nodes.
-    - `src/style-manager.js`: CSS generator.
-    - `src/ui/toolbar.js`: Toolbar UI.
-    - `src/settings-data.js`: Default block definitions.
+-   **Stack**: Obsidian Plugin API, Tiptap v3 (Headless ProseMirror).
+-   **Build**: `esbuild`.
+-   **Critical Files**:
+    -   `src/extensions/universal-block.js`: The heart of the new engine. Defines schema.
+    -   `src/settings-data.js`: The definition of available blocks (Y-Axis).
+    -   `src/view.js`: The persistence layer.
+    -   `src/style-manager.js`: The presentation layer (CSS generator).
 
 ## 6. Progress
-- **Infrastructure**: Project builds, loads, and hot-reloads.
-- **Data Layer**: Settings-driven block definitions working.
-- **Editor Core**:
-    - [x] Dynamic Block Generation
-    - [x] Input Rules (Syntax Triggers)
-    - [x] Enter Key Logic (Following Entity)
-- **UI**:
-    - [x] Contextual Toolbar (Block Selector, Formatting)
-    - [x] Editor Layout (Fixed padding issues)
-- **To Build**:
-    - [ ] Footnote Sidebar (Right Leaf)
-    - [ ] Comments Sidebar (In-View)
-    - [ ] Settings Tab UI (Complex Data Editor)
+-   **Core Engine**:
+    -   [x] Settings-driven schema generation
+    -   [x] Universal Block Extension
+    -   [x] Input Rules / Syntax Triggers
+    -   [x] Enter Key Logic (Following Entity)
+    -   [x] Legacy Content Migration (`migrateContent`)
+    -   [x] v1.x Rendering Alignment (Semantic tags + Legacy classes)
+-   **UI**:
+    -   [x] Contextual Toolbar
+    -   [x] Editor Layout & Typography
+-   **To Build**:
+    -   [ ] Footnotes (Z-Axis)
+    -   [ ] Comments (Z-Axis)
+    -   [ ] Settings Interface
