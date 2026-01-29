@@ -1,5 +1,17 @@
 export const DEFAULT_SETTINGS = {
     blocks: {
+        "body": {
+            "after-block": "0pt",
+            "before-block": "0pt",
+            "first-indent": "0.3in",
+            "font-family": "var(--font-text-theme), var(--font-text-override)",
+            "font-size": "11.5pt",
+            "font-variant": "regular",
+            "left-indent": "0pt",
+            "line-spacing": "16pt",
+            "name": "Body",
+            "text-align": "left"
+        },
         "supertitle": {
             "after-block": "18pt",
             "before-block": "0pt",
@@ -51,18 +63,6 @@ export const DEFAULT_SETTINGS = {
             "left-indent": "0in",
             "line-spacing": "16pt",
             "name": "Body First",
-            "text-align": "left"
-        },
-        "body": {
-            "after-block": "0pt",
-            "before-block": "0pt",
-            "first-indent": "0.3in",
-            "font-family": "var(--font-text-theme), var(--font-text-override)",
-            "font-size": "11.5pt",
-            "font-variant": "regular",
-            "left-indent": "0pt",
-            "line-spacing": "16pt",
-            "name": "Body",
             "text-align": "left"
         },
         "footnote": {

@@ -19,7 +19,16 @@ export class TiptapAdapter {
         this.editor = new Editor({
             element: this.parentElement,
             extensions: [
-                StarterKit,
+                StarterKit.configure({
+                    paragraph: false,
+                    heading: false,
+                    codeBlock: false,
+                    blockquote: false,
+                    bulletList: false,
+                    orderedList: false,
+                    listItem: false,
+                    horizontalRule: false,
+                }),
                 ...dynamicExtensions
             ],
             content: content || { type: 'doc', content: [{ type: 'body' }] },

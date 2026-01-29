@@ -18,7 +18,7 @@ export class ColophonToolbar {
         this.renderBlockSelector();
 
         // Separator
-        this.createSeparator();
+        // this.createSeparator();
 
         // 2. Formatting Group
         const formatGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
@@ -27,8 +27,11 @@ export class ColophonToolbar {
         this.italicBtn = this.createButton(formatGroup, 'italic', 'Italic', () => this.view.toggleItalic());
         this.strikeBtn = this.createButton(formatGroup, 'strikethrough', 'Strikethrough', () => this.view.toggleStrike()); // Assuming view has this method now
 
+        // Spacer
+        this.createSpacer();
+
         // Separator
-        this.createSeparator();
+        // this.createSeparator();
 
         // 3. Comments (Future)
         this.commentBtn = this.createButton(this.containerEl, 'message-square', 'Comments', () => {
@@ -107,6 +110,11 @@ export class ColophonToolbar {
         sep.style.height = '16px';
         sep.style.backgroundColor = 'var(--background-modifier-border)';
         sep.style.margin = '0 8px';
+    }
+
+    createSpacer() {
+        const spacer = this.containerEl.createDiv({ cls: 'colophon-toolbar-spacer' });
+        spacer.style.flex = '1';
     }
 
     update() {
