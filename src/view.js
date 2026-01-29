@@ -34,7 +34,7 @@ export class ColophonView extends TextFileView {
         // OR standard top of view.
         // For now, let's put it at the top of contentEl
         const toolbarContainer = this.contentEl.createDiv({ cls: 'colophon-toolbar-wrapper' }, (el) => {
-            el.style.borderBottom = '1px solid var(--background-modifier-border)';
+            // el.style.borderBottom = '1px solid var(--background-modifier-border)';
             el.style.padding = '4px 0';
         });
 
@@ -68,6 +68,11 @@ export class ColophonView extends TextFileView {
             }
         } catch (e) {
             console.error('Colophon: Error parsing file data', e);
+        }
+
+        // Migration: Convert 'paragraph' to 'body' if present (legacy support)
+        if (parsedData && parsedData.doc) {
+            this.migrateContent(parsedData.doc);
         }
 
         this.docType = parsedData.type || 'manuscript';
@@ -140,6 +145,18 @@ export class ColophonView extends TextFileView {
     toggleStrike() {
         if (this.adapter) {
             this.adapter.toggleStrike();
+        }
+    }
+
+    migrateContent(node) {
+        if (!node) return;
+
+        if (node.type === 'paragraph') {
+            node.type = 'body';
+        }
+
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => this.migrateContent(child));
         }
     }
 }

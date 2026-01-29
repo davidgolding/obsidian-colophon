@@ -1,6 +1,17 @@
 import { Node, mergeAttributes, textblockTypeInputRule } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 
+// Helper to determine semantic tag
+function getTagForBlock(blockId) {
+    if (blockId.startsWith('heading-')) {
+        const level = blockId.split('-')[1];
+        if (level && !isNaN(level)) {
+            return `h${level}`;
+        }
+    }
+    return 'p';
+}
+
 // Helper to create a specific node extension for a given block definition
 function createBlockExtension(blockId, definition, allSettings) {
     return Node.create({
@@ -13,19 +24,18 @@ function createBlockExtension(blockId, definition, allSettings) {
 
         // Define how it renders to HTML
         parseHTML() {
+            const tag = getTagForBlock(blockId);
             return [
                 {
-                    tag: 'p',
-                    getAttrs: node => node.classList.contains(`colophon-block-${blockId}`) && null,
-                },
-                {
-                    tag: `div[class="colophon-block-${blockId}"]`,
+                    tag: tag,
+                    getAttrs: node => node.classList.contains(blockId) && null,
                 }
             ];
         },
 
         renderHTML({ HTMLAttributes }) {
-            return ['p', mergeAttributes(HTMLAttributes, { class: `colophon-block-${blockId}` }), 0];
+            const tag = getTagForBlock(blockId);
+            return [tag, mergeAttributes(HTMLAttributes, { class: blockId }), 0];
         },
 
         // Keyboard Shortcuts (Enter key logic)
@@ -37,12 +47,13 @@ function createBlockExtension(blockId, definition, allSettings) {
 
                     if (nextBlockName) {
                         return this.editor.chain()
-                            .splitBlock()
+                            .splitBlock({ keepMarks: false })
                             .setNode(nextBlockName)
                             .run();
                     }
-                    // Default behavior (keep same block type usually, or split)
-                    return false;
+
+                    // Explicitly split block for default case to prevent fall-through
+                    return this.editor.commands.splitBlock({ keepMarks: false });
                 },
             };
         },
