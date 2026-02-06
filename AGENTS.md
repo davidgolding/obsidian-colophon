@@ -19,58 +19,49 @@
     -   **T-Axis (Temporal)**: State (Version history).
 
 ## 3. Active Context
-**Current Focus**: Stabilizing the v2.0 Core Engine and ensuring robust schema handling.
+**Current Focus**: Refining the v2.0 UI/UX and stabilizing specialized engine behaviors.
 -   **Recent Achievements**:
-    1.  **Strict Schema Enforcement**: Disabled default Tiptap/StarterKit extensions (Polygon, Heading, List) to force all content through `UniversalBlock`.
-    2.  **v1.x Rendering Alignment**:
-        -   Refactored `UniversalBlock` to output semantic tags (`h1`-`h6`, `p`) instead of generic divs.
-        -   Aligned classes to legacy names (`.body`, `.heading-1`) instead of namespaced `colophon-block-*`.
-        -   Updated `StyleManager` to generate CSS selectors matching this legacy structure (e.g., `.ProseMirror h1.heading-1`).
-    3.  **Schema Migration**: Implemented `migrateContent` in `view.js` to automatically convert legacy `paragraph` nodes to `body` nodes on load, preventing crashes.
-    4.  **Enter Key Handling**: Fixed `RangeError` bugs by explicitly handling Enter key logic in `UniversalBlock` with `splitBlock`.
+    1.  **Spellcheck Synchronization**: Integrated Obsidian core spellcheck setting into the Tiptap editor via `this.app.vault.getConfig('spellcheck')`.
+    2.  **Font Unit Normalization**: Established a strict `10pt = 1rem` conversion rule in `StyleManager` to align Colophon typography with Obsidian's base scaling while supporting `pt`, `px`, `in`, `pc`, etc.
+    3.  **Toolbar Relocation**: Moved the `ColophonToolbar` from the editor canvas to the native Obsidian `.view-header-title-container`, re-enabling the header for Colophon views.
+    4.  **Strict Schema Enforcement**: Disabled default Tiptap/StarterKit extensions to force all content through `UniversalBlock`.
+    5.  **v1.x Rendering Alignment**: Refactored `UniversalBlock` to output semantic tags and aligned classes to legacy names.
 -   **Active Decisions**:
-    -   **Data-Driven**: We avoid hardcoding node types. `Body`, `Heading`, `Epigraph` are all instances of a Universal Block configured via JSON.
-    -   **Persistence**: We use `type: 'body'` in the JSON model (v2.0 architecture) but render it as `<p class="body">` (v1.x visual compatibility).
+    -   **Unit Alignment**: We treat `10pt` as `1rem`. This allows writers to input familiar physical units while the browser renders them relative to the user's Obsidian font size settings.
+    -   **Contextual UI**: The toolbar now sits in the view header to keep the writing canvas distraction-free.
 -   **Learnings**:
-    -   **Tiptap Defaults**: Default extensions like `StarterKit`'s `Paragraph` aggressively capture content. They must be explicitly disabled to allow custom blocks to act as default.
-    -   **Input Rules**: `splitBlock` without `keepMarks: false` can cause schema errors when inheriting marks into new blocks.
+    -   **Header Injection**: Injecting into `.view-header-title-container` requires ensuring the container is set to `display: flex` and the header has the `.colophon-view-header` class.
 
 **Next Steps**:
-1.  **Sidebar Implementation**: Build the Right Sidebar for Footnotes and In-View pane for Comments.
+1.  **Sidebar Implementation (Z-Axis)**: Build the Right Sidebar for Footnotes and In-View pane for Comments. This is the primary upcoming technical objective.
 2.  **Settings UI**: Build the complex UI to let users edit the `data.json` block definitions.
 
 ## 4. System Patterns
 -   **Architecture**:
-    -   **Plugin Entry (`main.js`)**: Loads settings, initializes `StyleManager`, registers View.
-    -   **Obsidian View (`view.js`)**: Manages `TiptapAdapter` lifecycle and handles file IO. **Includes `migrateContent` logic**.
-    -   **Editor Adapter (`tiptap-adapter.js`)**: Initializes Tiptap. **Crucially disables StarterKit defaults** to use...
-    -   **Universal Block (`extensions/universal-block.js`)**: The factory that generates strict Node extensions from settings. Handles `parseHTML`/`renderHTML` for v1.x alignment.
-    -   **Style Manager (`style-manager.js`)**: Generates dynamic CSS. **Crucially maps settings to legacy v1.x selectors**.
+    -   **Style Manager (`style-manager.js`)**: Now includes `normalizeValue` to handle the `rem` conversion logic for all typographic and geometric properties.
+    -   **View Header Patching**: `view.js` now adds `.colophon-view-header` to the header and manages the toolbar lifecycle within the Obsidian title container.
+    -   **Universal Block (`extensions/universal-block.js`)**: The factory that generates strict Node extensions from settings.
 -   **Component Relationships**:
-    `Settings` -> `StyleManager` (CSS)
+    `Settings` -> `StyleManager` (Units -> CSS Variables)
     `Settings` -> `UniversalBlock` (Schema) -> `TiptapAdapter` (Editor)
 
 ## 5. Tech Context
--   **Stack**: Obsidian Plugin API, Tiptap v3 (Headless ProseMirror).
--   **Build**: `esbuild`.
+-   **Stack**: Obsidian Plugin API, Tiptap v3, `esbuild` for bundling.
 -   **Critical Files**:
-    -   `src/extensions/universal-block.js`: The heart of the new engine. Defines schema.
-    -   `src/settings-data.js`: The definition of available blocks (Y-Axis).
-    -   `src/view.js`: The persistence layer.
-    -   `src/style-manager.js`: The presentation layer (CSS generator).
+    -   `src/style-manager.js`: The source of truth for unit conversion logic.
+    -   `src/view.js`: Manages the toolbar injection into the Obsidian core UI.
 
 ## 6. Progress
 -   **Core Engine**:
     -   [x] Settings-driven schema generation
     -   [x] Universal Block Extension
-    -   [x] Input Rules / Syntax Triggers
-    -   [x] Enter Key Logic (Following Entity)
     -   [x] Legacy Content Migration (`migrateContent`)
-    -   [x] v1.x Rendering Alignment (Semantic tags + Legacy classes)
+    -   [x] Spellcheck Synchronization (Core Sync)
+    -   [x] Font Unit Normalization (`10pt = 1rem`)
 -   **UI**:
-    -   [x] Contextual Toolbar
+    -   [x] Contextual Toolbar (Relocated to Header)
     -   [x] Editor Layout & Typography
 -   **To Build**:
-    -   [ ] Footnotes (Z-Axis)
-    -   [ ] Comments (Z-Axis)
+    -   [ ] Footnotes Sidebar (Z-Axis)
+    -   [ ] Comments Sidebar (Z-Axis)
     -   [ ] Settings Interface
