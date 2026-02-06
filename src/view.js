@@ -81,11 +81,14 @@ export class ColophonView extends TextFileView {
         this.contentEl.removeClass('type-manuscript', 'type-script');
         this.contentEl.addClass(`type-${this.docType}`);
 
+        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
+
         if (!this.adapter) {
             this.adapter = new TiptapAdapter(this.editorContainer, {
                 content: parsedData.doc,
                 type: this.docType,
                 settings: this.plugin ? this.plugin.settings : null,
+                isSpellcheckEnabled: isSpellcheckEnabled,
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
@@ -97,12 +100,13 @@ export class ColophonView extends TextFileView {
                 this.adapter.type = this.docType; // Update type if it changed
                 this.adapter.setContent(parsedData.doc || {});
 
-                // Force update attributes if type changed (optional optimization: check if changed)
+                // Force update attributes if type or spellcheck changed
                 if (this.adapter.editor) {
                     this.adapter.editor.setOptions({
                         editorProps: {
                             attributes: {
                                 class: `colophon-editor type-${this.docType}`,
+                                spellcheck: isSpellcheckEnabled ? 'true' : 'false',
                             },
                         }
                     });

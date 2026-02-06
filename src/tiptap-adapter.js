@@ -3,10 +3,11 @@ import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from './extensions/universal-block';
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, type, settings, onUpdate }) {
+    constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
         this.settings = settings;
+        this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.onUpdate = onUpdate;
         this.editor = null;
 
@@ -45,6 +46,7 @@ export class TiptapAdapter {
             editorProps: {
                 attributes: {
                     class: `colophon-editor type-${this.type}`,
+                    spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                 },
             },
         });

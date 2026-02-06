@@ -75,8 +75,8 @@ export class StyleManager {
         // Standard Properties
         for (const [key, value] of Object.entries(properties)) {
             if (propertyMap[key]) {
-                // Ensure value has units if number? (Settings usually have units "18pt")
-                blockCss += `  ${propertyMap[key]}: ${value};\n`;
+                const normalizedValue = this.normalizeValue(value);
+                blockCss += `  ${propertyMap[key]}: ${normalizedValue};\n`;
             }
         }
 
@@ -84,6 +84,37 @@ export class StyleManager {
 
         blockCss += `}\n`;
         return blockCss;
+    }
+
+    /**
+     * Normalizes values to 'rem' based on the rule 10pt = 1rem.
+     * Supports: pt, pc, in, cm, mm, px, em, rem.
+     */
+    normalizeValue(value) {
+        if (typeof value !== 'string') return value;
+
+        const match = value.match(/^([\d.]+)([a-z%]+)?$/);
+        if (!match) return value; // Return as-is (e.g., "inherit", "auto", "0")
+
+        const num = parseFloat(match[1]);
+        const unit = match[2];
+
+        if (!unit) return value; // Multiplier like line-height: 1.5
+
+        switch (unit) {
+            case 'pt': return `${num * 0.1}rem`;
+            case 'pc': return `${num * 1.2}rem`;
+            case 'in': return `${num * 7.2}rem`;
+            case 'cm': return `${(num * 7.2) / 2.54}rem`;
+            case 'mm': return `${(num * 0.72) / 2.54}rem`;
+            case 'px': return `${num * 0.075}rem`;
+            case 'rem':
+            case 'em':
+            case '%':
+                return value;
+            default:
+                return value;
+        }
     }
 
     injectStyles(css) {
