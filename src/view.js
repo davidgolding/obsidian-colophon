@@ -29,21 +29,17 @@ export class ColophonView extends TextFileView {
         this.contentEl.addClass('colophon-workspace');
         this.editorContainer = this.contentEl.createDiv({ cls: 'colophon-editor-wrapper' });
 
-        // Create Toolbar Container
-        // We want to inject it into the view header title container area if possible, 
-        // OR standard top of view.
-        // For now, let's put it at the top of contentEl
-        const toolbarContainer = this.contentEl.createDiv({ cls: 'colophon-toolbar-wrapper' }, (el) => {
-            // el.style.borderBottom = '1px solid var(--background-modifier-border)';
-            el.style.padding = '4px 0';
-        });
-
-        // Move toolbar to top
-        this.contentEl.prepend(toolbarContainer);
-
-        this.toolbar = new ColophonToolbar(this, toolbarContainer);
-
-
+        // Target the standard Obsidian header elements
+        const viewHeader = this.containerEl.querySelector('.view-header');
+        if (viewHeader) {
+            viewHeader.addClass('colophon-view-header');
+            const titleContainer = viewHeader.querySelector('.view-header-title-container');
+            if (titleContainer) {
+                // Ensure it's not hidden (it might be by our CSS)
+                titleContainer.style.display = 'flex';
+                this.toolbar = new ColophonToolbar(this, titleContainer);
+            }
+        }
     }
 
     async onClose() {

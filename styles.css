@@ -3,7 +3,9 @@
    Targeting Tiptap Editor within .colophon-workspace
 */
 .colophon-view-header .view-header-title-container {
-    display: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* 1. WORKSPACE CONTAINER */
