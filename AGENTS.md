@@ -21,47 +21,50 @@
 ## 3. Active Context
 **Current Focus**: Refining the v2.0 UI/UX and stabilizing specialized engine behaviors.
 -   **Recent Achievements**:
-    1.  **Spellcheck Synchronization**: Integrated Obsidian core spellcheck setting into the Tiptap editor via `this.app.vault.getConfig('spellcheck')`.
-    2.  **Font Unit Normalization**: Established a strict `10pt = 1rem` conversion rule in `StyleManager` to align Colophon typography with Obsidian's base scaling while supporting `pt`, `px`, `in`, `pc`, etc.
-    3.  **Toolbar Relocation**: Moved the `ColophonToolbar` from the editor canvas to the native Obsidian `.view-header-title-container`, re-enabling the header for Colophon views.
-    4.  **Strict Schema Enforcement**: Disabled default Tiptap/StarterKit extensions to force all content through `UniversalBlock`.
-    5.  **v1.x Rendering Alignment**: Refactored `UniversalBlock` to output semantic tags and aligned classes to legacy names.
+    1.  **Plugin Settings System**: Implemented a comprehensive settings tab (`settings-tab.js`) for global plugin preferences (Text Width, Typewriter Mode, Smart Punctuation).
+    2.  **Smart Substitutions**: Ported 1.x smart quotes and dashes logic to a new Tiptap extension (`extensions/substitutions.js`).
+    3.  **Typewriter Mode (Fixed Feed)**: Created `extensions/fixed-feed.js` to handle viewport-relative scrolling.
+    4.  **Reactivity Pipeline**: Established a flow where settings changes are broadcast from `main.js` to all open `ColophonView` instances and their `TiptapAdapter`s, updating styles and extension options in real-time.
+    5.  **DOM Refinement**: Added `.colophon-scroll-container` to the view structure to support precise scroll control.
 -   **Active Decisions**:
-    -   **Unit Alignment**: We treat `10pt` as `1rem`. This allows writers to input familiar physical units while the browser renders them relative to the user's Obsidian font size settings.
-    -   **Contextual UI**: The toolbar now sits in the view header to keep the writing canvas distraction-free.
+    -   **Official Tiptap APIs**: Switched from direct object mutation to `this.editor.setOptions()` for updating extensions dynamically.
+    -   **Typewriter PADDING**: Added `80vh` of bottom-padding to the editor when `is-fixed-feed` is active to allow the last line of text to reach the typewriter line.
 -   **Learnings**:
-    -   **Header Injection**: Injecting into `.view-header-title-container` requires ensuring the container is set to `display: flex` and the header has the `.colophon-view-header` class.
+    -   **Scroll Context**: Calculating typewriter scroll jumps requires stable container coordinates. Using `requestAnimationFrame` is essential to avoid race conditions with DOM updates.
+-   **Known Issues**:
+    -   **Fixed Feed "Buggy" Behavior**: The typewriter mode currently has a mismatch in scroll position during initial focus/typing or specific jumps; the line doesn't always lock perfectly to the user-defined padding line without manual cursor movement.
 
 **Next Steps**:
-1.  **Sidebar Implementation (Z-Axis)**: Build the Right Sidebar for Footnotes and In-View pane for Comments. This is the primary upcoming technical objective.
-2.  **Settings UI**: Build the complex UI to let users edit the `data.json` block definitions.
+1.  **Stabilize Fixed Feed**: Debug the scroll calculation in `fixed-feed.js` to ensure perfect locking to the padding line on all triggers.
+2.  **Sidebar Implementation (Z-Axis)**: Build the Right Sidebar for Footnotes and In-View pane for Comments.
+3.  **Block Settings UI**: Implement the interface to let users edit the `DEFAULT_SETTINGS.blocks` definitions.
 
 ## 4. System Patterns
 -   **Architecture**:
-    -   **Style Manager (`style-manager.js`)**: Now includes `normalizeValue` to handle the `rem` conversion logic for all typographic and geometric properties.
-    -   **View Header Patching**: `view.js` now adds `.colophon-view-header` to the header and manages the toolbar lifecycle within the Obsidian title container.
+    -   **Style Manager (`style-manager.js`)**: Manages `--colophon-editor-width` and `.is-fixed-feed` padding.
+    -   **Fixed Feed Helper**: `scrollActiveLineIntoView` is exported from `fixed-feed.js` so it can be triggered by the `TiptapAdapter` immediately on settings change.
     -   **Universal Block (`extensions/universal-block.js`)**: The factory that generates strict Node extensions from settings.
 -   **Component Relationships**:
-    `Settings` -> `StyleManager` (Units -> CSS Variables)
-    `Settings` -> `UniversalBlock` (Schema) -> `TiptapAdapter` (Editor)
+    `Settings` -> `main.js` (Broadcast) -> `ColophonView` (updateSettings) -> `TiptapAdapter` (setOptions) -> `Extensions`.
 
 ## 5. Tech Context
 -   **Stack**: Obsidian Plugin API, Tiptap v3, `esbuild` for bundling.
 -   **Critical Files**:
-    -   `src/style-manager.js`: The source of truth for unit conversion logic.
-    -   `src/view.js`: Manages the toolbar injection into the Obsidian core UI.
+    -   `src/extensions/fixed-feed.js`: Contains the typewriter scrolling math.
+    -   `src/extensions/substitutions.js`: Custom input rules for smart punctuation.
+    -   `src/tiptap-adapter.js`: The reactivity hub for the editor.
 
 ## 6. Progress
 -   **Core Engine**:
     -   [x] Settings-driven schema generation
     -   [x] Universal Block Extension
-    -   [x] Legacy Content Migration (`migrateContent`)
-    -   [x] Spellcheck Synchronization (Core Sync)
-    -   [x] Font Unit Normalization (`10pt = 1rem`)
+    -   [x] Smart Substitutions (Quotes/Dashes)
+    -   [x] Spellcheck Synchronization
+    -   [ ] Fixed Feed Stabilization (STILL BUGGY)
 -   **UI**:
-    -   [x] Contextual Toolbar (Relocated to Header)
-    -   [x] Editor Layout & Typography
+    -   [x] Plugin Settings Tab
+    -   [x] Contextual Toolbar (Header)
 -   **To Build**:
     -   [ ] Footnotes Sidebar (Z-Axis)
     -   [ ] Comments Sidebar (Z-Axis)
-    -   [ ] Settings Interface
+    -   [ ] Block Definitions Editor
