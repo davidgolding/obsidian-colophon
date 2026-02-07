@@ -20,19 +20,11 @@
 
 ## 3. Active Context
 **Current Focus**: Refining the v2.0 UI/UX and stabilizing specialized engine behaviors.
+-   **Fixed Feed (Typewriter Mode)**: Stabilized by porting robust architectural patterns from `main`. Implemented permanent `75vh` padding and inline handleScroll logic for predictable behavior.
 -   **Recent Achievements**:
-    1.  **Plugin Settings System**: Implemented a comprehensive settings tab (`settings-tab.js`) for global plugin preferences (Text Width, Typewriter Mode, Smart Punctuation).
+    1.  **Plugin Settings System**: Implemented a comprehensive settings tab (`settings-tab.js`) for global plugin preferences.
     2.  **Smart Substitutions**: Ported 1.x smart quotes and dashes logic to a new Tiptap extension (`extensions/substitutions.js`).
-    3.  **Typewriter Mode (Fixed Feed)**: Created `extensions/fixed-feed.js` to handle viewport-relative scrolling.
-    4.  **Reactivity Pipeline**: Established a flow where settings changes are broadcast from `main.js` to all open `ColophonView` instances and their `TiptapAdapter`s, updating styles and extension options in real-time.
-    5.  **DOM Refinement**: Added `.colophon-scroll-container` to the view structure to support precise scroll control.
--   **Active Decisions**:
-    -   **Official Tiptap APIs**: Switched from direct object mutation to `this.editor.setOptions()` for updating extensions dynamically.
-    -   **Typewriter PADDING**: Added `80vh` of bottom-padding to the editor when `is-fixed-feed` is active to allow the last line of text to reach the typewriter line.
--   **Learnings**:
-    -   **Scroll Context**: Calculating typewriter scroll jumps requires stable container coordinates. Using `requestAnimationFrame` is essential to avoid race conditions with DOM updates.
--   **Known Issues**:
-    -   **Fixed Feed "Buggy" Behavior**: The typewriter mode currently has a mismatch in scroll position during initial focus/typing or specific jumps; the line doesn't always lock perfectly to the user-defined padding line without manual cursor movement.
+    3.  **Fixed Feed Achievement**: Successfully stabilized typewriter mode with robust viewport-relative scrolling.
 
 **Next Steps**:
 1.  **Stabilize Fixed Feed**: Debug the scroll calculation in `fixed-feed.js` to ensure perfect locking to the padding line on all triggers.

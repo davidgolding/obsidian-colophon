@@ -21,9 +21,8 @@
 }
 
 .colophon-scroll-container {
-    display: flex;
-    flex: 1;
-    justify-content: center;
+    display: block;
+    height: 100%;
     overflow-y: auto;
     width: 100%;
     position: relative;
@@ -41,8 +40,8 @@
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 0 2rem 4rem 2rem;
-    /* Top padding 0, Bottom 4rem, Sides 2rem */
+    padding: 0 2rem 75vh 2rem;
+    /* Top padding 0, Bottom 75vh, Sides 2rem */
 
     /* Appearance */
     background-color: transparent;
