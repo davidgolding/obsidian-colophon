@@ -30,7 +30,6 @@ export class ColophonView extends TextFileView {
 
         // Add scroll container which is the target for our FixedFeed logic and CSS
         this.scrollContainer = this.contentEl.createDiv({ cls: 'colophon-scroll-container' });
-        this.editorContainer = this.scrollContainer.createDiv({ cls: 'colophon-editor-wrapper' });
 
         // Target the standard Obsidian header elements
         const viewHeader = this.containerEl.querySelector('.view-header');
@@ -50,8 +49,8 @@ export class ColophonView extends TextFileView {
             this.adapter.destroy();
             this.adapter = null;
         }
-        if (this.editorContainer) {
-            this.editorContainer.empty();
+        if (this.scrollContainer) {
+            this.scrollContainer.empty();
         }
     }
 
@@ -85,7 +84,7 @@ export class ColophonView extends TextFileView {
         const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
 
         if (!this.adapter) {
-            this.adapter = new TiptapAdapter(this.editorContainer, {
+            this.adapter = new TiptapAdapter(this.scrollContainer, {
                 content: parsedData.doc,
                 type: this.docType,
                 settings: this.plugin ? this.plugin.settings : null,

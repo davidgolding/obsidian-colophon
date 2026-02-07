@@ -2,7 +2,7 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
-import { FixedFeed, scrollActiveLineIntoView } from './extensions/fixed-feed';
+// FixedFeed extension removed in favor of inline logic
 
 export class TiptapAdapter {
     constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate }) {
@@ -39,10 +39,7 @@ export class TiptapAdapter {
                     doubleQuoteStyle: this.settings.doubleQuoteStyle,
                     singleQuoteStyle: this.settings.singleQuoteStyle,
                 }),
-                FixedFeed.configure({
-                    enabled: this.settings.fixedFeedPosition,
-                    padding: this.settings.feedPadding,
-                }),
+                // FixedFeed extension removed
             ],
             content: content || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor }) => {
@@ -54,15 +51,12 @@ export class TiptapAdapter {
                 if (this.onUpdate) {
                     this.onUpdate();
                 }
+                this.handleScroll();
             },
             onFocus: ({ editor }) => {
                 // Ensure scroll update on focus
-                requestAnimationFrame(() => {
-                    scrollActiveLineIntoView(this.editor, {
-                        enabled: this.settings.fixedFeedPosition,
-                        padding: this.settings.feedPadding
-                    }, 'smooth');
-                });
+                // Ensure scroll update on focus
+                this.handleScroll();
             },
             editorProps: {
                 attributes: {
@@ -73,12 +67,8 @@ export class TiptapAdapter {
         });
 
         // Initial scroll check after mount
-        requestAnimationFrame(() => {
-            scrollActiveLineIntoView(this.editor, {
-                enabled: this.settings.fixedFeedPosition,
-                padding: this.settings.feedPadding
-            }, 'auto');
-        });
+        // Initial scroll check after mount
+        this.handleScroll();
     }
 
     setContent(content) {
@@ -127,18 +117,52 @@ export class TiptapAdapter {
             singleQuoteStyle: settings.singleQuoteStyle,
         });
 
-        // Update Fixed Feed Options
-        this.editor.setOptions('fixedFeed', {
-            enabled: settings.fixedFeedPosition,
-            padding: settings.feedPadding,
-        });
+        // Update Fixed Feed Options (Inline Logic)
+        // No need to set options on extension anymore.
 
         // Trigger an immediate scroll update so the view reacts to slider changes
+        this.handleScroll();
+    }
+
+    handleScroll() {
+        if (!this.editor || !this.settings || !this.settings.fixedFeedPosition) return;
+
+        // Use requestAnimationFrame to ensure layout is settled and minimize jank
         requestAnimationFrame(() => {
-            scrollActiveLineIntoView(this.editor, {
-                enabled: settings.fixedFeedPosition,
-                padding: settings.feedPadding
-            }, 'smooth');
+            const container = this.parentElement;
+            if (!container) return;
+
+            // Ensure editor view and DOM exist
+            if (!this.editor.view || !this.editor.view.dom) return;
+
+            const selection = this.editor.state.selection;
+            if (!selection) return;
+
+            const view = this.editor.view;
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate target position line
+            // padding is % from bottom. 40% padding = 60% from top.
+            // Using logic from main branch analysis directly.
+            const paddingPercent = this.settings.feedPadding ?? 40;
+            const ratioFromTop = 1 - (paddingPercent / 100);
+            const targetOffset = containerRect.height * ratioFromTop;
+            const targetViewportY = containerRect.top + targetOffset;
+
+            // Get cursor position (bottom of the cursor to align with line)
+            const coords = view.coordsAtPos(selection.from);
+            const currentCursorY = coords.bottom;
+
+            // Calculate delta
+            const delta = currentCursorY - targetViewportY;
+
+            // Threshold to avoid micro-adjustments/jitter (2px)
+            if (Math.abs(delta) > 2) {
+                container.scrollBy({
+                    top: delta,
+                    behavior: 'smooth'
+                });
+            }
         });
     }
 
