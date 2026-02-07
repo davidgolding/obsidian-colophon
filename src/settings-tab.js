@@ -1,4 +1,5 @@
 import { PluginSettingTab, Setting } from 'obsidian';
+import { BlockSettingsUI } from './ui/block-settings';
 
 export class ColophonSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
@@ -117,6 +118,8 @@ export class ColophonSettingTab extends PluginSettingTab {
         const blockSettingsItems = blockSettingsGroup.createDiv({ cls: 'setting-items' });
 
         // Placeholder for future Block Settings
-        blockSettingsItems.createEl('div', { text: 'Block definitions and typography settings will appear here.' });
+        // Render Block Settings UI
+        const blockSettingsUI = new BlockSettingsUI(this.plugin, blockSettingsItems);
+        blockSettingsUI.display();
     }
 }
