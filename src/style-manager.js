@@ -8,6 +8,14 @@ export class StyleManager {
 
         let css = '';
 
+        // 0. Global Variables
+        css += `.colophon-workspace { --colophon-editor-width: ${settings.textColumnWidth || 700}px; }\n`;
+
+        // Add typewriter mode padding if enabled
+        if (settings.fixedFeedPosition) {
+            css += `.is-fixed-feed .ProseMirror { padding-bottom: 80vh !important; }\n`;
+        }
+
         // 1. Generate CSS Variables for each block
         for (const [blockId, properties] of Object.entries(settings.blocks)) {
             css += this.generateBlockStyles(blockId, properties);
