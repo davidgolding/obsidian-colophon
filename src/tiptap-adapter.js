@@ -1,6 +1,8 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from './extensions/universal-block';
+import { Substitutions } from './extensions/substitutions';
+import { FixedFeed, scrollActiveLineIntoView } from './extensions/fixed-feed';
 
 export class TiptapAdapter {
     constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate }) {
@@ -30,7 +32,17 @@ export class TiptapAdapter {
                     listItem: false,
                     horizontalRule: false,
                 }),
-                ...dynamicExtensions
+                ...dynamicExtensions,
+                Substitutions.configure({
+                    smartQuotes: this.settings.smartQuotes,
+                    smartDashes: this.settings.smartDashes,
+                    doubleQuoteStyle: this.settings.doubleQuoteStyle,
+                    singleQuoteStyle: this.settings.singleQuoteStyle,
+                }),
+                FixedFeed.configure({
+                    enabled: this.settings.fixedFeedPosition,
+                    padding: this.settings.feedPadding,
+                }),
             ],
             content: content || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor }) => {
@@ -43,12 +55,29 @@ export class TiptapAdapter {
                     this.onUpdate();
                 }
             },
+            onFocus: ({ editor }) => {
+                // Ensure scroll update on focus
+                requestAnimationFrame(() => {
+                    scrollActiveLineIntoView(this.editor, {
+                        enabled: this.settings.fixedFeedPosition,
+                        padding: this.settings.feedPadding
+                    }, 'smooth');
+                });
+            },
             editorProps: {
                 attributes: {
                     class: `colophon-editor type-${this.type}`,
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                 },
             },
+        });
+
+        // Initial scroll check after mount
+        requestAnimationFrame(() => {
+            scrollActiveLineIntoView(this.editor, {
+                enabled: this.settings.fixedFeedPosition,
+                padding: this.settings.feedPadding
+            }, 'auto');
         });
     }
 
@@ -84,6 +113,33 @@ export class TiptapAdapter {
         if (this.editor) {
             this.editor.chain().focus().toggleStrike().run();
         }
+    }
+
+    updateSettings(settings) {
+        this.settings = settings;
+        if (!this.editor) return;
+
+        // Update Substitution Options
+        this.editor.setOptions('substitutions', {
+            smartQuotes: settings.smartQuotes,
+            smartDashes: settings.smartDashes,
+            doubleQuoteStyle: settings.doubleQuoteStyle,
+            singleQuoteStyle: settings.singleQuoteStyle,
+        });
+
+        // Update Fixed Feed Options
+        this.editor.setOptions('fixedFeed', {
+            enabled: settings.fixedFeedPosition,
+            padding: settings.feedPadding,
+        });
+
+        // Trigger an immediate scroll update so the view reacts to slider changes
+        requestAnimationFrame(() => {
+            scrollActiveLineIntoView(this.editor, {
+                enabled: settings.fixedFeedPosition,
+                padding: settings.feedPadding
+            }, 'smooth');
+        });
     }
 
     destroy() {

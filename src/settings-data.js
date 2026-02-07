@@ -1,4 +1,11 @@
 export const DEFAULT_SETTINGS = {
+    textColumnWidth: 700,
+    fixedFeedPosition: false,
+    feedPadding: 40,
+    smartQuotes: true,
+    doubleQuoteStyle: "“|”",
+    singleQuoteStyle: "‘|’",
+    smartDashes: true,
     blocks: {
         "body": {
             "after-block": "0pt",

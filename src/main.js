@@ -106,6 +106,21 @@ export default class ColophonPlugin extends Plugin {
         if (command.callback) command.callback = null;
     }
 
+    async saveSettings() {
+        await this.saveData(this.settings);
+        // Reactively update styles
+        if (this.styleManager) {
+            this.styleManager.applyStyles(this.settings);
+        }
+
+        // Update all open views
+        this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON).forEach(leaf => {
+            if (leaf.view && typeof leaf.view.updateSettings === 'function') {
+                leaf.view.updateSettings();
+            }
+        });
+    }
+
     onunload() {
         // Obsidian doesn't support unpatching cleanly without storing originals globally,
         // but since we modify the app instance, reloading the plugin might leak if not careful.

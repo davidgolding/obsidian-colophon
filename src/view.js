@@ -27,7 +27,10 @@ export class ColophonView extends TextFileView {
     async onOpen() {
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
-        this.editorContainer = this.contentEl.createDiv({ cls: 'colophon-editor-wrapper' });
+
+        // Add scroll container which is the target for our FixedFeed logic and CSS
+        this.scrollContainer = this.contentEl.createDiv({ cls: 'colophon-scroll-container' });
+        this.editorContainer = this.scrollContainer.createDiv({ cls: 'colophon-editor-wrapper' });
 
         // Target the standard Obsidian header elements
         const viewHeader = this.containerEl.querySelector('.view-header');
@@ -76,6 +79,8 @@ export class ColophonView extends TextFileView {
         // Apply class for specific styling
         this.contentEl.removeClass('type-manuscript', 'type-script');
         this.contentEl.addClass(`type-${this.docType}`);
+
+        this.updateSettings(); // Apply initial settings like fixedFeed class
 
         const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
 
@@ -145,6 +150,21 @@ export class ColophonView extends TextFileView {
     toggleStrike() {
         if (this.adapter) {
             this.adapter.toggleStrike();
+        }
+    }
+
+    updateSettings() {
+        const settings = this.plugin.settings;
+
+        // Toggle typewriter mode class for CSS padding
+        if (settings.fixedFeedPosition) {
+            this.contentEl.addClass('is-fixed-feed');
+        } else {
+            this.contentEl.removeClass('is-fixed-feed');
+        }
+
+        if (this.adapter) {
+            this.adapter.updateSettings(settings);
         }
     }
 
