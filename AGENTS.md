@@ -19,32 +19,36 @@
     -   **T-Axis (Temporal)**: State (Version history).
 
 ## 3. Active Context
-**Current Focus**: Refining the v2.0 UI/UX and stabilizing specialized engine behaviors.
--   **Fixed Feed (Typewriter Mode)**: Stabilized by porting robust architectural patterns from `main`. Implemented permanent `75vh` padding and inline handleScroll logic for predictable behavior.
--   **Recent Achievements**:
-    1.  **Plugin Settings System**: Implemented a comprehensive settings tab (`settings-tab.js`) for global plugin preferences.
-    2.  **Smart Substitutions**: Ported 1.x smart quotes and dashes logic to a new Tiptap extension (`extensions/substitutions.js`).
-    3.  **Fixed Feed Achievement**: Successfully stabilized typewriter mode with robust viewport-relative scrolling.
+**Current Focus**: Building out the Sidebars for the Z-Axis (Footnotes and Comments).
+-   **Fixed Feed (Typewriter Mode)**: Fully stabilized. Uses permanent `75vh` CSS padding and inline `handleScroll` logic in `TiptapAdapter` for reliable viewport-relative locking.
+-   **Block Settings UI**: Implemented a comprehensive UI for managing block definitions. Supports horizontal property layouts, dynamic property addition/removal, and protected default blocks. Use custom Obsidian Modals for input to ensure platform compatibility.
+-   **Dynamic Schema Updates**: `TiptapAdapter` now detects structural changes in block definitions (new keys/triggers) and automatically re-mounts the editor to update the schema on-the-fly.
+
+**Recent Achievements**:
+1.  **Fixed Feed Achievement**: Successfully stabilized typewriter mode with robust logic ported from `main`.
+2.  **Block Settings UI Achievement**: Created a refined interface for customizing the writing environment's typography and behavior.
+3.  **Schema Reactivity**: Implemented editor re-mounting logic to support live block definition updates.
 
 **Next Steps**:
-1.  **Stabilize Fixed Feed**: Debug the scroll calculation in `fixed-feed.js` to ensure perfect locking to the padding line on all triggers.
-2.  **Sidebar Implementation (Z-Axis)**: Build the Right Sidebar for Footnotes and In-View pane for Comments.
-3.  **Block Settings UI**: Implement the interface to let users edit the `DEFAULT_SETTINGS.blocks` definitions.
+1.  **Sidebar Implementation (Z-Axis)**: Build the Right Sidebar for Footnotes.
+2.  **Comments Panel Implementation**: Finalize the in-view/sidebar pane for Comments.
+3.  **Refine Typographic Injection**: Ensure all property changes in Block Settings are immediately reflected in the editor via `StyleManager`.
 
 ## 4. System Patterns
 -   **Architecture**:
-    -   **Style Manager (`style-manager.js`)**: Manages `--colophon-editor-width` and `.is-fixed-feed` padding.
-    -   **Fixed Feed Helper**: `scrollActiveLineIntoView` is exported from `fixed-feed.js` so it can be triggered by the `TiptapAdapter` immediately on settings change.
-    -   **Universal Block (`extensions/universal-block.js`)**: The factory that generates strict Node extensions from settings.
+    -   **Style Manager (`style-manager.js`)**: Manages `--colophon-editor-width` and global CSS rule injection.
+    -   **Tiptap Adapter (`tiptap-adapter.js`)**: Now the primary controller for scrolling (`handleScroll`) and schema lifecycle (`updateSettings`).
+    -   **Universal Block (`extensions/universal-block.js`)**: Generates Node extensions. Updated to require a trailing space for `syntax-trigger` (e.g. `### `) to match Markdown conventions.
 -   **Component Relationships**:
-    `Settings` -> `main.js` (Broadcast) -> `ColophonView` (updateSettings) -> `TiptapAdapter` (setOptions) -> `Extensions`.
+    `BlockSettingsUI` -> `plugin.settings` -> `saveSettings()` -> `View.updateSettings()` -> `Adapter.updateSettings()`.
 
 ## 5. Tech Context
 -   **Stack**: Obsidian Plugin API, Tiptap v3, `esbuild` for bundling.
 -   **Critical Files**:
-    -   `src/extensions/fixed-feed.js`: Contains the typewriter scrolling math.
-    -   `src/extensions/substitutions.js`: Custom input rules for smart punctuation.
-    -   `src/tiptap-adapter.js`: The reactivity hub for the editor.
+    -   `src/tiptap-adapter.js`: The heart of editor reactivity and scrolling.
+    -   `src/extensions/universal-block.js`: Dynamic node generator.
+    -   `src/ui/block-settings.js`: Manages the block definition interface.
+    -   `styles.css`: Contains permanent layout padding and Block Settings aesthetics.
 
 ## 6. Progress
 -   **Core Engine**:
@@ -52,11 +56,12 @@
     -   [x] Universal Block Extension
     -   [x] Smart Substitutions (Quotes/Dashes)
     -   [x] Spellcheck Synchronization
-    -   [ ] Fixed Feed Stabilization (STILL BUGGY)
+    -   [x] Fixed Feed Stabilization
+    -   [x] Dynamic Schema Updates (Re-mounting)
 -   **UI**:
     -   [x] Plugin Settings Tab
+    -   [x] Block Settings Editor (with modal support)
     -   [x] Contextual Toolbar (Header)
 -   **To Build**:
     -   [ ] Footnotes Sidebar (Z-Axis)
     -   [ ] Comments Sidebar (Z-Axis)
-    -   [ ] Block Definitions Editor

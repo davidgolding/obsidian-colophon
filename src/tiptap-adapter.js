@@ -106,19 +106,44 @@ export class TiptapAdapter {
     }
 
     updateSettings(settings) {
-        this.settings = settings;
-        if (!this.editor) return;
+        if (!this.editor) {
+            this.settings = settings;
+            return;
+        }
 
-        // Update Substitution Options
+        // Check if we need to re-mount because of structural changes (schema)
+        const oldBlockKeys = Object.keys(this.settings.blocks).sort().join(',');
+        const newBlockKeys = Object.keys(settings.blocks).sort().join(',');
+
+        // Also check structural fields that are baked into the extensions
+        const oldStruct = JSON.stringify(Object.values(this.settings.blocks).map(b => ({
+            t: b['syntax-trigger'],
+            f: b['following-entity'] || b['following-block']
+        })));
+        const newStruct = JSON.stringify(Object.values(settings.blocks).map(b => ({
+            t: b['syntax-trigger'],
+            f: b['following-entity'] || b['following-block']
+        })));
+
+        const needsRemount = oldBlockKeys !== newBlockKeys || oldStruct !== newStruct;
+
+        this.settings = settings;
+
+        if (needsRemount) {
+            const content = this.getJSON();
+            this.destroy();
+            this.mount(content);
+            this.focus(); // Try to restore focus
+            return;
+        }
+
+        // Update Substitution Options for existing extensions
         this.editor.setOptions('substitutions', {
             smartQuotes: settings.smartQuotes,
             smartDashes: settings.smartDashes,
             doubleQuoteStyle: settings.doubleQuoteStyle,
             singleQuoteStyle: settings.singleQuoteStyle,
         });
-
-        // Update Fixed Feed Options (Inline Logic)
-        // No need to set options on extension anymore.
 
         // Trigger an immediate scroll update so the view reacts to slider changes
         this.handleScroll();
