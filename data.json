@@ -146,6 +146,15 @@
       "right-indent": "0in",
       "text-align": "center",
       "syntax-trigger": "### "
+    },
+    "heading-4": {
+      "name": "Heading 4",
+      "font-family": "inherit",
+      "font-size": "18pt",
+      "line-spacing": "24pt",
+      "syntax-trigger": "####",
+      "before-block": "28pt",
+      "after-block": "14pt"
     }
   }
 }

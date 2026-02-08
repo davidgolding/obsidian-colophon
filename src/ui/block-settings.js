@@ -1,5 +1,72 @@
-import { Setting, ButtonComponent, TextComponent, DropdownComponent, ColorComponent, SliderComponent, Notice } from 'obsidian';
+import { Modal, Setting, ButtonComponent, TextComponent, DropdownComponent, ColorComponent, SliderComponent, Notice } from 'obsidian';
 import { DEFAULT_SETTINGS } from '../settings-data';
+
+class BlockIdModal extends Modal {
+    constructor(app, onSubmit) {
+        super(app);
+        this.onSubmit = onSubmit;
+        this.id = '';
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl('h2', { text: 'New Block ID' });
+
+        new Setting(contentEl)
+            .setName('Enter a unique ID for the new block (e.g., "quote", "sidebar-note"):')
+            .addText(text => text
+                .onChange((value) => {
+                    this.id = value;
+                }));
+
+        new Setting(contentEl)
+            .addButton((btn) =>
+                btn
+                    .setButtonText('Create')
+                    .setCta()
+                    .onClick(() => {
+                        this.close();
+                        this.onSubmit(this.id);
+                    }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
+
+class ConfirmationModal extends Modal {
+    constructor(app, title, message, onConfirm) {
+        super(app);
+        this.title = title;
+        this.message = message;
+        this.onConfirm = onConfirm;
+    }
+
+    onOpen() {
+        const { contentEl } = this;
+        contentEl.createEl('h2', { text: this.title });
+        contentEl.createEl('p', { text: this.message });
+
+        new Setting(contentEl)
+            .addButton(btn => btn
+                .setButtonText('Cancel')
+                .onClick(() => this.close()))
+            .addButton(btn => btn
+                .setButtonText('Confirm')
+                .setWarning()
+                .onClick(() => {
+                    this.close();
+                    this.onConfirm();
+                }));
+    }
+
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
+}
 
 export class BlockSettingsUI {
     constructor(plugin, containerEl) {
@@ -63,11 +130,16 @@ export class BlockSettingsUI {
                 .setTooltip('Delete Block')
                 .onClick(async (e) => {
                     e.stopPropagation(); // Prevent toggling details
-                    if (confirm(`Are you sure you want to delete the block "${blockData.name}"?`)) {
-                        delete this.plugin.settings.blocks[blockId];
-                        await this.plugin.saveSettings();
-                        this.renderBlockList();
-                    }
+                    new ConfirmationModal(
+                        this.plugin.app,
+                        'Delete Block',
+                        `Are you sure you want to delete the block "${blockData.name || blockId}"?`,
+                        async () => {
+                            delete this.plugin.settings.blocks[blockId];
+                            await this.plugin.saveSettings();
+                            this.renderBlockList();
+                        }
+                    ).open();
                 }));
         }
 
@@ -77,13 +149,18 @@ export class BlockSettingsUI {
         // 1. Metadata: Name, Hotkey, Syntax
         new Setting(contentEl)
             .setName('Name')
-            .addText(text => text
-                .setValue(blockData.name || '')
-                .onChange(async (value) => {
-                    this.plugin.settings.blocks[blockId].name = value;
-                    headerSetting.setName(value); // Update header immediately
-                    await this.plugin.saveSettings();
-                }));
+            .addText(text => {
+                text.setValue(blockData.name || '');
+                if (isDefault) {
+                    text.setDisabled(true);
+                } else {
+                    text.onChange(async (value) => {
+                        this.plugin.settings.blocks[blockId].name = value;
+                        headerSetting.setName(value);
+                        await this.plugin.saveSettings();
+                    });
+                }
+            });
 
         // Syntax Trigger
         new Setting(contentEl)
@@ -119,16 +196,16 @@ export class BlockSettingsUI {
 
 
         // 2. Properties
-        contentEl.createEl('h4', { text: 'Typography & Behavior' });
-
-        const propertiesContainer = contentEl.createDiv('colophon-block-properties');
+        const propertiesWrapper = contentEl.createDiv('colophon-block-properties');
 
         // Add Property UI
-        const addPropContainer = contentEl.createDiv('colophon-add-property');
-        this.renderAddProperty(addPropContainer, blockId, propertiesContainer);
+        const addPropContainer = propertiesWrapper.createDiv('colophon-add-property');
 
-        // Render Existing Properties
-        this.renderProperties(propertiesContainer, blockId);
+        // List Container for properties (so it can be emptied independently)
+        const propertiesListContainer = propertiesWrapper.createDiv('colophon-properties-list');
+
+        this.renderAddProperty(addPropContainer, blockId, propertiesListContainer);
+        this.renderProperties(propertiesListContainer, blockId);
     }
 
     renderProperties(container, blockId) {
@@ -345,7 +422,6 @@ export class BlockSettingsUI {
         // Unit Select
         const unitSelect = new DropdownComponent(wrapper)
             .addOptions({
-                '': 'x', // Multiplier/None
                 'pt': 'pt',
                 'pc': 'pc',
                 'in': 'in',
@@ -353,10 +429,9 @@ export class BlockSettingsUI {
                 'mm': 'mm',
                 'px': 'px',
                 'em': 'em',
-                'rem': 'rem',
-                '%': '%'
+                'rem': 'rem'
             })
-            .setValue(unit || '')
+            .setValue(unit || 'pt')
             .onChange(async (val) => {
                 const currentNum = numInput.getValue();
                 const newValue = currentNum + val;
@@ -366,24 +441,24 @@ export class BlockSettingsUI {
     }
 
     addNewBlock() {
-        // Simple prompt for now, could be a model
-        const id = prompt('Enter a unique ID for the new block (e.g., "quote", "sidebar-note"):');
-        if (id) {
-            const sanitizedId = id.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-            if (this.plugin.settings.blocks[sanitizedId]) {
-                alert('Block ID already exists.');
-                return;
-            }
+        new BlockIdModal(this.plugin.app, (id) => {
+            if (id) {
+                const sanitizedId = id.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                if (this.plugin.settings.blocks[sanitizedId]) {
+                    new Notice('Block ID already exists.');
+                    return;
+                }
 
-            this.plugin.settings.blocks[sanitizedId] = {
-                name: id, // Default name same as ID
-                'font-family': 'inherit',
-                'font-size': '11pt',
-                'line-spacing': '14pt'
-            };
-            this.plugin.saveSettings().then(() => {
-                this.renderBlockList();
-            });
-        }
+                this.plugin.settings.blocks[sanitizedId] = {
+                    name: id,
+                    'font-family': 'inherit',
+                    'font-size': '11pt',
+                    'line-spacing': '14pt'
+                };
+                this.plugin.saveSettings().then(() => {
+                    this.renderBlockList();
+                });
+            }
+        }).open();
     }
 }

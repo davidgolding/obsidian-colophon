@@ -64,7 +64,7 @@ function createBlockExtension(blockId, definition, allSettings) {
                 const escapedTrigger = definition['syntax-trigger'].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 return [
                     textblockTypeInputRule({
-                        find: new RegExp(`^${escapedTrigger}$`),
+                        find: new RegExp(`^${escapedTrigger} $`),
                         type: this.type,
                     }),
                 ];

@@ -994,3 +994,94 @@
 .theme-dark .colophon-search-match-active {
     background-color: rgba(255, 140, 0, 0.8);
 }
+/* BLOCK SETTINGS UI */
+.colophon-block-settings {
+    margin-top: 20px;
+}
+
+.colophon-block-row {
+    border-bottom: 1px solid var(--background-modifier-border);
+    margin-bottom: 8px;
+}
+
+.colophon-block-row summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.colophon-block-row summary::-webkit-details-marker {
+    display: none;
+}
+
+.colophon-block-row summary::before {
+    content: "\25B7"; /* Right triangle outline */
+    margin-right: 12px;
+    font-size: 1.2em;
+    transition: transform 0.2s;
+    display: inline-block;
+    color: var(--text-muted);
+}
+
+.colophon-block-row[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.colophon-block-content {
+    padding: 15px 15px 15px 30px;
+    background-color: var(--background-secondary-alt);
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.colophon-property-row, .colophon-add-prop-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.colophon-property-label {
+    flex: 0 0 140px;
+    font-size: 0.85em;
+    font-family: var(--font-monospace);
+    color: var(--text-muted);
+    text-transform: lowercase;
+}
+
+.colophon-property-input {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.colophon-measurement-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.colophon-add-property {
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding-bottom: 12px;
+    margin-bottom: 15px;
+}
+
+.colophon-block-row summary .setting-item {
+    border: none;
+    padding: 0;
+    flex: 1;
+}
+
+.colophon-property-delete {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.colophon-property-delete:hover {
+    opacity: 1;
+    color: var(--text-error);
+}
