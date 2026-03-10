@@ -5,12 +5,12 @@
   "smartQuotes": true,
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",
-  "smartDashes": true,
+  "smartDashes": false,
   "blocks": {
     "body": {
       "after-block": "0pt",
       "before-block": "0pt",
-      "first-indent": "0.3in",
+      "first-indent": "24pt",
       "font-family": "var(--font-text-theme), var(--font-text-override)",
       "font-size": "11.5pt",
       "font-variant": "regular",
