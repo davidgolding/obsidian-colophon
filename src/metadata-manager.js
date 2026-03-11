@@ -119,10 +119,9 @@ export class MetadataManager {
     }
 
     async updateShadowFile(file, links, blockIds) {
-        const shadowPath = `${this.cacheFolderName}/${file.path.replace(/\//g, '_')}.md`;
+        const shadowPath = this.getShadowPath(file.path);
         
         // Minimal footprint: Just the links and IDs needed for Obsidian's indexer.
-        // We use a flat list to keep the file size as small as possible.
         let mdContent = '';
         
         if (links.length > 0) {
@@ -145,8 +144,28 @@ export class MetadataManager {
         }
     }
 
+    getShadowPath(colophonPath) {
+        // Use a reversible but filesystem-safe encoding for the path.
+        // Base64 is good but can contain '/', so we replace it.
+        const safeName = btoa(colophonPath).replace(/\//g, '_').replace(/=/g, '');
+        return `${this.cacheFolderName}/${safeName}.md`;
+    }
+
+    getColophonPathFromShadow(shadowPath) {
+        const fileName = shadowPath.split('/').pop().replace('.md', '');
+        // Restore base64 padding and decode
+        try {
+            // Basic base64 restoration (adding back == if needed)
+            let b64 = fileName.replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            return atob(b64);
+        } catch (e) {
+            return null;
+        }
+    }
+
     async removeShadowFile(file) {
-        const shadowPath = `${this.cacheFolderName}/${file.path.replace(/\//g, '_')}.md`;
+        const shadowPath = this.getShadowPath(file.path);
         if (await this.app.vault.adapter.exists(shadowPath)) {
             await this.app.vault.adapter.remove(shadowPath);
         }
@@ -154,7 +173,7 @@ export class MetadataManager {
 
     async handleColophonRename(file, oldPath) {
         // Delete old shadow file
-        const oldShadowPath = `${this.cacheFolderName}/${oldPath.replace(/\//g, '_')}.md`;
+        const oldShadowPath = this.getShadowPath(oldPath);
         if (await this.app.vault.adapter.exists(oldShadowPath)) {
             await this.app.vault.adapter.remove(oldShadowPath);
         }
@@ -163,10 +182,27 @@ export class MetadataManager {
     }
 
     async handleGenericRename(file, oldPath) {
-        // If a non-colophon file is renamed, we need to update any .colophon files that link to it.
-        const allFiles = this.app.vault.getFiles().filter(f => f.extension === 'colophon');
-        
-        for (const colophonFile of allFiles) {
+        // Optimize: Use metadataCache to find only files that link to the old path
+        const resolvedLinks = this.app.metadataCache.resolvedLinks;
+        const affectedColophonPaths = new Set();
+
+        for (const [sourcePath, links] of Object.entries(resolvedLinks)) {
+            // Check if this source file links to the renamed file
+            if (links[oldPath] !== undefined) {
+                // Check if the source file is one of our shadow files
+                if (sourcePath.startsWith(this.cacheFolderName)) {
+                    const colophonPath = this.getColophonPathFromShadow(sourcePath);
+                    if (colophonPath) {
+                        affectedColophonPaths.add(colophonPath);
+                    }
+                }
+            }
+        }
+
+        for (const colophonPath of affectedColophonPaths) {
+            const colophonFile = this.app.vault.getAbstractFileByPath(colophonPath);
+            if (!(colophonFile instanceof TFile)) continue;
+
             let content = await this.app.vault.read(colophonFile);
             let data = JSON.parse(content);
             let modified = false;
