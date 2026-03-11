@@ -735,8 +735,8 @@
     overflow: hidden;
 }
 
-/* 10. COMMENTS PANEL (In-Editor) */
-.colophon-comments-panel {
+/* 10. Z-AXIS PANEL (Sidebar) */
+.colophon-z-axis-panel {
     width: 0;
     opacity: 0;
     background-color: var(--background-secondary);
@@ -751,47 +751,120 @@
         border-left-width 0.3s ease;
     padding: 0;
     visibility: hidden;
-    /* Hide content when closed to prevent focus */
 }
 
-.colophon-comments-panel.is-visible {
-    width: 300px;
+.colophon-z-axis-panel.is-visible {
+    width: 350px;
     opacity: 1;
-    padding: 10px;
+    padding: 0;
     border-left-width: 1px;
     visibility: visible;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.3s ease 0.1s,
-        /* Delay opacity slightly on open */
-        padding 0.3s ease,
-        border-left-width 0.3s ease,
-        visibility 0s linear 0s;
-    /* Immediate visibility on open */
 }
 
-/* Ensure visibility transitions properly on close */
-.colophon-comments-panel:not(.is-visible) {
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.2s ease,
-        padding 0.3s ease,
-        border-left-width 0.3s ease,
-        visibility 0s linear 0.3s;
-    /* Delay hiding visibility until width animates */
-}
-
-.colophon-comments-panel-header {
+.colophon-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary-alt);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.colophon-comments-panel-title {
+.colophon-panel-title {
     font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.colophon-panel-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.colophon-panel-close:hover {
+    background-color: var(--background-modifier-hover);
     color: var(--text-normal);
 }
+
+.colophon-panel-content {
+    flex: 1;
+    padding: 16px;
+}
+
+.colophon-panel-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 40px;
+}
+
+/* Footnotes Sidebar */
+.colophon-footnote-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.colophon-footnote-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.colophon-footnote-number {
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-accent);
+    font-size: 0.8rem;
+    align-self: flex-start;
+}
+
+.colophon-footnote-number:hover {
+    text-decoration: underline;
+}
+
+.colophon-footnote-editor-container {
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: border-color 0.2s;
+}
+
+.colophon-footnote-editor-container:focus-within {
+    border-color: var(--background-modifier-border);
+    background-color: var(--background-primary);
+}
+
+.colophon-footnote-editor {
+    outline: none;
+    min-height: 1.5em;
+}
+
+/* Footnote Marker in Canvas */
+.colophon-footnote-marker {
+    color: var(--text-accent);
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 2px;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+    /* Baseline shift handled via dynamic CSS from StyleManager based on 'align' property */
+}
+
+.colophon-footnote-marker:hover {
+    background-color: var(--background-modifier-hover);
+}
+
 
 /* =========================================
    SCRIPT MODE STYLES
