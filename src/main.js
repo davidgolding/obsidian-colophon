@@ -71,19 +71,8 @@ export default class ColophonPlugin extends Plugin {
             checkCallback: (checking) => {
                 const view = this.app.workspace.getActiveViewOfType(ColophonView);
                 if (view && view.adapter) {
-                    // Disable in Script Mode as per plan
-                    if (view.docType === 'script') return false;
-
                     if (!checking) {
-                        const id = `fn-${crypto.randomUUID()}`;
-                        view.adapter.editor.chain().focus().insertContent({
-                            type: 'footnoteMarker',
-                            attrs: { id }
-                        }).run();
-                        
-                        // Open panel and focus
-                        view.showFootnotes();
-                        view.adapter.focusNote(id);
+                        view.insertFootnote();
                     }
                     return true;
                 }
@@ -117,9 +106,10 @@ export default class ColophonPlugin extends Plugin {
 
         // 6. Patch Native Commands
         this.app.workspace.onLayoutReady(() => {
-            this.patchCommand('editor:toggle-bold', (adapter) => adapter.toggleBold());
-            this.patchCommand('editor:toggle-italics', (adapter) => adapter.toggleItalic());
-            this.patchCommand('editor:toggle-strikethrough', (adapter) => adapter.toggleStrike());
+            this.patchCommand('editor:toggle-bold', (view) => view.toggleBold());
+            this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
+            this.patchCommand('editor:toggle-strikethrough', (view) => view.toggleStrike());
+            this.patchCommand('editor:insert-footnote', (view) => view.insertFootnote());
         });
     }
 
@@ -135,7 +125,7 @@ export default class ColophonPlugin extends Plugin {
             const view = this.app.workspace.getActiveViewOfType(ColophonView);
             if (view && view.adapter) {
                 if (!checking) {
-                    handler(view.adapter);
+                    handler(view);
                 }
                 return true;
             }
