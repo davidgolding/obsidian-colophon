@@ -1,6 +1,11 @@
 import { Node, mergeAttributes, textblockTypeInputRule } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 
+// Helper to generate a random 6-character string for block IDs
+function generateBlockId() {
+    return Math.random().toString(36).substring(2, 8);
+}
+
 // Helper to determine semantic tag
 function getTagForBlock(blockId) {
     if (blockId.startsWith('heading-')) {
@@ -22,19 +27,41 @@ function createBlockExtension(blockId, definition, allSettings) {
         // Block-level properties
         draggable: false,
 
+        // Attributes (metadata)
+        addAttributes() {
+            return {
+                id: {
+                    default: null,
+                    parseHTML: element => element.getAttribute('data-block-id'),
+                    renderHTML: attributes => {
+                        if (!attributes.id) {
+                            attributes.id = generateBlockId();
+                        }
+                        return {
+                            'data-block-id': attributes.id,
+                        };
+                    },
+                },
+            };
+        },
+
         // Define how it renders to HTML
         parseHTML() {
             const tag = getTagForBlock(blockId);
             return [
                 {
                     tag: tag,
-                    getAttrs: node => node.classList.contains(blockId) && null,
+                    getAttrs: node => node.classList.contains(blockId) && { id: node.getAttribute('data-block-id') },
                 }
             ];
         },
 
         renderHTML({ HTMLAttributes }) {
             const tag = getTagForBlock(blockId);
+            // Ensure ID is generated during initial render if not present
+            if (!HTMLAttributes['data-block-id']) {
+                HTMLAttributes['data-block-id'] = generateBlockId();
+            }
             return [tag, mergeAttributes(HTMLAttributes, { class: blockId }), 0];
         },
 

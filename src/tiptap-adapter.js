@@ -2,18 +2,26 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
+import { InternalLink } from './extensions/internal-link';
+import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 // FixedFeed extension removed in favor of inline logic
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate }) {
+    constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate, app, plugin }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
         this.settings = settings;
         this.isSpellcheckEnabled = isSpellcheckEnabled;
         this.onUpdate = onUpdate;
+        this.app = app;
+        this.plugin = plugin;
         this.editor = null;
 
         this.mount(content);
+        
+        if (this.app && this.plugin) {
+            this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this);
+        }
     }
 
     mount(content) {
@@ -32,12 +40,13 @@ export class TiptapAdapter {
                     listItem: false,
                     horizontalRule: false,
                 }),
+                InternalLink,
                 ...dynamicExtensions,
                 Substitutions.configure({
-                    smartQuotes: this.settings.smartQuotes,
-                    smartDashes: this.settings.smartDashes,
-                    doubleQuoteStyle: this.settings.doubleQuoteStyle,
-                    singleQuoteStyle: this.settings.singleQuoteStyle,
+                    smartQuotes: this.settings?.smartQuotes ?? true,
+                    smartDashes: this.settings?.smartDashes ?? true,
+                    doubleQuoteStyle: this.settings?.doubleQuoteStyle ?? "“|”",
+                    singleQuoteStyle: this.settings?.singleQuoteStyle ?? "‘|’",
                 }),
                 // FixedFeed extension removed
             ],
@@ -192,6 +201,10 @@ export class TiptapAdapter {
     }
 
     destroy() {
+        if (this.linkSuggest) {
+            this.linkSuggest.close();
+            this.linkSuggest = null;
+        }
         if (this.editor) {
             this.editor.destroy();
             this.editor = null;
