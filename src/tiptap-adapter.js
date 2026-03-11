@@ -25,6 +25,25 @@ export class TiptapAdapter {
         if (this.app && this.plugin) {
             this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this);
         }
+
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // Listen for decoupled footnote focus/creation requests
+        this.parentElement.addEventListener('colophon-focus-footnote', (e) => {
+            if (e instanceof CustomEvent) {
+                this.focusNote(e.detail.id);
+            }
+        });
+
+        // Creation event is on document.body to catch transient syntax
+        this.createHandler = (e) => {
+            if (e instanceof CustomEvent) {
+                this.focusNote(e.detail.id);
+            }
+        };
+        document.body.addEventListener('colophon-create-footnote', this.createHandler);
     }
 
     mount(content) {
@@ -205,6 +224,9 @@ export class TiptapAdapter {
     }
 
     destroy() {
+        if (this.createHandler) {
+            document.body.removeEventListener('colophon-create-footnote', this.createHandler);
+        }
         if (this.linkSuggest) {
             this.linkSuggest.close();
             this.linkSuggest = null;
