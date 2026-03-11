@@ -33,10 +33,15 @@ export class ColophonToolbar {
         // Separator
         // this.createSeparator();
 
-        // 3. Comments (Future)
-        this.commentBtn = this.createButton(this.containerEl, 'message-square', 'Comments', () => {
-            // Toggle comments sidebar logic
-            console.log("Toggle comments");
+        // 3. Z-Axis Panels
+        const zAxisGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
+
+        this.footnoteBtn = this.createButton(zAxisGroup, 'list-ordered', 'Footnotes', () => {
+            this.view.toggleFootnotes();
+        });
+
+        this.commentBtn = this.createButton(zAxisGroup, 'message-square', 'Comments', () => {
+            this.view.toggleComments();
         });
     }
 

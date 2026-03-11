@@ -11,10 +11,60 @@ export class StyleManager {
         // 0. Global Variables
         css += `.colophon-workspace { --colophon-editor-width: ${settings.textColumnWidth || 700}px; }\n`;
 
-        // Add typewriter mode padding if enabled (Now handled permanently in CSS)
-        // if (settings.fixedFeedPosition) {
-        //     css += `.is-fixed-feed .ProseMirror { padding-bottom: 80vh !important; }\n`;
-        // }
+        // Footnote Symbol dynamic styling
+        const symbolDef = settings.blocks['footnote-symbol'];
+        if (symbolDef) {
+            css += `.colophon-footnote-marker {\n`;
+            if (symbolDef['font-family']) css += `  font-family: ${symbolDef['font-family']};\n`;
+            if (symbolDef['font-size']) css += `  font-size: ${this.normalizeValue(symbolDef['font-size'])};\n`;
+            if (symbolDef['color']) css += `  color: ${symbolDef['color']};\n`;
+            if (symbolDef['align']) {
+                css += `  vertical-align: ${this.normalizeValue(symbolDef['align'])};\n`;
+                css += `  line-height: 0;\n`;
+            }
+            css += `}\n`;
+        }
+
+        // Footnote sidebar dynamic styling
+        const footnoteDef = settings.blocks['footnote'];
+        if (footnoteDef) {
+            // 1. Sidebar Container Styling
+            css += `.colophon-footnote-editor {\n`;
+            if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
+            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
+            if (footnoteDef['line-spacing']) css += `  line-height: ${this.normalizeValue(footnoteDef['line-spacing'])};\n`;
+            css += `}\n`;
+            
+            if (footnoteDef['space-between-notes']) {
+                css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'])}; }\n`;
+            }
+
+            // 2. High-precision selectors for sidebar content
+            const sidebarBase = '.colophon-footnote-editor .ProseMirror';
+            
+            // Apply alignment and spacing to the ProseMirror instance
+            css += `${sidebarBase} {\n`;
+            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
+            css += `  min-height: auto !important;\n`;
+            css += `  padding: 0 !important;\n`;
+            css += `}\n`;
+
+            // Apply specific paragraph settings for the sidebar
+            css += `${sidebarBase} p {\n`;
+            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
+            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
+            if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
+            css += `}\n`;
+        }
+
+        const numberDef = settings.blocks['footnote-number'];
+        if (numberDef) {
+            css += `.colophon-footnote-number {\n`;
+            if (numberDef['font-family']) css += `  font-family: ${numberDef['font-family']};\n`;
+            if (numberDef['font-size']) css += `  font-size: ${this.normalizeValue(numberDef['font-size'])};\n`;
+            if (numberDef['font-weight']) css += `  font-weight: ${numberDef['font-weight']};\n`;
+            css += `}\n`;
+        }
 
         // 1. Generate CSS Variables for each block
         for (const [blockId, properties] of Object.entries(settings.blocks)) {
@@ -25,8 +75,8 @@ export class StyleManager {
     }
 
     generateBlockStyles(blockId, properties) {
-        // Generate selector based on v1.x alignment
-        // Base scope
+        // Broaden the selector to apply to any ProseMirror instance within the workspace,
+        // including sidebar editors.
         const base = '.colophon-workspace .ProseMirror';
 
         // Determine Tag
@@ -48,14 +98,12 @@ export class StyleManager {
             'first-indent': 'text-indent',
             'font-family': 'font-family',
             'font-size': 'font-size',
-            // 'font-variant' handling moved below
             'line-spacing': 'line-height',
             'text-align': 'text-align',
-            'left-indent': 'padding-left', // using padding for block indent
+            'left-indent': 'padding-left',
             'right-indent': 'padding-right',
             'font-weight': 'font-weight',
-            // 'font-style' handling moved below
-            'text-transform': 'text-transform' // for capitalization
+            'text-transform': 'text-transform'
         };
 
         // Special handling / conversions
@@ -88,26 +136,23 @@ export class StyleManager {
             }
         }
 
-        // List specific handling would go here (markers etc)
-
         blockCss += `}\n`;
         return blockCss;
     }
 
     /**
      * Normalizes values to 'rem' based on the rule 10pt = 1rem.
-     * Supports: pt, pc, in, cm, mm, px, em, rem.
      */
     normalizeValue(value) {
         if (typeof value !== 'string') return value;
 
         const match = value.match(/^([\d.]+)([a-z%]+)?$/);
-        if (!match) return value; // Return as-is (e.g., "inherit", "auto", "0")
+        if (!match) return value;
 
         const num = parseFloat(match[1]);
         const unit = match[2];
 
-        if (!unit) return value; // Multiplier like line-height: 1.5
+        if (!unit) return value;
 
         switch (unit) {
             case 'pt': return `${num * 0.1}rem`;

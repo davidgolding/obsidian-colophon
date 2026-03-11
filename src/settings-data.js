@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS = {
     doubleQuoteStyle: "“|”",
     singleQuoteStyle: "‘|’",
     smartDashes: true,
+    footnoteTrigger: "(( ",
     blocks: {
         "body": {
             "after-block": "0pt",
