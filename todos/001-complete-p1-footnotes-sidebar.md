@@ -41,10 +41,11 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - Added re-sequencing logic to `TiptapAdapter`.
 - Integrated bi-directional navigation.
 
-### 2026-03-10 - Bug Fixes & Refinement
+### 2026-03-10 - Critical Performance & Focus Fixes
 **By:** Gemini CLI
 **Actions:**
-- Fixed `RangeError: Unknown node type: body` by including dynamic block extensions in mini-editors.
-- Resolved `Duplicate extension names found: ['underline']` warning.
-- Refined CSS to prevent vertical stretching and "double box" borders.
-- Redesigned sidebar header to match editorial aesthetic.
+- Refactored `ZAxisPanel` to use selective DOM updates instead of `empty()`.
+- Implemented editor state tracking to prevent focus loss and redundant re-renders.
+- Fixed `((` trigger regex by removing mandatory space.
+- Broadened `StyleManager` CSS selectors to ensure footnote typography is applied in sidebar.
+- Refined CSS to fix vertical stretching and centering in mini-editors.
