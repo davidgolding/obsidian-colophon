@@ -47,6 +47,24 @@ export default class ColophonPlugin extends Plugin {
             callback: () => this.createNewColophonFile('script')
         });
 
+        this.addCommand({
+            id: 'insert-internal-link',
+            name: 'Insert Internal Link',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) {
+                        // This will trigger the suggester by inserting '[[', 
+                        // or we could eventually add a prompt.
+                        // For agent-native parity, inserting the trigger is usually best.
+                        view.adapter.editor.commands.insertContent('[[');
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // 5. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
