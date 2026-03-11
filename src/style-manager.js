@@ -28,27 +28,32 @@ export class StyleManager {
         // Footnote sidebar dynamic styling
         const footnoteDef = settings.blocks['footnote'];
         if (footnoteDef) {
-            // General sidebar editor styling
+            // 1. Sidebar Container Styling
             css += `.colophon-footnote-editor {\n`;
             if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
             if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
             if (footnoteDef['line-spacing']) css += `  line-height: ${this.normalizeValue(footnoteDef['line-spacing'])};\n`;
             css += `}\n`;
             
-            // Layout specific
             if (footnoteDef['space-between-notes']) {
                 css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'])}; }\n`;
             }
 
-            // High-precision selector for sidebar content alignment/typography
-            // Forced to min-height: auto to prevent stretching
-            css += `.colophon-footnote-editor .ProseMirror {\n`;
-            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']};\n`;
-            if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
-            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
-            if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
+            // 2. High-precision selectors for sidebar content
+            const sidebarBase = '.colophon-footnote-editor .ProseMirror';
+            
+            // Apply alignment and spacing to the ProseMirror instance
+            css += `${sidebarBase} {\n`;
+            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
             css += `  min-height: auto !important;\n`;
             css += `  padding: 0 !important;\n`;
+            css += `}\n`;
+
+            // Apply specific paragraph settings for the sidebar
+            css += `${sidebarBase} p {\n`;
+            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
+            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
+            if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
             css += `}\n`;
         }
 

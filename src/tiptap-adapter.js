@@ -99,7 +99,7 @@ export class TiptapAdapter {
             },
             editorProps: {
                 attributes: {
-                    class: `colophon-editor type-${this.type}`,
+                    class: `colophon-editor colophon-main-editor type-${this.type}`,
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                 },
             },

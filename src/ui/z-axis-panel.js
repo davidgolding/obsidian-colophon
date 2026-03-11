@@ -150,7 +150,7 @@ export class ZAxisPanel {
             },
             editorProps: {
                 attributes: {
-                    class: 'colophon-footnote-editor',
+                    class: 'colophon-footnote-editor footnote',
                     spellcheck: isSpellcheckEnabled ? 'true' : 'false',
                 }
             }
