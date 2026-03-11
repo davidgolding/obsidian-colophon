@@ -317,15 +317,15 @@ export class TiptapAdapter {
 
     focusNote(id) {
         if (this.plugin && this.plugin.zAxisPanel) {
-            this.plugin.zAxisPanel.show('footnotes');
-            setTimeout(() => {
+            this.plugin.zAxisPanel.show('footnotes', () => {
                 const editor = this.plugin.zAxisPanel.editors.get(id);
                 if (editor) {
-                    editor.commands.focus();
+                    // Focus at the end of the document to allow immediate typing
+                    editor.commands.focus('end');
                     const el = this.plugin.zAxisPanel.containerEl.querySelector(`[data-footnote-id="${id}"]`);
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-            }, 100); // Increased delay for stability
+            });
         }
     }
 }
