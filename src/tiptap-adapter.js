@@ -26,23 +26,24 @@ export class TiptapAdapter {
             this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this);
         }
 
-        this.setupEventListeners();
+        this.setupGlobalEvents();
     }
 
-    setupEventListeners() {
-        // Listen for decoupled footnote focus/creation requests
-        this.parentElement.addEventListener('colophon-focus-footnote', (e) => {
-            if (e instanceof CustomEvent) {
-                this.focusNote(e.detail.id);
-            }
-        });
-
-        // Creation event is on document.body to catch transient syntax
-        this.createHandler = (e) => {
+    setupGlobalEvents() {
+        this.focusHandler = (e) => {
             if (e instanceof CustomEvent) {
                 this.focusNote(e.detail.id);
             }
         };
+        
+        this.createHandler = (e) => {
+            if (e instanceof CustomEvent) {
+                // When creating via trigger, we want to open sidebar AND focus
+                this.focusNote(e.detail.id);
+            }
+        };
+
+        document.body.addEventListener('colophon-focus-footnote', this.focusHandler);
         document.body.addEventListener('colophon-create-footnote', this.createHandler);
     }
 
@@ -78,7 +79,7 @@ export class TiptapAdapter {
         this.editor = new Editor({
             element: this.parentElement,
             app: this.app,
-            plugin: this.plugin, // Extension access
+            plugin: this.plugin,
             extensions: this.sharedExtensions,
             content: content || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor }) => {
@@ -224,6 +225,9 @@ export class TiptapAdapter {
     }
 
     destroy() {
+        if (this.focusHandler) {
+            document.body.removeEventListener('colophon-focus-footnote', this.focusHandler);
+        }
         if (this.createHandler) {
             document.body.removeEventListener('colophon-create-footnote', this.createHandler);
         }
@@ -321,7 +325,7 @@ export class TiptapAdapter {
                     const el = this.plugin.zAxisPanel.containerEl.querySelector(`[data-footnote-id="${id}"]`);
                     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-            }, 50);
+            }, 100); // Increased delay for stability
         }
     }
 }

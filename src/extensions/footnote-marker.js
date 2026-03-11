@@ -54,9 +54,8 @@ export const FootnoteMarker = Node.create({
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Dispatch custom event to be caught by the view/adapter
-                dom.dispatchEvent(new CustomEvent('colophon-focus-footnote', {
-                    bubbles: true,
+                // Dispatch decoupled event
+                document.body.dispatchEvent(new CustomEvent('colophon-focus-footnote', {
                     detail: { id: node.attrs.id }
                 }));
             });
@@ -73,12 +72,9 @@ export const FootnoteMarker = Node.create({
     },
 
     addInputRules() {
-        // Escape regex special characters in the trigger
-        const escapedTrigger = this.options.trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        
         return [
             new InputRule({
-                find: new RegExp(`\\(\\($`),
+                find: /\(\($/,
                 handler: ({ state, range }) => {
                     const id = `fn-${crypto.randomUUID()}`;
                     const { tr } = state;
@@ -86,14 +82,11 @@ export const FootnoteMarker = Node.create({
                     tr.replaceWith(range.from, range.to, this.type.create({ id }));
                     
                     // Signal creation to be caught by adapter
-                    // We use a timeout to let the node render first
                     setTimeout(() => {
-                        const event = new CustomEvent('colophon-create-footnote', {
-                            bubbles: true,
+                        document.body.dispatchEvent(new CustomEvent('colophon-create-footnote', {
                             detail: { id }
-                        });
-                        document.body.dispatchEvent(event);
-                    }, 50);
+                        }));
+                    }, 10);
 
                     return tr;
                 },
