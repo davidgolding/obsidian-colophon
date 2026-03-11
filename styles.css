@@ -1088,14 +1088,54 @@
 }
 
 /* Internal Links */
-span[data-colophon-link] {
+.colophon-internal-link {
     color: var(--link-color);
-    text-decoration: underline;
-    text-decoration-color: var(--link-color-hover);
+    text-decoration: none;
     cursor: pointer;
-    transition: background-color 0.2s;
+    background-color: var(--background-modifier-hover);
+    padding: 0 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+    font-weight: 500;
 }
 
-span[data-colophon-link]:hover {
-    background-color: var(--background-modifier-hover);
+.colophon-internal-link:hover {
+    background-color: var(--background-modifier-active-hover);
+    color: var(--link-color-hover);
+}
+
+/* Link Suggestions UI */
+.colophon-link-suggestions {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-l);
+    padding: 0;
+    z-index: 1000;
+    min-width: 350px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.colophon-link-suggestions .suggestion {
+    overflow-y: auto;
+    padding: 4px;
+}
+
+.colophon-link-suggestions .prompt-instructions {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: var(--background-secondary);
+    border-top: 1px solid var(--background-modifier-border);
+    font-size: 11px;
+    color: var(--text-muted);
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.colophon-link-suggestions .prompt-instruction-command {
+    font-weight: bold;
+    color: var(--text-normal);
 }
