@@ -82,7 +82,7 @@ export default class ColophonPlugin extends Plugin {
                         }).run();
                         
                         // Open panel and focus
-                        view.toggleFootnotes();
+                        view.showFootnotes();
                         view.adapter.focusNote(id);
                     }
                     return true;

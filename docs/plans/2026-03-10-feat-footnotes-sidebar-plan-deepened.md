@@ -1,7 +1,7 @@
 ---
 title: "feat: Footnotes Sidebar (Z-Axis) - Deepened"
 type: feat
-status: active
+status: completed
 date: 2026-03-10
 origin: docs/plans/2026-03-10-feat-footnotes-sidebar-plan.md
 ---

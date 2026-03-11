@@ -79,6 +79,18 @@ export class ColophonView extends TextFileView {
         }
     }
 
+    showFootnotes() {
+        if (this.zAxisPanel) {
+            this.zAxisPanel.show('footnotes');
+        }
+    }
+
+    showComments() {
+        if (this.zAxisPanel) {
+            this.zAxisPanel.show('comments');
+        }
+    }
+
     /**
      * Called when the file content is modified externally or when loading.
      */

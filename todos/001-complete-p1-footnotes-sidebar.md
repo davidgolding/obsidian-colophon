@@ -24,6 +24,7 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - [x] Bi-directional navigation (click to focus/scroll) works.
 - [x] Footnote content is persisted in JSON.
 
+
 ## Work Log
 
 ### 2026-03-10 - Initialization
