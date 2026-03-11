@@ -435,37 +435,6 @@
     visibility: visible;
 }
 
-.colophon-panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    height: 40px;
-}
-
-.colophon-panel-title {
-    font-weight: 500;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-}
-
-.colophon-panel-close {
-    opacity: 0.6;
-    transition: opacity 0.2s ease;
-}
-
-.colophon-panel-close:hover {
-    opacity: 1;
-    background-color: var(--background-modifier-hover);
-}
-
 .colophon-panel-content {
     flex: 1;
     padding: 24px 16px;
