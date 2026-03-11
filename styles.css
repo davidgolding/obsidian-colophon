@@ -349,6 +349,7 @@
     text-align: center;
     margin-top: 20px;
     font-style: italic;
+    font-size: 0.9rem;
 }
 
 .colophon-footnote-list {
@@ -1084,4 +1085,17 @@
 .colophon-property-delete:hover {
     opacity: 1;
     color: var(--text-error);
+}
+
+/* Internal Links */
+span[data-colophon-link] {
+    color: var(--link-color);
+    text-decoration: underline;
+    text-decoration-color: var(--link-color-hover);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+span[data-colophon-link]:hover {
+    background-color: var(--background-modifier-hover);
 }

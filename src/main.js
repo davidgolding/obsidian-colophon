@@ -3,11 +3,16 @@ import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 import { DEFAULT_SETTINGS } from './settings-data';
 import { StyleManager } from './style-manager';
 import { ColophonSettingTab } from './settings-tab';
+import { MetadataManager } from './metadata-manager';
 
 export default class ColophonPlugin extends Plugin {
     async onload() {
         // Load Settings
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+        // Initialize Metadata Manager
+        this.metadataManager = new MetadataManager(this);
+        this.metadataManager.setup();
 
         // Initialize Style Manager
         this.styleManager = new StyleManager();
