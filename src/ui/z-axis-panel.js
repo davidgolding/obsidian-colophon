@@ -164,12 +164,17 @@ export class ZAxisPanel {
         this.contentEl.createDiv({ text: 'Comments coming soon...' });
     }
 
-    show(tab = 'footnotes') {
+    show(tab = 'footnotes', callback = null) {
         this.activeTab = tab;
         this.isVisible = true;
         this.containerEl.addClass('is-visible');
         this.titleEl.setText(tab === 'footnotes' ? 'Footnotes' : 'Comments');
         this.update();
+        
+        if (callback) {
+            // Use requestAnimationFrame to ensure DOM is ready
+            requestAnimationFrame(() => callback());
+        }
     }
 
     hide() {
