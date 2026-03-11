@@ -1,5 +1,5 @@
 ---
-status: ready
+status: complete
 priority: p1
 issue_id: "001"
 tags: [footnotes, tiptap, obsidian, ui]
@@ -18,11 +18,11 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - **Phase 4**: Commands & Hotkeys (Obsidian commands, settings).
 
 ## Acceptance Criteria
-- [ ] Typing `(( ` inserts a marker and opens the sidebar.
-- [ ] Markers are correctly superscripted via `align` setting.
-- [ ] Re-sequencing happens instantly on structure changes.
-- [ ] Bi-directional navigation (click to focus/scroll) works.
-- [ ] Footnote content is persisted in JSON.
+- [x] Typing `(( ` inserts a marker and opens the sidebar.
+- [x] Markers are correctly superscripted via `align` setting.
+- [x] Re-sequencing happens instantly on structure changes.
+- [x] Bi-directional navigation (click to focus/scroll) works.
+- [x] Footnote content is persisted in JSON.
 
 ## Work Log
 
@@ -32,3 +32,19 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - Created feature branch `feat/footnotes-sidebar`.
 - Initialized todo `001`.
 - Identified integration points in `tiptap-adapter.js` and `toolbar.js`.
+
+### 2026-03-10 - Implementation
+**By:** Gemini CLI
+**Actions:**
+- Implemented `FootnoteMarker` extension.
+- Created `ZAxisPanel` with mini-Tiptap editors.
+- Added re-sequencing logic to `TiptapAdapter`.
+- Integrated bi-directional navigation.
+
+### 2026-03-10 - Bug Fixes & Refinement
+**By:** Gemini CLI
+**Actions:**
+- Fixed `RangeError: Unknown node type: body` by including dynamic block extensions in mini-editors.
+- Resolved `Duplicate extension names found: ['underline']` warning.
+- Refined CSS to prevent vertical stretching and "double box" borders.
+- Redesigned sidebar header to match editorial aesthetic.
