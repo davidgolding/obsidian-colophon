@@ -5,6 +5,7 @@ import Underline from '@tiptap/extension-underline';
 import { generateExtensions } from '../extensions/universal-block';
 import { Substitutions } from '../extensions/substitutions';
 import { InternalLink } from '../extensions/internal-link';
+import { TiptapLinkSuggest } from './tiptap-link-suggest';
 
 export class ZAxisPanel {
     constructor(view, parentEl) {
@@ -157,6 +158,11 @@ export class ZAxisPanel {
         });
 
         this.editors.set(id, editor);
+
+        // Add internal link suggestions to footnote editor
+        if (this.view.app && this.view.plugin) {
+            new TiptapLinkSuggest(this.view.app, this.view.plugin, editor);
+        }
     }
 
     renderComments() {
