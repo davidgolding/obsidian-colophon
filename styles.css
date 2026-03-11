@@ -110,6 +110,14 @@
     font-style: italic;
 }
 
+.colophon-workspace .ProseMirror u {
+    text-decoration: underline;
+}
+
+.colophon-workspace .ProseMirror .colophon-small-caps {
+    font-variant: small-caps;
+}
+
 /* Hide Tiptap's default focus outline */
 .colophon-workspace .ProseMirror-focused {
     outline: none;
