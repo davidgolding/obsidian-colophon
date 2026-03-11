@@ -222,8 +222,9 @@
 }
 
 .colophon-ui-btn.colophon-active {
-    background: var(--background-modifier-active-hover);
+    background-color: var(--background-modifier-hover);
     color: var(--text-normal);
+    box-shadow: inset 0 0 0 1px var(--background-modifier-border-focus);
 }
 
 .colophon-ui-btn.colophon-icon-only {
@@ -412,6 +413,7 @@
 /* 10. Z-AXIS PANEL (Sidebar) */
 .colophon-z-axis-panel {
     width: 0;
+    flex-shrink: 0;
     opacity: 0;
     background-color: var(--background-secondary);
     border-left: 0 solid var(--background-modifier-border);
@@ -420,15 +422,16 @@
     overflow-y: auto;
     overflow-x: hidden;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.2s ease,
+        opacity 0.3s ease,
         padding 0.3s ease,
-        border-left-width 0.3s ease;
+        border-left-width 0.3s ease,
+        visibility 0.3s;
     padding: 0;
     visibility: hidden;
 }
 
 .colophon-z-axis-panel.is-visible {
-    width: 350px;
+    width: 351px;
     opacity: 1;
     padding: 0;
     border-left-width: 1px;
@@ -439,14 +442,37 @@
     flex: 1;
     padding: 24px 16px;
     overflow-y: auto;
+    width: 350px;
+    min-width: 350px;
 }
 
 .colophon-panel-empty {
-    color: var(--text-muted);
-    font-style: italic;
+    color: var(--text-faint);
     text-align: center;
-    margin-top: 40px;
-    font-size: 0.9rem;
+    margin-top: 100px;
+    font-family: var(--font-text-theme), var(--font-text-override), serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    font-style: normal;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    animation: colophon-fade-in 1.2s ease forwards;
+}
+
+.colophon-panel-empty::before {
+    content: "†";
+    font-size: 2.5rem;
+    font-family: serif;
+    opacity: 0.15;
+    font-weight: 200;
+}
+
+@keyframes colophon-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Footnotes Sidebar */
