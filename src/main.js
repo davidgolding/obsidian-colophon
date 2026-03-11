@@ -80,6 +80,58 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
+        this.addCommand({
+            id: 'toggle-underline',
+            name: 'Toggle Underline',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleUnderline();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'toggle-superscript',
+            name: 'Toggle Superscript',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleSuperscript();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'toggle-subscript',
+            name: 'Toggle Subscript',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleSubscript();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'toggle-small-caps',
+            name: 'Toggle Small Caps',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleSmallCaps();
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // 5. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
