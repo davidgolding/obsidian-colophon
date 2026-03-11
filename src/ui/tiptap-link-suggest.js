@@ -82,7 +82,7 @@ export class TiptapLinkSuggest {
 
     showSuggestions(query, start, end, type) {
         this.context = { query, start, end, type };
-        const q = query.toLowerCase();
+        const queryParts = query.toLowerCase().split(/\s+/).filter(p => p.length > 0);
         
         const showUnsupported = this.app.vault.getConfig('showUnsupportedFiles');
         const files = this.app.vault.getFiles()
@@ -90,10 +90,22 @@ export class TiptapLinkSuggest {
                 if (!showUnsupported && !['md', 'colophon', 'canvas'].includes(file.extension)) {
                     return false;
                 }
-                return file.path.toLowerCase().includes(q) || file.basename.toLowerCase().includes(q);
+                const path = file.path.toLowerCase();
+                const name = file.basename.toLowerCase();
+                
+                // Match all parts of the query in any order
+                return queryParts.every(part => path.includes(part) || name.includes(part));
             })
-            .sort((a, b) => a.basename.localeCompare(b.basename))
-            .slice(0, 10);
+            .sort((a, b) => {
+                // Prioritize exact basename matches
+                const aName = a.basename.toLowerCase();
+                const bName = b.basename.toLowerCase();
+                const q = query.toLowerCase();
+                if (aName === q && bName !== q) return -1;
+                if (bName === q && aName !== q) return 1;
+                return a.basename.localeCompare(b.basename);
+            })
+            .slice(0, 50);
 
         if (files.length === 0) {
             this.close();
@@ -132,6 +144,18 @@ export class TiptapLinkSuggest {
                 this.selectCurrent();
             });
         });
+
+        // Add instructions footer matching Obsidian native style
+        const footerEl = this.suggestionEl.createDiv({ cls: 'prompt-instructions' });
+        
+        const leftIns = footerEl.createDiv({ cls: 'prompt-instruction' });
+        leftIns.innerHTML = '<span class="prompt-instruction-command">Type #</span> to link heading';
+        
+        const centerIns = footerEl.createDiv({ cls: 'prompt-instruction' });
+        centerIns.innerHTML = '<span class="prompt-instruction-command">Type ^</span> to link blocks';
+        
+        const rightIns = footerEl.createDiv({ cls: 'prompt-instruction' });
+        rightIns.innerHTML = '<span class="prompt-instruction-command">Type |</span> to change display text';
     }
 
     moveSelection(dir) {

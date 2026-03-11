@@ -29,6 +29,9 @@ export class TiptapAdapter {
 
         this.editor = new Editor({
             element: this.parentElement,
+            // Pass app and plugin to options so extensions can access them
+            app: this.app,
+            plugin: this.plugin,
             extensions: [
                 StarterKit.configure({
                     paragraph: false,

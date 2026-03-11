@@ -29,13 +29,46 @@ export const InternalLink = Node.create({
         ];
     },
 
-    renderHTML({ HTMLAttributes }) {
-        return ['span', mergeAttributes(HTMLAttributes, { 'data-colophon-link': '' }), 0];
+    renderHTML({ node, HTMLAttributes }) {
+        const { target, alias } = node.attrs;
+        return [
+            'span',
+            mergeAttributes(HTMLAttributes, { 
+                'data-colophon-link': target,
+                'class': 'colophon-internal-link',
+                'title': `Click to open ${target}`
+            }),
+            alias || target.split('/').pop().replace('.md', '').replace('.colophon', '')
+        ];
     },
 
     renderText({ node }) {
         const { target, alias } = node.attrs;
         return alias || target;
+    },
+
+    addNodeView() {
+        return ({ node, HTMLAttributes, getPos, editor }) => {
+            const dom = document.createElement('span');
+            dom.className = 'colophon-internal-link';
+            dom.setAttribute('data-colophon-link', node.attrs.target);
+            dom.textContent = node.attrs.alias || node.attrs.target.split('/').pop().replace('.md', '').replace('.colophon', '');
+
+            dom.addEventListener('click', (e) => {
+                // Shift or Alt click to open in new leaf
+                const newLeaf = e.shiftKey || e.altKey || e.metaKey;
+                
+                // Get Obsidian app from editor options (passed via TiptapAdapter)
+                const app = editor.options.app;
+                if (app) {
+                    app.workspace.openLinkText(node.attrs.target, '', newLeaf);
+                }
+            });
+
+            return {
+                dom,
+            };
+        };
     },
 
     addCommands() {
