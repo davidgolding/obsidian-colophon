@@ -2,6 +2,7 @@ import { setIcon } from 'obsidian';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
+import { generateExtensions } from '../extensions/universal-block';
 import { Substitutions } from '../extensions/substitutions';
 import { InternalLink } from '../extensions/internal-link';
 
@@ -22,9 +23,14 @@ export class ZAxisPanel {
         
         // Header
         const header = this.containerEl.createDiv({ cls: 'colophon-panel-header' });
+        
+        // Use a more editorial title style
         this.titleEl = header.createDiv({ cls: 'colophon-panel-title', text: 'Footnotes' });
         
-        const closeBtn = header.createEl('button', { cls: 'colophon-panel-close' });
+        const closeBtn = header.createEl('button', { 
+            cls: 'colophon-ui-btn colophon-icon-only colophon-panel-close',
+            attr: { 'aria-label': 'Close Panel' }
+        });
         setIcon(closeBtn, 'x');
         closeBtn.onclick = () => this.hide();
 
@@ -87,20 +93,34 @@ export class ZAxisPanel {
             this.editors.get(id).destroy();
         }
 
+        // We MUST include the dynamic block extensions (like 'body', 'footnote')
+        // so that Tiptap recognizes the node types in the content.
+        const dynamicExtensions = this.view.plugin.settings ? generateExtensions(this.view.plugin.settings) : [];
+
         const editor = new Editor({
             element: element,
+            // Pass app/plugin to options just like main editor
+            app: this.view.app,
+            plugin: this.view.plugin,
             extensions: [
                 StarterKit.configure({
-                    history: true,
+                    // Disable core nodes that we handle via universal-block or customize
+                    paragraph: false,
+                    heading: false,
+                    codeBlock: false,
+                    blockquote: false,
+                    bulletList: false,
+                    orderedList: false,
+                    listItem: false,
+                    horizontalRule: false,
                 }),
                 Underline,
+                ...dynamicExtensions,
                 Substitutions.configure({
                     smartQuotes: this.view.plugin.settings.smartQuotes,
                     smartDashes: this.view.plugin.settings.smartDashes,
                 }),
-                InternalLink.configure({
-                    app: this.view.app
-                })
+                InternalLink
             ],
             content: content,
             onUpdate: ({ editor }) => {
