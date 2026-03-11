@@ -74,8 +74,8 @@
     margin-top: 0 !important;
 }
 
-/* Selection Styling */
-.colophon-main-editor ::selection {
+/* Selection Styling - Applies to all editors in workspace */
+.colophon-workspace .ProseMirror ::selection {
     background-color: var(--text-selection);
 }
 
@@ -821,6 +821,12 @@
     border: 1px solid var(--background-modifier-border);
     border-radius: 8px;
     padding: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.colophon-footnote-item:focus-within {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
 .colophon-footnote-number {
@@ -843,20 +849,21 @@
 
 .colophon-footnote-editor {
     outline: none;
-    min-height: auto; /* Remove fixed min-height to prevent stretching */
+    min-height: auto;
     cursor: text;
     width: 100%;
-    background-color: transparent !important; /* Ensure no double background */
+    background-color: transparent !important;
+    border: 0 !important;
 }
 
 .colophon-footnote-editor .ProseMirror {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    min-height: auto !important; /* Force naturally-sized content */
+    min-height: auto !important;
     background-color: transparent !important;
     box-shadow: none !important;
-    border: none !important;
+    border: 0 !important;
 }
 
 /* Ensure footnote content respects block styles but resets sidebar-specific layout */
