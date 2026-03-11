@@ -856,6 +856,7 @@
     min-height: auto !important; /* Force naturally-sized content */
     background-color: transparent !important;
     box-shadow: none !important;
+    border: none !important;
 }
 
 /* Ensure footnote content respects block styles but resets sidebar-specific layout */
