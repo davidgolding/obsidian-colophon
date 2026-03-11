@@ -23,7 +23,7 @@ export class TiptapAdapter {
         this.mount(content);
         
         if (this.app && this.plugin) {
-            this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this);
+            this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this.editor);
         }
 
         this.setupGlobalEvents();
