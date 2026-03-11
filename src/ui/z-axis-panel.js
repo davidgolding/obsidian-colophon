@@ -54,7 +54,6 @@ export class ZAxisPanel {
         
         const footnotes = this.view.adapter.getFootnotes();
         
-        // 1. Initial state check
         if (footnotes.length === 0) {
             this.cleanupEditors();
             this.contentEl.empty();
@@ -72,17 +71,10 @@ export class ZAxisPanel {
             listEl = this.contentEl.createDiv({ cls: 'colophon-footnote-list' });
         }
 
-        // 2. Identify current focused editor to protect it
-        let focusedId = null;
-        for (const [id, editor] of this.editors) {
-            if (editor.isFocused) {
-                focusedId = id;
-                break;
-            }
-        }
-
-        // 3. Remove orphaned items
+        // Track active IDs
         const activeIds = new Set(footnotes.map(f => f.id));
+
+        // 1. Cleanup old editors/elements
         for (const [id, editor] of this.editors) {
             if (!activeIds.has(id)) {
                 editor.destroy();
@@ -92,12 +84,12 @@ export class ZAxisPanel {
             }
         }
 
-        // 4. Update or Create items
-        footnotes.forEach((fn) => {
+        // 2. Sync existing or create new
+        footnotes.forEach((fn, index) => {
             let itemEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
             
             if (!itemEl) {
-                // Create new item
+                // CREATE
                 itemEl = listEl.createDiv({ cls: 'colophon-footnote-item' });
                 itemEl.dataset.footnoteId = fn.id;
 
@@ -113,35 +105,36 @@ export class ZAxisPanel {
                 const editorContainer = itemEl.createDiv({ cls: 'colophon-footnote-editor-container' });
                 this.createMiniEditor(fn.id, fn.content, editorContainer);
             } else {
-                // Update existing sequence number
+                // UPDATE SEQUENCE
                 const markerEl = itemEl.querySelector('.colophon-footnote-number');
                 if (markerEl && markerEl.getText() !== `${fn.number}.`) {
                     markerEl.setText(`${fn.number}.`);
                 }
                 
-                // IMPORTANT: If this item is focused, DO NOT touch its editor content.
-                // If not focused, we could potentially update it if the main document 
-                // changed (e.g. undo), but for simplicity and focus stability, we 
-                // trust Tiptap's internal state unless the editor is missing.
-                if (!this.editors.has(fn.id)) {
-                    const editorContainer = itemEl.querySelector('.colophon-footnote-editor-container');
-                    this.createMiniEditor(fn.id, fn.content, editorContainer);
+                // DATA SYNC (Canvas -> Sidebar)
+                // Only if NOT focused and content actually differs
+                const editor = this.editors.get(fn.id);
+                if (editor && !editor.isFocused) {
+                    const currentJSON = JSON.stringify(editor.getJSON());
+                    const incomingJSON = JSON.stringify(fn.content);
+                    if (currentJSON !== incomingJSON) {
+                        editor.commands.setContent(fn.content, false);
+                    }
                 }
             }
         });
 
-        // 5. Correct visual order
-        const currentOrder = Array.from(listEl.children);
+        // 3. Re-order DOM to match sequence
         footnotes.forEach((fn, index) => {
-            const expectedEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
-            if (expectedEl && listEl.children[index] !== expectedEl) {
-                listEl.insertBefore(expectedEl, listEl.children[index]);
+            const el = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
+            if (el && listEl.children[index] !== el) {
+                listEl.insertBefore(el, listEl.children[index]);
             }
         });
     }
 
     createMiniEditor(id, content, element) {
-        // Use the shared extensions from the main adapter to ensure schema parity and no warnings
+        // Use shared extensions from main adapter
         const extensions = this.view.adapter.sharedExtensions;
         const isSpellcheckEnabled = this.view.app.vault.getConfig('spellcheck');
 
@@ -152,8 +145,7 @@ export class ZAxisPanel {
             extensions: extensions,
             content: content,
             onUpdate: ({ editor }) => {
-                // Use colophon-sync meta or equivalent if we added it, 
-                // or just trust the check in updateFootnote
+                // Push change to adapter
                 this.view.adapter.updateFootnote(id, editor.getJSON());
             },
             editorProps: {
@@ -197,7 +189,6 @@ export class ZAxisPanel {
     cleanupEditors() {
         this.editors.forEach(editor => editor.destroy());
         this.editors.clear();
-        this.extensions = null; // Clear memoized extensions
     }
 
     destroy() {
