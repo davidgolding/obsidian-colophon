@@ -1,4 +1,4 @@
-import { Editor } from '@tiptap/core';
+import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
@@ -9,6 +9,26 @@ import { FootnoteMarker } from './extensions/footnote-marker';
 import { SmallCaps } from './extensions/small-caps';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 // FixedFeed extension removed in favor of inline logic
+
+const ColophonAgentCommands = Extension.create({
+    name: 'colophonAgentCommands',
+    addCommands() {
+        return {
+            'colophon:add-link': (attributes) => ({ chain }) => {
+                return chain().insertInternalLink(attributes).run();
+            },
+            'colophon:set-block-type': (typeId) => ({ chain }) => {
+                return chain().setNode(typeId).run();
+            },
+            'colophon:focus-footnote': (id) => ({ editor }) => {
+                if (editor.options.adapter) {
+                    editor.options.adapter.focusNote(id);
+                }
+                return true;
+            }
+        };
+    }
+});
 
 export class TiptapAdapter {
     constructor(parentElement, { content, footnotes, type, settings, isSpellcheckEnabled, onUpdate, app, plugin, view }) {
@@ -47,8 +67,8 @@ export class TiptapAdapter {
             }
         };
 
-        document.body.addEventListener('colophon-focus-footnote', this.focusHandler);
-        document.body.addEventListener('colophon-create-footnote', this.createHandler);
+        document.body.addEventListener('colophon:footnote:focus', this.focusHandler);
+        document.body.addEventListener('colophon:footnote:create', this.createHandler);
     }
 
     mount(content) {
@@ -73,6 +93,7 @@ export class TiptapAdapter {
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(( "
                 }),
+                ColophonAgentCommands,
                 ...dynamicExtensions,
                 Substitutions.configure({
                     smartQuotes: this.settings?.smartQuotes ?? true,
@@ -87,18 +108,22 @@ export class TiptapAdapter {
             element: this.parentElement,
             app: this.app,
             plugin: this.plugin,
+            adapter: this,
             extensions: this.sharedExtensions,
             content: content || { type: 'doc', content: [{ type: 'body' }] },
-            onUpdate: ({ editor }) => {
+            onUpdate: ({ editor, transaction }) => {
                 if (this.onUpdate) {
                     this.onUpdate();
                 }
-                this.updateFootnoteSequence();
+                
+                // Only re-sequence if markers were affected by the change
+                if (transaction && transaction.docChanged && !transaction.getMeta('colophon-sync')) {
+                    if (this.checkIfResequenceNeeded(transaction)) {
+                        this.updateFootnoteSequence();
+                    }
+                }
             },
             onSelectionUpdate: ({ editor }) => {
-                if (this.onUpdate) {
-                    this.onUpdate();
-                }
                 if (this.view) {
                     this.view.updateActiveEditor(editor);
                 }
@@ -183,6 +208,18 @@ export class TiptapAdapter {
         }
     }
 
+    addLink({ target, alias }) {
+        if (this.editor) {
+            this.editor.commands['colophon:add-link']({ target, alias });
+        }
+    }
+
+    setBlockType(typeId) {
+        if (this.editor) {
+            this.editor.commands['colophon:set-block-type'](typeId);
+        }
+    }
+
     updateSettings(settings) {
         if (!this.editor) {
             this.settings = settings;
@@ -255,7 +292,7 @@ export class TiptapAdapter {
             if (Math.abs(delta) > 2) {
                 container.scrollBy({
                     top: delta,
-                    behavior: 'smooth'
+                    behavior: 'auto'
                 });
             }
         });
@@ -263,10 +300,10 @@ export class TiptapAdapter {
 
     destroy() {
         if (this.focusHandler) {
-            document.body.removeEventListener('colophon-focus-footnote', this.focusHandler);
+            document.body.removeEventListener('colophon:footnote:focus', this.focusHandler);
         }
         if (this.createHandler) {
-            document.body.removeEventListener('colophon-create-footnote', this.createHandler);
+            document.body.removeEventListener('colophon:footnote:create', this.createHandler);
         }
         if (this.linkSuggest) {
             this.linkSuggest.close();
@@ -308,6 +345,49 @@ export class TiptapAdapter {
 
         this.footnotes[id] = content;
         if (this.onUpdate) this.onUpdate();
+    }
+
+    /**
+     * Efficiently checks if a transaction contains changes that require re-sequencing footnotes.
+     * Re-sequencing is only needed if footnote markers are added, removed, or moved.
+     */
+    checkIfResequenceNeeded(transaction) {
+        if (!transaction || !transaction.docChanged) return false;
+
+        let markerChanged = false;
+
+        // Iterate through transaction steps to see if any footnoteMarker was affected
+        for (let i = 0; i < transaction.steps.length; i++) {
+            const step = transaction.steps[i];
+            
+            // Check for added markers in the new content
+            if (step.slice && step.slice.content) {
+                step.slice.content.descendants(node => {
+                    if (node.type.name === 'footnoteMarker') {
+                        markerChanged = true;
+                        return false; // Stop descendants iteration
+                    }
+                });
+            }
+
+            if (markerChanged) break;
+
+            // Check for removed/moved markers in the content before this step
+            // ProseMirror transactions keep track of the document state before each step
+            const beforeDoc = transaction.docs ? transaction.docs[i] : (transaction.before || null);
+            if (beforeDoc && step.from !== undefined && step.to !== undefined) {
+                beforeDoc.nodesBetween(step.from, step.to, node => {
+                    if (node.type.name === 'footnoteMarker') {
+                        markerChanged = true;
+                        return false; // Stop nodesBetween iteration
+                    }
+                });
+            }
+
+            if (markerChanged) break;
+        }
+
+        return markerChanged;
     }
 
     updateFootnoteSequence() {
