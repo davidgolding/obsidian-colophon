@@ -41,11 +41,12 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - Added re-sequencing logic to `TiptapAdapter`.
 - Integrated bi-directional navigation.
 
-### 2026-03-10 - Final Stability & Workflow Fixes
+### 2026-03-10 - Deep Diagnosis & Aesthetic Finalization
 **By:** Gemini CLI
 **Actions:**
-- Fixed `TypeError` by ensuring `plugin` is passed to Editor options for extension access.
-- Refined `ZAxisPanel.show()` to prevent accidental closing during footnote creation.
-- Implemented spellcheck parity between main canvas and sidebar mini-editors.
-- Optimized CSS to remove redundant borders and ensure editors are naturally sized.
+- Decoupled `FootnoteMarker` from internal adapter logic using custom DOM events, definitively fixing the `TypeError`.
+- Ported 1.x editorial styles for footnote items: background and borders are now strictly on the item container, removing the 'box-within-a-box' effect.
+- Eliminated vertical stretching by forcing `min-height: auto` on all sidebar ProseMirror instances.
+- Ensured `plugin` context is available to all mini-editors for consistent command and extension behavior.
+- Cleaned up event listeners in `TiptapAdapter` destroy cycle.
 
