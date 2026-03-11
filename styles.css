@@ -1104,6 +1104,13 @@
     color: var(--link-color-hover);
 }
 
+.colophon-internal-link.is-selected {
+    background-color: transparent;
+    font-weight: normal;
+    padding: 0;
+    color: var(--text-muted);
+}
+
 /* Link Suggestions UI */
 .colophon-link-suggestions {
     background-color: var(--background-primary);
