@@ -161,6 +161,13 @@ export class ColophonToolbar {
             }
             this.blockSelectBtn.firstChild.textContent = activeBlockName;
         }
+
+        // Update Panel Status Indicators
+        if (this.view.zAxisPanel) {
+            const panel = this.view.zAxisPanel;
+            this.toggleBtnState(this.footnoteBtn, panel.isVisible && panel.activeTab === 'footnotes');
+            this.toggleBtnState(this.commentBtn, panel.isVisible && panel.activeTab === 'comments');
+        }
     }
 
     toggleBtnState(btn, isActive) {
