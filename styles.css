@@ -110,16 +110,6 @@
     font-style: italic;
 }
 
-/* Footnotes */
-.colophon-workspace .ProseMirror .footnote-list {
-    font-size: 0.9rem;
-    line-height: 1.4;
-    color: var(--text-muted);
-    margin-top: 4rem;
-    border-top: 1px solid var(--background-modifier-border);
-    padding-top: 1rem;
-}
-
 /* Hide Tiptap's default focus outline */
 .colophon-workspace .ProseMirror-focused {
     outline: none;
@@ -335,168 +325,6 @@
     flex-grow: 1;
 }
 
-/* 6. FOOTNOTE SIDEBAR VIEW */
-.colophon-footnote-view {
-    padding: 10px;
-    height: 100%;
-    overflow-y: auto;
-    position: relative;
-    /* For popover positioning */
-}
-
-.colophon-footnote-empty {
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 20px;
-    font-style: italic;
-    font-size: 0.9rem;
-}
-
-.colophon-footnote-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-
-.colophon-footnote-item {
-    background-color: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.colophon-footnote-header {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 5px;
-}
-
-.colophon-footnote-number {
-    font-weight: bold;
-    color: var(--text-accent);
-}
-
-.colophon-footnote-id {
-    font-family: monospace;
-    opacity: 0.5;
-}
-
-.colophon-footnote-editor {
-    width: 100%;
-    min-height: 60px;
-    resize: none;
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 8px;
-    font-family: var(--font-text-theme), var(--font-text-override);
-    font-size: 0.9rem;
-    background-color: var(--background-primary);
-    color: var(--text-normal);
-}
-
-.colophon-footnote-editor:focus {
-    border-color: var(--text-accent);
-    box-shadow: 0 0 0 2px rgba(var(--text-accent-rgb), 0.2);
-}
-
-.colophon-footnote-editor-content {
-    font-family: var(--font-text-theme), var(--font-text-override);
-}
-
-/* Footnote in text */
-.colophon-footnote {
-    vertical-align: 0.1rem;
-    font-size: 0.9rem;
-    color: var(--text-accent);
-    line-height: 0;
-}
-
-/* Footnote Selection */
-.colophon-footnote-editor-content ::selection {
-    background-color: var(--text-selection);
-}
-
-/* Select Menu */
-.colophon-select-container {
-    position: relative;
-    width: 100%;
-}
-
-.colophon-select-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    color: var(--text-normal);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background-color 0.1s;
-}
-
-.colophon-select-trigger:hover {
-    background-color: var(--background-modifier-hover);
-}
-
-.colophon-select-icon {
-    color: var(--text-muted);
-}
-
-.colophon-select-dropdown {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100%;
-    background-color: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 1001;
-    margin-top: 4px;
-    overflow: hidden;
-    padding: 4px;
-}
-
-.colophon-select-item {
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    color: var(--text-normal);
-    transition: background-color 0.1s;
-}
-
-.colophon-select-item:hover {
-    background-color: var(--background-modifier-hover);
-}
-
-.colophon-select-item.is-selected {
-    background-color: var(--text-selection);
-}
-
-.colophon-popover-label {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    letter-spacing: 0.05em;
-    font-weight: 600;
-    margin-bottom: 4px;
-    margin-top: 8px;
-    padding-left: 2px;
-}
-
-.colophon-popover-label:first-child {
-    margin-top: 0;
-}
-
 /* 7. WORD COUNT INDICATOR */
 .colophon-word-count-indicator {
     position: absolute;
@@ -562,168 +390,6 @@
 
 .colophon-comment-highlight:hover {
     background-color: rgba(255, 214, 10, 0.5);
-}
-
-/* Active state (when sidebar card is focused or clicked) */
-/* We don't strictly have an .is-active class on the mark yet, 
-   but we could add one via decoration or just rely on selection. 
-   Tiptap selection is blue by default. 
-   We might want to override selection color for comment marks? 
-   For now, let's stick to default selection. */
-
-/* Sidebar View */
-.colophon-comment-view {
-    padding: 10px;
-    height: 100%;
-    overflow-y: auto;
-    background-color: var(--background-secondary);
-}
-
-.colophon-comment-empty {
-    color: var(--text-muted);
-    text-align: center;
-    margin-top: 40px;
-    font-style: italic;
-}
-
-.colophon-comment-list {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    padding-bottom: 40px;
-}
-
-.colophon-comment-card {
-    background-color: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 8px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    border-left: 3px solid transparent;
-}
-
-.colophon-comment-card:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-    border-color: var(--interactive-accent);
-}
-
-.colophon-comment-card.is-active {
-    border-color: var(--interactive-accent);
-    border-left-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.1);
-}
-
-.colophon-comment-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-}
-
-.colophon-comment-author-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.colophon-comment-author {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-normal);
-}
-
-.colophon-comment-date {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.colophon-comment-resolve-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.6;
-    transition: all 0.2s;
-}
-
-.colophon-comment-resolve-btn:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--interactive-success);
-    opacity: 1;
-}
-
-.colophon-comment-content {
-    width: 100%;
-    min-height: 24px;
-    resize: none;
-    border: none;
-    background: transparent;
-    font-family: var(--text-normal);
-    font-size: 0.95rem;
-    color: var(--text-normal);
-    padding: 0;
-    margin: 4px 0;
-    line-height: 1.4;
-}
-
-.colophon-comment-content:focus {
-    outline: none;
-}
-
-/* Replies */
-.colophon-comment-replies {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--background-modifier-border);
-}
-
-.colophon-comment-reply {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 0.9rem;
-}
-
-.colophon-comment-reply-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-}
-
-.colophon-comment-reply-content {
-    color: var(--text-normal);
-    padding-left: 8px;
-    border-left: 2px solid var(--background-modifier-border);
-}
-
-.colophon-comment-reply-input {
-    width: 100%;
-    background: var(--background-secondary);
-    border: 1px solid transparent;
-    border-radius: 12px;
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    margin-top: 8px;
-    transition: all 0.2s;
-}
-
-.colophon-comment-reply-input:focus {
-    background: var(--background-primary);
-    border-color: var(--interactive-accent);
-    outline: none;
 }
 
 /* 9. MAIN LAYOUT (Flex) */
@@ -830,10 +496,8 @@
 }
 
 .colophon-footnote-number {
-    font-weight: bold;
     cursor: pointer;
     color: var(--text-accent);
-    font-size: 0.8rem;
     align-self: flex-start;
 }
 
@@ -866,16 +530,11 @@
     border: 0 !important;
 }
 
-/* Ensure footnote content respects block styles but resets sidebar-specific layout */
+/* Base reset for paragraphs in mini-editors */
 .colophon-footnote-editor p {
     margin: 0 !important;
     padding: 0 !important;
 }
-
-.colophon-footnote-editor-container:focus-within {
-    background-color: transparent;
-}
-
 
 /* Footnote Marker in Canvas */
 .colophon-footnote-marker {
@@ -1060,11 +719,6 @@
     color: var(--text-muted);
     cursor: pointer;
     transition: background-color 0.1s ease;
-}
-
-.colophon-search-button:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
 }
 
 .colophon-search-button svg {
