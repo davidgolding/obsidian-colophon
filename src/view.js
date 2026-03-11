@@ -89,6 +89,8 @@ export class ColophonView extends TextFileView {
                 type: this.docType,
                 settings: this.plugin ? this.plugin.settings : null,
                 isSpellcheckEnabled: isSpellcheckEnabled,
+                app: this.app,
+                plugin: this.plugin,
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
