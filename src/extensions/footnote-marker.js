@@ -79,11 +79,20 @@ export const FootnoteMarker = Node.create({
                 // Match the trigger either with or without a space
                 // but only at the end of a line/word
                 find: new RegExp(`\\(\\($`),
-                handler: ({ state, range }) => {
+                handler: ({ state, range, editor }) => {
                     const id = `fn-${crypto.randomUUID()}`;
                     const { tr } = state;
 
                     tr.replaceWith(range.from, range.to, this.type.create({ id }));
+                    
+                    // Signal the adapter to focus this new note
+                    // We use a small delay to ensure the DOM has updated
+                    setTimeout(() => {
+                        if (editor.options.plugin && editor.options.plugin.adapter) {
+                            editor.options.plugin.adapter.focusNote(id);
+                        }
+                    }, 10);
+
                     return tr;
                 },
             }),

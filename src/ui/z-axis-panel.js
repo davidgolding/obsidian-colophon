@@ -54,7 +54,7 @@ export class ZAxisPanel {
         
         const footnotes = this.view.adapter.getFootnotes();
         
-        // Check if we need to clear everything (e.g. document changed)
+        // 1. Initial state check
         if (footnotes.length === 0) {
             this.cleanupEditors();
             this.contentEl.empty();
@@ -72,10 +72,17 @@ export class ZAxisPanel {
             listEl = this.contentEl.createDiv({ cls: 'colophon-footnote-list' });
         }
 
-        // Track current IDs to see what needs to be removed
-        const activeIds = new Set(footnotes.map(f => f.id));
+        // 2. Identify current focused editor to protect it
+        let focusedId = null;
+        for (const [id, editor] of this.editors) {
+            if (editor.isFocused) {
+                focusedId = id;
+                break;
+            }
+        }
 
-        // 1. Remove editors that no longer exist
+        // 3. Remove orphaned items
+        const activeIds = new Set(footnotes.map(f => f.id));
         for (const [id, editor] of this.editors) {
             if (!activeIds.has(id)) {
                 editor.destroy();
@@ -85,8 +92,8 @@ export class ZAxisPanel {
             }
         }
 
-        // 2. Add or update items
-        footnotes.forEach((fn, index) => {
+        // 4. Update or Create items
+        footnotes.forEach((fn) => {
             let itemEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
             
             if (!itemEl) {
@@ -108,64 +115,44 @@ export class ZAxisPanel {
             } else {
                 // Update existing sequence number
                 const markerEl = itemEl.querySelector('.colophon-footnote-number');
-                if (markerEl) markerEl.setText(`${fn.number}.`);
+                if (markerEl && markerEl.getText() !== `${fn.number}.`) {
+                    markerEl.setText(`${fn.number}.`);
+                }
                 
-                // Content synchronization logic:
-                // We DON'T update the editor content here if the editor is focused,
-                // because the editor is the source of truth during editing.
-                const editor = this.editors.get(fn.id);
-                if (editor && !editor.isFocused) {
-                    // Only update if content changed externally (e.g. undo in main canvas)
-                    // This check is a bit heavy, we might want to optimize it.
-                    // For now, let's trust the Tiptap local state.
+                // IMPORTANT: If this item is focused, DO NOT touch its editor content.
+                // If not focused, we could potentially update it if the main document 
+                // changed (e.g. undo), but for simplicity and focus stability, we 
+                // trust Tiptap's internal state unless the editor is missing.
+                if (!this.editors.has(fn.id)) {
+                    const editorContainer = itemEl.querySelector('.colophon-footnote-editor-container');
+                    this.createMiniEditor(fn.id, fn.content, editorContainer);
                 }
             }
         });
 
-        // 3. Ensure visual order matches sequence
-        // (Iterate through footnotes and move elements to the end of listEl)
-        footnotes.forEach(fn => {
-            const itemEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
-            if (itemEl) listEl.appendChild(itemEl);
+        // 5. Correct visual order
+        const currentOrder = Array.from(listEl.children);
+        footnotes.forEach((fn, index) => {
+            const expectedEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
+            if (expectedEl && listEl.children[index] !== expectedEl) {
+                listEl.insertBefore(expectedEl, listEl.children[index]);
+            }
         });
     }
 
-    getExtensions() {
-        if (this.extensions) return this.extensions;
-
-        const dynamicBlocks = this.view.plugin.settings ? generateExtensions(this.view.plugin.settings) : [];
-        
-        this.extensions = [
-            StarterKit.configure({
-                paragraph: false,
-                heading: false,
-                codeBlock: false,
-                blockquote: false,
-                bulletList: false,
-                orderedList: false,
-                listItem: false,
-                horizontalRule: false,
-            }),
-            Underline,
-            ...dynamicBlocks,
-            Substitutions.configure({
-                smartQuotes: this.view.plugin.settings.smartQuotes,
-                smartDashes: this.view.plugin.settings.smartDashes,
-            }),
-            InternalLink
-        ];
-
-        return this.extensions;
-    }
-
     createMiniEditor(id, content, element) {
+        // Use the shared extensions from the main adapter to ensure schema parity and no warnings
+        const extensions = this.view.adapter.sharedExtensions;
+
         const editor = new Editor({
             element: element,
             app: this.view.app,
             plugin: this.view.plugin,
-            extensions: this.getExtensions(),
+            extensions: extensions,
             content: content,
             onUpdate: ({ editor }) => {
+                // Use colophon-sync meta or equivalent if we added it, 
+                // or just trust the check in updateFootnote
                 this.view.adapter.updateFootnote(id, editor.getJSON());
             },
             editorProps: {

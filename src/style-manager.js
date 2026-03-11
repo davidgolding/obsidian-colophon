@@ -28,14 +28,25 @@ export class StyleManager {
         // Footnote sidebar dynamic styling
         const footnoteDef = settings.blocks['footnote'];
         if (footnoteDef) {
+            // General sidebar editor styling
             css += `.colophon-footnote-editor {\n`;
             if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
             if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
             if (footnoteDef['line-spacing']) css += `  line-height: ${this.normalizeValue(footnoteDef['line-spacing'])};\n`;
             css += `}\n`;
+            
+            // Layout specific
             if (footnoteDef['space-between-notes']) {
                 css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'])}; }\n`;
             }
+
+            // High-precision selector for sidebar content alignment/typography
+            css += `.colophon-footnote-editor .ProseMirror {\n`;
+            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']};\n`;
+            if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
+            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
+            if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
+            css += `}\n`;
         }
 
         const numberDef = settings.blocks['footnote-number'];
