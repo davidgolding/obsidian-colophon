@@ -112,6 +112,17 @@ export class ColophonSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(pluginSettingsItems)
+            .setName('Footnote trigger')
+            .setDesc('Syntax trigger to insert a footnote (must end with space). Default: "(( "')
+            .addText(text => text
+                .setPlaceholder('(( ')
+                .setValue(this.plugin.settings.footnoteTrigger)
+                .onChange(async (value) => {
+                    this.plugin.settings.footnoteTrigger = value;
+                    await this.plugin.saveSettings();
+                }));
+
 
         // --- Block Settings Group ---
         const blockSettingsGroup = containerEl.createDiv({ cls: 'setting-group' });

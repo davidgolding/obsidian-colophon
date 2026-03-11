@@ -65,6 +65,32 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
+        this.addCommand({
+            id: 'insert-footnote',
+            name: 'Insert Footnote',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    // Disable in Script Mode as per plan
+                    if (view.docType === 'script') return false;
+
+                    if (!checking) {
+                        const id = `fn-${crypto.randomUUID()}`;
+                        view.adapter.editor.chain().focus().insertContent({
+                            type: 'footnoteMarker',
+                            attrs: { id }
+                        }).run();
+                        
+                        // Open panel and focus
+                        view.toggleFootnotes();
+                        view.adapter.focusNote(id);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         // 5. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {

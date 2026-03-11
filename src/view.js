@@ -1,6 +1,7 @@
 import { TextFileView } from 'obsidian';
 import { TiptapAdapter } from './tiptap-adapter';
 import { ColophonToolbar } from './ui/toolbar';
+import { ZAxisPanel } from './ui/z-axis-panel';
 
 export const VIEW_TYPE_COLOPHON = 'colophon-view';
 
@@ -28,8 +29,14 @@ export class ColophonView extends TextFileView {
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
 
+        // Main Layout Container (Editor + Sidebar)
+        this.mainLayout = this.contentEl.createDiv({ cls: 'colophon-main-layout' });
+
         // Add scroll container which is the target for our FixedFeed logic and CSS
-        this.scrollContainer = this.contentEl.createDiv({ cls: 'colophon-scroll-container' });
+        this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container' });
+
+        // Add Z-Axis Panel (Sidebar)
+        this.zAxisPanel = new ZAxisPanel(this, this.mainLayout);
 
         // Target the standard Obsidian header elements
         const viewHeader = this.containerEl.querySelector('.view-header');
@@ -49,8 +56,26 @@ export class ColophonView extends TextFileView {
             this.adapter.destroy();
             this.adapter = null;
         }
+        if (this.zAxisPanel) {
+            this.zAxisPanel.destroy();
+            this.zAxisPanel = null;
+        }
         if (this.scrollContainer) {
             this.scrollContainer.empty();
+        }
+    }
+
+    // --- Panel Toggles ---
+
+    toggleFootnotes() {
+        if (this.zAxisPanel) {
+            this.zAxisPanel.toggle('footnotes');
+        }
+    }
+
+    toggleComments() {
+        if (this.zAxisPanel) {
+            this.zAxisPanel.toggle('comments');
         }
     }
 
@@ -58,7 +83,7 @@ export class ColophonView extends TextFileView {
      * Called when the file content is modified externally or when loading.
      */
     setViewData(data, clear) {
-        let parsedData = { type: 'manuscript', doc: null };
+        let parsedData = { type: 'manuscript', doc: null, footnotes: {} };
 
         try {
             if (data && data.trim() !== '') {
@@ -86,6 +111,7 @@ export class ColophonView extends TextFileView {
         if (!this.adapter) {
             this.adapter = new TiptapAdapter(this.scrollContainer, {
                 content: parsedData.doc,
+                footnotes: parsedData.footnotes || {},
                 type: this.docType,
                 settings: this.plugin ? this.plugin.settings : null,
                 isSpellcheckEnabled: isSpellcheckEnabled,
@@ -94,13 +120,14 @@ export class ColophonView extends TextFileView {
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
+                    if (this.zAxisPanel) this.zAxisPanel.update();
                 }
             });
         } else {
             // If clear is true, it means we are reloading the file entirely
             if (clear) {
                 this.adapter.type = this.docType; // Update type if it changed
-                this.adapter.setContent(parsedData.doc || {});
+                this.adapter.setContent(parsedData.doc || {}, parsedData.footnotes || {});
 
                 // Force update attributes if type or spellcheck changed
                 if (this.adapter.editor) {
@@ -125,7 +152,8 @@ export class ColophonView extends TextFileView {
 
         const data = {
             type: this.docType,
-            doc: this.adapter.getJSON()
+            doc: this.adapter.getJSON(),
+            footnotes: this.adapter.footnotes
         };
         return JSON.stringify(data, null, 2);
     }
