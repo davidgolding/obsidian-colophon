@@ -48,7 +48,7 @@ export class ZAxisPanel {
             this.contentEl.empty();
             this.contentEl.createDiv({ 
                 cls: 'colophon-panel-empty', 
-                text: 'No footnotes in this document.' 
+                text: 'The margins are quiet.' 
             });
             return;
         }
