@@ -3,11 +3,12 @@ import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
 import { InternalLink } from './extensions/internal-link';
+import { FootnoteMarker } from './extensions/footnote-marker';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 // FixedFeed extension removed in favor of inline logic
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, type, settings, isSpellcheckEnabled, onUpdate, app, plugin }) {
+    constructor(parentElement, { content, footnotes, type, settings, isSpellcheckEnabled, onUpdate, app, plugin }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
         this.settings = settings;
@@ -16,6 +17,7 @@ export class TiptapAdapter {
         this.app = app;
         this.plugin = plugin;
         this.editor = null;
+        this.footnotes = footnotes || {}; // fn-id -> content
 
         this.mount(content);
         
@@ -44,6 +46,9 @@ export class TiptapAdapter {
                     horizontalRule: false,
                 }),
                 InternalLink,
+                FootnoteMarker.configure({
+                    trigger: this.settings?.footnoteTrigger ?? "(( "
+                }),
                 ...dynamicExtensions,
                 Substitutions.configure({
                     smartQuotes: this.settings?.smartQuotes ?? true,
@@ -58,6 +63,7 @@ export class TiptapAdapter {
                 if (this.onUpdate) {
                     this.onUpdate();
                 }
+                this.updateFootnoteSequence();
             },
             onSelectionUpdate: ({ editor }) => {
                 if (this.onUpdate) {
@@ -66,7 +72,6 @@ export class TiptapAdapter {
                 this.handleScroll();
             },
             onFocus: ({ editor }) => {
-                // Ensure scroll update on focus
                 // Ensure scroll update on focus
                 this.handleScroll();
             },
@@ -79,13 +84,15 @@ export class TiptapAdapter {
         });
 
         // Initial scroll check after mount
-        // Initial scroll check after mount
         this.handleScroll();
+        this.updateFootnoteSequence();
     }
 
-    setContent(content) {
+    setContent(content, footnotes) {
         if (this.editor) {
+            this.footnotes = footnotes || {};
             this.editor.commands.setContent(content);
+            this.updateFootnoteSequence();
         }
     }
 
@@ -137,14 +144,18 @@ export class TiptapAdapter {
             f: b['following-entity'] || b['following-block']
         })));
 
-        const needsRemount = oldBlockKeys !== newBlockKeys || oldStruct !== newStruct;
+        const needsRemount = oldBlockKeys !== newBlockKeys || 
+                            oldStruct !== newStruct ||
+                            this.settings.footnoteTrigger !== settings.footnoteTrigger;
 
         this.settings = settings;
 
         if (needsRemount) {
             const content = this.getJSON();
+            const footnotes = this.footnotes;
             this.destroy();
             this.mount(content);
+            this.footnotes = footnotes; // Restore footnotes map
             this.focus(); // Try to restore focus
             return;
         }
@@ -179,14 +190,12 @@ export class TiptapAdapter {
             const containerRect = container.getBoundingClientRect();
 
             // Calculate target position line
-            // padding is % from bottom. 40% padding = 60% from top.
-            // Using logic from main branch analysis directly.
             const paddingPercent = this.settings.feedPadding ?? 40;
             const ratioFromTop = 1 - (paddingPercent / 100);
             const targetOffset = containerRect.height * ratioFromTop;
             const targetViewportY = containerRect.top + targetOffset;
 
-            // Get cursor position (bottom of the cursor to align with line)
+            // Get cursor position
             const coords = view.coordsAtPos(selection.from);
             const currentCursorY = coords.bottom;
 
@@ -211,6 +220,92 @@ export class TiptapAdapter {
         if (this.editor) {
             this.editor.destroy();
             this.editor = null;
+        }
+    }
+
+    // --- Footnote Management ---
+
+    getFootnotes() {
+        const markers = [];
+        if (!this.editor) return [];
+        
+        this.editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'footnoteMarker') {
+                markers.push({
+                    id: node.attrs.id,
+                    number: node.attrs.number,
+                    pos
+                });
+            }
+        });
+
+        return markers.map(m => ({
+            id: m.id,
+            number: m.number,
+            content: this.footnotes[m.id] || { type: 'doc', content: [{ type: 'body' }] }
+        }));
+    }
+
+    updateFootnote(id, content) {
+        this.footnotes[id] = content;
+        if (this.onUpdate) this.onUpdate();
+    }
+
+    updateFootnoteSequence() {
+        if (!this.editor) return;
+
+        const { tr } = this.editor.state;
+        let sequence = 1;
+        let changed = false;
+
+        this.editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'footnoteMarker') {
+                if (node.attrs.number !== sequence) {
+                    tr.setNodeMarkup(pos, null, {
+                        ...node.attrs,
+                        number: sequence
+                    });
+                    changed = true;
+                }
+                sequence++;
+            }
+        });
+
+        if (changed) {
+            this.editor.view.dispatch(tr.setMeta('colophon-sync', true));
+        }
+    }
+
+    focusMarker(id) {
+        if (!this.editor) return;
+
+        let targetPos = null;
+        this.editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'footnoteMarker' && node.attrs.id === id) {
+                targetPos = pos;
+                return false;
+            }
+        });
+
+        if (targetPos !== null) {
+            const nodeSize = this.editor.state.doc.nodeAt(targetPos).nodeSize;
+            this.editor.chain().focus().setTextSelection(targetPos + nodeSize).scrollIntoView().run();
+        }
+    }
+
+    focusNote(id) {
+        if (this.plugin && this.plugin.zAxisPanel) {
+            this.plugin.zAxisPanel.show('footnotes');
+            // Small delay to ensure render complete
+            setTimeout(() => {
+                const editor = this.plugin.zAxisPanel.editors.get(id);
+                if (editor) {
+                    editor.commands.focus();
+                    // Scroll sidebar item into view
+                    const el = this.plugin.zAxisPanel.containerEl.querySelector(`[data-footnote-id="${id}"]`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 50);
         }
     }
 }
