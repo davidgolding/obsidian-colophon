@@ -816,26 +816,23 @@
 .colophon-footnote-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    border-bottom: 1px solid var(--background-modifier-border-faint);
-    padding-bottom: 16px;
-}
-
-.colophon-footnote-item:last-child {
-    border-bottom: none;
+    gap: 5px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 10px;
 }
 
 .colophon-footnote-number {
     font-weight: bold;
     cursor: pointer;
     color: var(--text-accent);
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     align-self: flex-start;
-    opacity: 0.8;
 }
 
 .colophon-footnote-number:hover {
-    opacity: 1;
+    text-decoration: underline;
 }
 
 .colophon-footnote-editor-container {
@@ -846,16 +843,19 @@
 
 .colophon-footnote-editor {
     outline: none;
-    min-height: auto;
+    min-height: auto; /* Remove fixed min-height to prevent stretching */
     cursor: text;
     width: 100%;
+    background-color: transparent !important; /* Ensure no double background */
 }
 
 .colophon-footnote-editor .ProseMirror {
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    min-height: auto !important;
+    min-height: auto !important; /* Force naturally-sized content */
+    background-color: transparent !important;
+    box-shadow: none !important;
 }
 
 /* Ensure footnote content respects block styles but resets sidebar-specific layout */
@@ -864,7 +864,6 @@
     padding: 0 !important;
 }
 
-/* Fix for the "double box" appearance: remove the border from the container when focused */
 .colophon-footnote-editor-container:focus-within {
     background-color: transparent;
 }

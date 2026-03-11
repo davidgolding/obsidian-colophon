@@ -54,9 +54,11 @@ export const FootnoteMarker = Node.create({
                 e.preventDefault();
                 e.stopPropagation();
                 
-                if (editor.options.plugin && editor.options.plugin.adapter) {
-                    editor.options.plugin.adapter.focusNote(node.attrs.id);
-                }
+                // Dispatch custom event to be caught by the view/adapter
+                dom.dispatchEvent(new CustomEvent('colophon-focus-footnote', {
+                    bubbles: true,
+                    detail: { id: node.attrs.id }
+                }));
             });
 
             return {
@@ -76,22 +78,22 @@ export const FootnoteMarker = Node.create({
         
         return [
             new InputRule({
-                // Match the trigger either with or without a space
-                // but only at the end of a line/word
                 find: new RegExp(`\\(\\($`),
-                handler: ({ state, range, editor }) => {
+                handler: ({ state, range }) => {
                     const id = `fn-${crypto.randomUUID()}`;
                     const { tr } = state;
 
                     tr.replaceWith(range.from, range.to, this.type.create({ id }));
                     
-                    // Signal the adapter to focus this new note
-                    // We use a small delay to ensure the DOM has updated
+                    // Signal creation to be caught by adapter
+                    // We use a timeout to let the node render first
                     setTimeout(() => {
-                        if (editor.options.plugin && editor.options.plugin.adapter) {
-                            editor.options.plugin.adapter.focusNote(id);
-                        }
-                    }, 10);
+                        const event = new CustomEvent('colophon-create-footnote', {
+                            bubbles: true,
+                            detail: { id }
+                        });
+                        document.body.dispatchEvent(event);
+                    }, 50);
 
                     return tr;
                 },
