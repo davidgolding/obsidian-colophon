@@ -846,7 +846,7 @@
 
 .colophon-footnote-editor {
     outline: none;
-    min-height: 1.2em;
+    min-height: auto;
     cursor: text;
     width: 100%;
 }
