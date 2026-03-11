@@ -32,15 +32,15 @@
 }
 
 
-/* 2. THE EDITOR CANVAS */
-.colophon-workspace .ProseMirror {
+/* 2. THE EDITOR CANVAS (Main) */
+.colophon-main-editor {
     /* Layout */
     width: 100%;
     /* Use the variable set by JS, or fallback to 1080px (new default) */
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 0 2rem 75vh 2rem;
+    padding: 0 2rem 75vh 2rem !important;
     /* Top padding 0, Bottom 75vh, Sides 2rem */
 
     /* Appearance */
@@ -70,12 +70,12 @@
 }
 
 /* Ensure first element is flush with top */
-.colophon-workspace .ProseMirror>*:first-child {
+.colophon-main-editor > *:first-child {
     margin-top: 0 !important;
 }
 
 /* Selection Styling */
-.colophon-workspace .ProseMirror ::selection {
+.colophon-main-editor ::selection {
     background-color: var(--text-selection);
 }
 
