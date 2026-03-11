@@ -6,11 +6,10 @@ import { TFile } from 'obsidian';
  * the built-in EditorSuggest class directly.
  */
 export class TiptapLinkSuggest {
-    constructor(app, plugin, adapter) {
+    constructor(app, plugin, editor) {
         this.app = app;
         this.plugin = plugin;
-        this.adapter = adapter;
-        this.editor = adapter.editor;
+        this.editor = editor;
         
         this.suggestionEl = null;
         this.suggestions = [];
@@ -23,6 +22,7 @@ export class TiptapLinkSuggest {
     setup() {
         this.editor.on('selectionUpdate', () => this.onUpdate());
         this.editor.on('update', () => this.onUpdate());
+        this.editor.on('destroy', () => this.close());
         
         // Key handling for suggestions
         this.editor.setOptions({
@@ -152,12 +152,14 @@ export class TiptapLinkSuggest {
         }
 
         const coords = this.editor.view.coordsAtPos(this.context.end);
+        const margin = 10;
         
-        // Position relative to viewport
+        // Initial setup for measurement
         this.suggestionEl.style.position = 'fixed';
-        this.suggestionEl.style.top = `${coords.bottom + 5}px`;
-        this.suggestionEl.style.left = `${coords.left}px`;
-        this.suggestionEl.style.display = 'flex'; // Use flex for column layout
+        this.suggestionEl.style.display = 'flex';
+        this.suggestionEl.style.visibility = 'hidden';
+        this.suggestionEl.style.top = '0px';
+        this.suggestionEl.style.left = '0px';
 
         this.suggestionEl.empty();
         
@@ -191,11 +193,31 @@ export class TiptapLinkSuggest {
         const rightIns = footerEl.createDiv({ cls: 'prompt-instruction' });
         rightIns.innerHTML = '<span class="prompt-instruction-command">Type |</span> to change display text';
 
-        // Flip position if it overflows bottom
+        // Viewport awareness: flip/adjust position to stay on screen and anchored to cursor
         const rect = this.suggestionEl.getBoundingClientRect();
-        if (rect.bottom > window.innerHeight) {
-            this.suggestionEl.style.top = `${coords.top - rect.height - 5}px`;
+        const modalWidth = rect.width;
+        const modalHeight = rect.height;
+
+        // Vertical Logic: Prefer below, flip to above if no room
+        let top = coords.bottom + 2;
+        if (top + modalHeight > window.innerHeight - margin) {
+            top = coords.top - modalHeight - 2;
         }
+
+        // Horizontal Logic: Prefer left-aligned with cursor, shift right-aligned if no room
+        let left = coords.left;
+        if (left + modalWidth > window.innerWidth - margin) {
+            // Align right edge of modal with right edge of cursor/trigger
+            left = coords.right - modalWidth;
+        }
+
+        // Final Clamping to ensure it's always on screen with margin
+        left = Math.max(margin, Math.min(left, window.innerWidth - modalWidth - margin));
+        top = Math.max(margin, Math.min(top, window.innerHeight - modalHeight - margin));
+
+        this.suggestionEl.style.top = `${top}px`;
+        this.suggestionEl.style.left = `${left}px`;
+        this.suggestionEl.style.visibility = 'visible';
     }
 
     moveSelection(dir) {
