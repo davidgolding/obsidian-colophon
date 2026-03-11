@@ -32,15 +32,15 @@
 }
 
 
-/* 2. THE EDITOR CANVAS */
-.colophon-workspace .ProseMirror {
+/* 2. THE EDITOR CANVAS (Main) */
+.colophon-main-editor {
     /* Layout */
     width: 100%;
     /* Use the variable set by JS, or fallback to 1080px (new default) */
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 0 2rem 75vh 2rem;
+    padding: 0 2rem 75vh 2rem !important;
     /* Top padding 0, Bottom 75vh, Sides 2rem */
 
     /* Appearance */
@@ -70,11 +70,11 @@
 }
 
 /* Ensure first element is flush with top */
-.colophon-workspace .ProseMirror>*:first-child {
+.colophon-main-editor > *:first-child {
     margin-top: 0 !important;
 }
 
-/* Selection Styling */
+/* Selection Styling - Applies to all editors in workspace */
 .colophon-workspace .ProseMirror ::selection {
     background-color: var(--text-selection);
 }
@@ -735,8 +735,8 @@
     overflow: hidden;
 }
 
-/* 10. COMMENTS PANEL (In-Editor) */
-.colophon-comments-panel {
+/* 10. Z-AXIS PANEL (Sidebar) */
+.colophon-z-axis-panel {
     width: 0;
     opacity: 0;
     background-color: var(--background-secondary);
@@ -751,47 +751,147 @@
         border-left-width 0.3s ease;
     padding: 0;
     visibility: hidden;
-    /* Hide content when closed to prevent focus */
 }
 
-.colophon-comments-panel.is-visible {
-    width: 300px;
+.colophon-z-axis-panel.is-visible {
+    width: 350px;
     opacity: 1;
-    padding: 10px;
+    padding: 0;
     border-left-width: 1px;
     visibility: visible;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.3s ease 0.1s,
-        /* Delay opacity slightly on open */
-        padding 0.3s ease,
-        border-left-width 0.3s ease,
-        visibility 0s linear 0s;
-    /* Immediate visibility on open */
 }
 
-/* Ensure visibility transitions properly on close */
-.colophon-comments-panel:not(.is-visible) {
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.2s ease,
-        padding 0.3s ease,
-        border-left-width 0.3s ease,
-        visibility 0s linear 0.3s;
-    /* Delay hiding visibility until width animates */
-}
-
-.colophon-comments-panel-header {
+.colophon-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: 40px;
 }
 
-.colophon-comments-panel-title {
-    font-weight: 600;
-    color: var(--text-normal);
+.colophon-panel-title {
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
 }
+
+.colophon-panel-close {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.colophon-panel-close:hover {
+    opacity: 1;
+    background-color: var(--background-modifier-hover);
+}
+
+.colophon-panel-content {
+    flex: 1;
+    padding: 24px 16px;
+    overflow-y: auto;
+}
+
+.colophon-panel-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.9rem;
+}
+
+/* Footnotes Sidebar */
+.colophon-footnote-list {
+    display: flex;
+    flex-direction: column;
+    /* Gap handled by individual items margin-bottom in StyleManager */
+}
+
+.colophon-footnote-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    padding: 10px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.colophon-footnote-item:focus-within {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
+.colophon-footnote-number {
+    font-weight: bold;
+    cursor: pointer;
+    color: var(--text-accent);
+    font-size: 0.8rem;
+    align-self: flex-start;
+}
+
+.colophon-footnote-number:hover {
+    text-decoration: underline;
+}
+
+.colophon-footnote-editor-container {
+    border: none;
+    padding: 0;
+    width: 100%;
+}
+
+.colophon-footnote-editor {
+    outline: none;
+    min-height: auto;
+    cursor: text;
+    width: 100%;
+    background-color: transparent !important;
+    border: 0 !important;
+}
+
+.colophon-footnote-editor .ProseMirror {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+}
+
+/* Ensure footnote content respects block styles but resets sidebar-specific layout */
+.colophon-footnote-editor p {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.colophon-footnote-editor-container:focus-within {
+    background-color: transparent;
+}
+
+
+/* Footnote Marker in Canvas */
+.colophon-footnote-marker {
+    color: var(--text-accent);
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 2px;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+    /* Baseline shift handled via dynamic CSS from StyleManager based on 'align' property */
+}
+
+.colophon-footnote-marker:hover {
+    background-color: var(--background-modifier-hover);
+}
+
 
 /* =========================================
    SCRIPT MODE STYLES
