@@ -56,8 +56,8 @@ export class StyleManager {
     }
 
     generateBlockStyles(blockId, properties) {
-        // Generate selector based on v1.x alignment
-        // Base scope
+        // Broaden the selector to apply to any ProseMirror instance within the workspace,
+        // including sidebar editors.
         const base = '.colophon-workspace .ProseMirror';
 
         // Determine Tag
