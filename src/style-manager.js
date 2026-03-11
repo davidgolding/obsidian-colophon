@@ -41,11 +41,14 @@ export class StyleManager {
             }
 
             // High-precision selector for sidebar content alignment/typography
+            // Forced to min-height: auto to prevent stretching
             css += `.colophon-footnote-editor .ProseMirror {\n`;
             if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']};\n`;
             if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
             if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
             if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
+            css += `  min-height: auto !important;\n`;
+            css += `  padding: 0 !important;\n`;
             css += `}\n`;
         }
 
@@ -90,14 +93,12 @@ export class StyleManager {
             'first-indent': 'text-indent',
             'font-family': 'font-family',
             'font-size': 'font-size',
-            // 'font-variant' handling moved below
             'line-spacing': 'line-height',
             'text-align': 'text-align',
-            'left-indent': 'padding-left', // using padding for block indent
+            'left-indent': 'padding-left',
             'right-indent': 'padding-right',
             'font-weight': 'font-weight',
-            // 'font-style' handling moved below
-            'text-transform': 'text-transform' // for capitalization
+            'text-transform': 'text-transform'
         };
 
         // Special handling / conversions
@@ -130,26 +131,23 @@ export class StyleManager {
             }
         }
 
-        // List specific handling would go here (markers etc)
-
         blockCss += `}\n`;
         return blockCss;
     }
 
     /**
      * Normalizes values to 'rem' based on the rule 10pt = 1rem.
-     * Supports: pt, pc, in, cm, mm, px, em, rem.
      */
     normalizeValue(value) {
         if (typeof value !== 'string') return value;
 
         const match = value.match(/^([\d.]+)([a-z%]+)?$/);
-        if (!match) return value; // Return as-is (e.g., "inherit", "auto", "0")
+        if (!match) return value;
 
         const num = parseFloat(match[1]);
         const unit = match[2];
 
-        if (!unit) return value; // Multiplier like line-height: 1.5
+        if (!unit) return value;
 
         switch (unit) {
             case 'pt': return `${num * 0.1}rem`;
