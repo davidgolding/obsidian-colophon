@@ -11,7 +11,7 @@ export class StyleManager {
         // 0. Global Variables
         css += `.colophon-workspace { --colophon-editor-width: ${settings.textColumnWidth || 700}px; }\n`;
 
-        // Footnote Symbol dynamic styling
+        // Footnote Symbol dynamic styling (In Canvas)
         const symbolDef = settings.blocks['footnote-symbol'];
         if (symbolDef) {
             css += `.colophon-footnote-marker {\n`;
@@ -28,33 +28,39 @@ export class StyleManager {
         // Footnote sidebar dynamic styling
         const footnoteDef = settings.blocks['footnote'];
         if (footnoteDef) {
-            // 1. Sidebar Container Styling
-            css += `.colophon-footnote-editor {\n`;
-            if (footnoteDef['font-family']) css += `  font-family: ${footnoteDef['font-family']};\n`;
-            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
-            if (footnoteDef['line-spacing']) css += `  line-height: ${this.normalizeValue(footnoteDef['line-spacing'])};\n`;
+            // High-precision selectors for sidebar content.
+            // We target the ProseMirror element directly by joining the classes.
+            const sidebarBase = '.ProseMirror.colophon-footnote-editor';
+            
+            css += `${sidebarBase}, ${sidebarBase} p {\n`;
+            
+            // Map all properties from the definition using our property map
+            const propertyMap = this.getPropertyMap();
+            for (const [key, value] of Object.entries(footnoteDef)) {
+                if (propertyMap[key]) {
+                    const normalizedValue = this.normalizeValue(value);
+                    // Use !important to ensure sidebar styles win
+                    css += `  ${propertyMap[key]}: ${normalizedValue} !important;\n`;
+                }
+            }
+
+            // Handle font-variant / font-style overlap for sidebar
+            if (footnoteDef['font-variant']) {
+                const variant = footnoteDef['font-variant'].toLowerCase();
+                if (variant === 'italic') css += `  font-style: italic !important;\n`;
+                else if (variant === 'small-caps') css += `  font-variant: small-caps !important;\n`;
+            }
+            if (footnoteDef['font-style']) {
+                css += `  font-style: ${footnoteDef['font-style']} !important;\n`;
+            }
+
+            // Ensure the paragraph inside is visible and interactive even if empty
+            css += `  min-height: 1.2em !important;\n`;
             css += `}\n`;
             
             if (footnoteDef['space-between-notes']) {
                 css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'])}; }\n`;
             }
-
-            // 2. High-precision selectors for sidebar content
-            const sidebarBase = '.colophon-footnote-editor .ProseMirror';
-            
-            // Apply alignment and spacing to the ProseMirror instance
-            css += `${sidebarBase} {\n`;
-            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
-            css += `  min-height: auto !important;\n`;
-            css += `  padding: 0 !important;\n`;
-            css += `}\n`;
-
-            // Apply specific paragraph settings for the sidebar
-            css += `${sidebarBase} p {\n`;
-            if (footnoteDef['text-align']) css += `  text-align: ${footnoteDef['text-align']} !important;\n`;
-            if (footnoteDef['font-size']) css += `  font-size: ${this.normalizeValue(footnoteDef['font-size'])};\n`;
-            if (footnoteDef['color']) css += `  color: ${footnoteDef['color']};\n`;
-            css += `}\n`;
         }
 
         const numberDef = settings.blocks['footnote-number'];
@@ -66,7 +72,7 @@ export class StyleManager {
             css += `}\n`;
         }
 
-        // 1. Generate CSS Variables for each block
+        // 1. Generate CSS Variables for each block (Main Canvas only)
         for (const [blockId, properties] of Object.entries(settings.blocks)) {
             css += this.generateBlockStyles(blockId, properties);
         }
@@ -74,24 +80,8 @@ export class StyleManager {
         this.injectStyles(css);
     }
 
-    generateBlockStyles(blockId, properties) {
-        // Broaden the selector to apply to any ProseMirror instance within the workspace,
-        // including sidebar editors.
-        const base = '.colophon-workspace .ProseMirror';
-
-        // Determine Tag
-        let tag = 'p';
-        if (blockId.startsWith('heading-')) {
-            const level = blockId.split('-')[1];
-            if (level && !isNaN(level)) tag = `h${level}`;
-        }
-
-        // Construct Selector: .ProseMirror tag.class
-        const selector = `${base} ${tag}.${blockId}`;
-        let blockCss = `${selector} {\n`;
-
-        // CSS Property Map
-        const propertyMap = {
+    getPropertyMap() {
+        return {
             'after-block': 'margin-bottom',
             'before-block': 'margin-top',
             'color': 'color',
@@ -105,6 +95,25 @@ export class StyleManager {
             'font-weight': 'font-weight',
             'text-transform': 'text-transform'
         };
+    }
+
+    generateBlockStyles(blockId, properties) {
+        // Scope general block definitions STRICTLY to the main editor canvas.
+        const base = '.colophon-main-editor';
+
+        // Determine Tag
+        let tag = 'p';
+        if (blockId.startsWith('heading-')) {
+            const level = blockId.split('-')[1];
+            if (level && !isNaN(level)) tag = `h${level}`;
+        }
+
+        // Construct Selector: .colophon-main-editor tag.class
+        const selector = `${base} ${tag}.${blockId}`;
+        let blockCss = `${selector} {\n`;
+
+        // CSS Property Map
+        const propertyMap = this.getPropertyMap();
 
         // Special handling / conversions
         if (properties['capitalization']) {
