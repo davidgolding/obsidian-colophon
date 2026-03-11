@@ -52,26 +52,24 @@ export const InternalLink = Node.create({
             const dom = document.createElement('span');
             dom.className = 'colophon-internal-link';
             dom.setAttribute('data-colophon-link', node.attrs.target);
+            dom.title = `Click to open ${node.attrs.target}`;
             
-            const render = () => {
-                // Ensure getPos is a function before calling
+            const updateView = () => {
                 const pos = typeof getPos === 'function' ? getPos() : null;
                 if (pos === null) return;
 
                 const { selection } = editor.state;
                 
                 // Show brackets if:
-                // 1. Cursor is inside/on the node
-                // 2. Node is fully selected
-                // 3. Cursor is immediately before or after the node
-                const isSelected = (selection.from >= pos && selection.to <= pos + node.nodeSize) ||
-                                 (selection.from === pos) || (selection.to === pos + node.nodeSize);
+                // 1. Selection intersects with the node
+                // 2. Cursor is immediately before (pos) or after (pos + nodeSize)
+                const isSelected = (selection.from >= pos && selection.from <= pos + node.nodeSize) ||
+                                 (selection.to >= pos && selection.to <= pos + node.nodeSize);
                 
                 if (isSelected) {
                     dom.classList.add('is-selected');
                     const target = node.attrs.target;
                     const alias = node.attrs.alias;
-                    // We use visible text for the brackets so the user can see/edit
                     dom.textContent = alias ? `[[${target}|${alias}]]` : `[[${target}]]`;
                 } else {
                     dom.classList.remove('is-selected');
@@ -79,33 +77,49 @@ export const InternalLink = Node.create({
                 }
             };
 
-            dom.addEventListener('click', (e) => {
-                // In Obsidian, links open on Cmd/Ctrl+Click OR if already in 'render' mode
-                const shouldOpen = e.metaKey || e.ctrlKey || dom.classList.contains('is-selected');
-                
-                if (shouldOpen) {
+            dom.addEventListener('mousedown', (e) => {
+                // If Cmd/Ctrl is held, open immediately
+                if (e.metaKey || e.ctrlKey) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
                     const app = editor.options.app;
                     if (app) {
-                        app.workspace.openLinkText(node.attrs.target, '', e.metaKey || e.ctrlKey || e.shiftKey);
+                        app.workspace.openLinkText(node.attrs.target, '', e.shiftKey);
+                    }
+                    return;
+                }
+            });
+
+            dom.addEventListener('click', (e) => {
+                // In 'selected' mode (brackets visible), a simple click opens it
+                if (dom.classList.contains('is-selected')) {
+                    const app = editor.options.app;
+                    if (app) {
+                        app.workspace.openLinkText(node.attrs.target, '', e.shiftKey);
                     }
                 }
             });
 
-            // Tiptap selection update event
-            const onUpdate = () => render();
-            editor.on('selectionUpdate', onUpdate);
-            editor.on('transaction', onUpdate); // More frequent updates
+            // Listen to all relevant editor events
+            editor.on('selectionUpdate', updateView);
+            editor.on('transaction', updateView);
 
-            render();
+            // Initial render
+            updateView();
 
             return {
                 dom,
-                destroy() {
-                    editor.off('selectionUpdate', onUpdate);
-                    editor.off('transaction', onUpdate);
+                update: (updatedNode) => {
+                    if (updatedNode.type !== node.type) return false;
+                    // If attributes changed, we need a full refresh
+                    if (JSON.stringify(updatedNode.attrs) !== JSON.stringify(node.attrs)) {
+                        updateView();
+                    }
+                    return true;
+                },
+                destroy: () => {
+                    editor.off('selectionUpdate', updateView);
+                    editor.off('transaction', updateView);
                 }
             };
         };
