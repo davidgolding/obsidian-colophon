@@ -38,7 +38,12 @@
 -   **Architecture**:
     -   **Style Manager (`style-manager.js`)**: Manages `--colophon-editor-width` and global CSS rule injection.
     -   **Tiptap Adapter (`tiptap-adapter.js`)**: Now the primary controller for scrolling (`handleScroll`) and schema lifecycle (`updateSettings`).
-    -   **Universal Block (`extensions/universal-block.js`)**: Generates Node extensions. Updated to require a trailing space for `syntax-trigger` (e.g. `### `) to match Markdown conventions.
+    -   **Universal Block (`extensions/universal-block.js`)**: Generates Node extensions. Blocks automatically receive a 6-character `id` attribute (e.g. `^x7y2z9`) for Z-axis linking.
+    -   **Metadata Manager (`metadata-manager.js`)**: Manages the "Shadow Markdown" bridge.
+-   **Shadow Markdown (Z-Axis Integration)**:
+    -   To ensure `.colophon` files participate in Obsidian's Graph and Backlinks, the plugin maintains hidden `.md` files in `.obsidian/plugins/obsidian-colophon/.colophon-cache/`.
+    -   These files use base64-encoded filenames derived from the original path.
+    -   **Agent Tip**: If you need to find backlinks to a Colophon file, look at its corresponding shadow file. To create a link, insert an `internalLink` node in the JSON or use the `Insert Internal Link` command.
 -   **Component Relationships**:
     `BlockSettingsUI` -> `plugin.settings` -> `saveSettings()` -> `View.updateSettings()` -> `Adapter.updateSettings()`.
 
