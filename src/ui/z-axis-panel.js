@@ -1,7 +1,6 @@
 import { setIcon } from 'obsidian';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import { generateExtensions } from '../extensions/universal-block';
 import { Substitutions } from '../extensions/substitutions';
 import { InternalLink } from '../extensions/internal-link';
@@ -148,6 +147,12 @@ export class ZAxisPanel {
             onUpdate: ({ editor }) => {
                 // Push change to adapter
                 this.view.adapter.updateFootnote(id, editor.getJSON());
+            },
+            onSelectionUpdate: ({ editor }) => {
+                this.view.updateActiveEditor(editor);
+            },
+            onFocus: ({ editor }) => {
+                this.view.updateActiveEditor(editor);
             },
             editorProps: {
                 attributes: {

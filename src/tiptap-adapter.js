@@ -1,14 +1,17 @@
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import Superscript from '@tiptap/extension-superscript';
+import Subscript from '@tiptap/extension-subscript';
 import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
 import { InternalLink } from './extensions/internal-link';
 import { FootnoteMarker } from './extensions/footnote-marker';
+import { SmallCaps } from './extensions/small-caps';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 // FixedFeed extension removed in favor of inline logic
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, footnotes, type, settings, isSpellcheckEnabled, onUpdate, app, plugin }) {
+    constructor(parentElement, { content, footnotes, type, settings, isSpellcheckEnabled, onUpdate, app, plugin, view }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
         this.settings = settings;
@@ -16,6 +19,7 @@ export class TiptapAdapter {
         this.onUpdate = onUpdate;
         this.app = app;
         this.plugin = plugin;
+        this.view = view;
         this.editor = null;
         this.footnotes = footnotes || {}; // fn-id -> content
         this.sharedExtensions = null;
@@ -62,6 +66,9 @@ export class TiptapAdapter {
                     listItem: false,
                     horizontalRule: false,
                 }),
+                Superscript,
+                Subscript,
+                SmallCaps,
                 InternalLink,
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(( "
@@ -92,9 +99,15 @@ export class TiptapAdapter {
                 if (this.onUpdate) {
                     this.onUpdate();
                 }
+                if (this.view) {
+                    this.view.updateActiveEditor(editor);
+                }
                 this.handleScroll();
             },
             onFocus: ({ editor }) => {
+                if (this.view) {
+                    this.view.updateActiveEditor(editor);
+                }
                 this.handleScroll();
             },
             editorProps: {
@@ -143,6 +156,30 @@ export class TiptapAdapter {
     toggleStrike() {
         if (this.editor) {
             this.editor.chain().focus().toggleStrike().run();
+        }
+    }
+
+    toggleUnderline() {
+        if (this.editor) {
+            this.editor.chain().focus().toggleUnderline().run();
+        }
+    }
+
+    toggleSuperscript() {
+        if (this.editor) {
+            this.editor.chain().focus().toggleSuperscript().unsetSubscript().run();
+        }
+    }
+
+    toggleSubscript() {
+        if (this.editor) {
+            this.editor.chain().focus().toggleSubscript().unsetSuperscript().run();
+        }
+    }
+
+    toggleSmallCaps() {
+        if (this.editor) {
+            this.editor.chain().focus().toggleSmallCaps().run();
         }
     }
 
