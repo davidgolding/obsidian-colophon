@@ -11,6 +11,14 @@ export class ColophonView extends TextFileView {
         this.plugin = plugin;
         this.adapter = null;
         this.docType = 'manuscript'; // 'manuscript' | 'script'
+        this.activeEditor = null;
+    }
+
+    updateActiveEditor(editor) {
+        this.activeEditor = editor;
+        if (this.toolbar) {
+            this.toolbar.update();
+        }
     }
 
     getViewType() {
@@ -131,6 +139,7 @@ export class ColophonView extends TextFileView {
                 isSpellcheckEnabled: isSpellcheckEnabled,
                 app: this.app,
                 plugin: this.plugin,
+                view: this,
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
@@ -179,21 +188,38 @@ export class ColophonView extends TextFileView {
     }
 
     toggleBold() {
-        if (this.adapter) {
-            this.adapter.toggleBold();
-        }
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleBold().run();
     }
 
     toggleItalic() {
-        if (this.adapter) {
-            this.adapter.toggleItalic();
-        }
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleItalic().run();
     }
 
     toggleStrike() {
-        if (this.adapter) {
-            this.adapter.toggleStrike();
-        }
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleStrike().run();
+    }
+
+    toggleUnderline() {
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleUnderline().run();
+    }
+
+    toggleSuperscript() {
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleSuperscript().unsetSubscript().run();
+    }
+
+    toggleSubscript() {
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleSubscript().unsetSuperscript().run();
+    }
+
+    toggleSmallCaps() {
+        const editor = this.activeEditor || (this.adapter ? this.adapter.editor : null);
+        if (editor) editor.chain().focus().toggleSmallCaps().run();
     }
 
     insertFootnote() {

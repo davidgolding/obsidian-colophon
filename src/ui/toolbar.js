@@ -17,21 +17,20 @@ export class ColophonToolbar {
         // 1. Block Selector
         this.renderBlockSelector();
 
-        // Separator
-        // this.createSeparator();
-
         // 2. Formatting Group
         const formatGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
 
         this.boldBtn = this.createButton(formatGroup, 'bold', 'Bold', () => this.view.toggleBold());
         this.italicBtn = this.createButton(formatGroup, 'italic', 'Italic', () => this.view.toggleItalic());
-        this.strikeBtn = this.createButton(formatGroup, 'strikethrough', 'Strikethrough', () => this.view.toggleStrike()); // Assuming view has this method now
+        this.strikeBtn = this.createButton(formatGroup, 'strikethrough', 'Strikethrough', () => this.view.toggleStrike());
+        this.underlineBtn = this.createButton(formatGroup, 'underline', 'Underline', () => this.view.toggleUnderline());
+        
+        this.superBtn = this.createButton(formatGroup, 'superscript', 'Superscript', () => this.view.toggleSuperscript());
+        this.subBtn = this.createButton(formatGroup, 'subscript', 'Subscript', () => this.view.toggleSubscript());
+        this.smallCapsBtn = this.createButton(formatGroup, 'a-large-small', 'Small Caps', () => this.view.toggleSmallCaps());
 
         // Spacer
         this.createSpacer();
-
-        // Separator
-        // this.createSeparator();
 
         // 3. Z-Axis Panels
         const zAxisGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
@@ -56,13 +55,18 @@ export class ColophonToolbar {
         const iconContainer = this.blockSelectBtn.createSpan({ cls: 'colophon-select-icon' });
         setIcon(iconContainer, 'chevron-down');
 
-        this.blockSelectBtn.onclick = (e) => {
+        this.blockSelectBtn.onmousedown = (e) => {
+            if (this.isBlockMenuDisabled) {
+                e.preventDefault();
+                return;
+            }
             e.stopPropagation();
             this.showBlockMenu(e);
         };
     }
 
     showBlockMenu(e) {
+        if (this.isBlockMenuDisabled) return;
         const menu = new Menu();
 
         // Get available blocks from settings
@@ -87,14 +91,9 @@ export class ColophonToolbar {
     }
 
     applyBlockType(blockId) {
-        if (this.view.adapter && this.view.adapter.editor) {
-            // Tiptap command to set block type. 
-            // Note: splitBlock might have set it, but here we want to change CURRENT block.
-            // We use 'setNode' or 'updateAttributes' if it's the same node but different class?
-            // Actually, we defined them as separate Node Types in universal-block.js (Node.create({ name: blockId }))
-
-            // So we use commands.setNode(blockId)
-            this.view.adapter.editor.commands.setNode(blockId);
+        const editor = this.view.activeEditor || (this.view.adapter ? this.view.adapter.editor : null);
+        if (editor) {
+            editor.commands.setNode(blockId);
             this.update();
         }
     }
@@ -105,7 +104,10 @@ export class ColophonToolbar {
             attr: { 'aria-label': tooltip }
         });
         setIcon(btn, icon);
-        btn.onclick = onClick;
+        btn.onmousedown = (e) => {
+            e.preventDefault();
+            onClick();
+        };
         return btn;
     }
 
@@ -123,33 +125,42 @@ export class ColophonToolbar {
     }
 
     update() {
-        if (!this.view.adapter || !this.view.adapter.editor) return;
-
-        const editor = this.view.adapter.editor;
+        const editor = this.view.activeEditor || (this.view.adapter ? this.view.adapter.editor : null);
+        if (!editor) return;
 
         // Update Formatting Buttons
         this.toggleBtnState(this.boldBtn, editor.isActive('bold'));
         this.toggleBtnState(this.italicBtn, editor.isActive('italic'));
         this.toggleBtnState(this.strikeBtn, editor.isActive('strike'));
+        this.toggleBtnState(this.underlineBtn, editor.isActive('underline'));
+        this.toggleBtnState(this.superBtn, editor.isActive('superscript'));
+        this.toggleBtnState(this.subBtn, editor.isActive('subscript'));
+        this.toggleBtnState(this.smallCapsBtn, editor.isActive('smallCaps'));
 
         // Update Block Selector Text
-        // Find which block is active.
-        // We iterate through available blocks and check isActive
-        const blocks = this.view.plugin.settings.blocks;
-        let activeBlockName = 'Body';
-        this.currentBlockType = 'body';
+        const isFootnote = editor.view?.dom?.classList?.contains('footnote');
+        
+        if (isFootnote) {
+            this.blockSelectBtn.firstChild.textContent = 'Footnote';
+            this.blockSelectBtn.addClass('is-disabled');
+            this.isBlockMenuDisabled = true;
+        } else {
+            this.blockSelectBtn.removeClass('is-disabled');
+            this.isBlockMenuDisabled = false;
+            
+            const blocks = this.view.plugin.settings.blocks;
+            let activeBlockName = 'Body';
+            this.currentBlockType = 'body';
 
-        for (const [id, def] of Object.entries(blocks)) {
-            if (editor.isActive(id)) {
-                activeBlockName = def.name;
-                this.currentBlockType = id;
-                break;
+            for (const [id, def] of Object.entries(blocks)) {
+                if (editor.isActive(id)) {
+                    activeBlockName = def.name;
+                    this.currentBlockType = id;
+                    break;
+                }
             }
+            this.blockSelectBtn.firstChild.textContent = activeBlockName;
         }
-
-        // Update button text (excluding icon)
-        // This is a bit hacky because of the icon span inside
-        this.blockSelectBtn.firstChild.textContent = activeBlockName;
     }
 
     toggleBtnState(btn, isActive) {
