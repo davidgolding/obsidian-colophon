@@ -5,3 +5,4 @@ pnpm-workspace.yaml
 .DS_Store
 .vscode
 /.gemini
+/.colophon-cache
