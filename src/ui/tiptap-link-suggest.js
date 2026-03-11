@@ -55,10 +55,19 @@ export class TiptapLinkSuggest {
     onUpdate() {
         const { state } = this.editor;
         const { selection } = state;
-        const { $from } = selection;
+        const { $from, empty } = selection;
         
+        // Only trigger if selection is a simple cursor (empty)
+        if (!empty) {
+            this.close();
+            return;
+        }
+
         // Get text before cursor in current node
         const textBefore = $from.parent.textBetween(0, $from.parentOffset, null, '\0');
+        
+        // Tiptap textBetween with \0 returns a special character for atom nodes.
+        // We only want to trigger if we are typing actual text.
         
         // Wikilink check [[
         const wikiMatch = textBefore.match(/\[\[([^\]]*)$/);
@@ -72,6 +81,13 @@ export class TiptapLinkSuggest {
         if (useMarkdownLinks) {
             const mdMatch = textBefore.match(/\[([^\]]*)$/);
             if (mdMatch) {
+                // Peek ahead to make sure we aren't in a completed link [text](url)
+                const textAfter = $from.parent.textBetween($from.parentOffset, $from.parent.content.size, null, '\0');
+                if (textAfter.startsWith('](')) {
+                    this.close();
+                    return;
+                }
+
                 this.showSuggestions(mdMatch[1], $from.pos - mdMatch[1].length - 1, $from.pos, 'md');
                 return;
             }
@@ -82,6 +98,8 @@ export class TiptapLinkSuggest {
 
     showSuggestions(query, start, end, type) {
         this.context = { query, start, end, type };
+        
+        // Split query into parts for "all parts must match" (any order)
         const queryParts = query.toLowerCase().split(/\s+/).filter(p => p.length > 0);
         
         const showUnsupported = this.app.vault.getConfig('showUnsupportedFiles');
@@ -93,21 +111,31 @@ export class TiptapLinkSuggest {
                 const path = file.path.toLowerCase();
                 const name = file.basename.toLowerCase();
                 
-                // Match all parts of the query in any order
+                // If no query, show all (limited)
+                if (queryParts.length === 0) return true;
+                
+                // Every part of the query must match either path or name
                 return queryParts.every(part => path.includes(part) || name.includes(part));
             })
             .sort((a, b) => {
-                // Prioritize exact basename matches
+                const q = query.toLowerCase();
                 const aName = a.basename.toLowerCase();
                 const bName = b.basename.toLowerCase();
-                const q = query.toLowerCase();
+
+                // 1. Exact name match
                 if (aName === q && bName !== q) return -1;
                 if (bName === q && aName !== q) return 1;
-                return a.basename.localeCompare(b.basename);
+
+                // 2. Starts with match
+                if (aName.startsWith(q) && !bName.startsWith(q)) return -1;
+                if (bName.startsWith(q) && !aName.startsWith(q)) return 1;
+
+                // 3. Alphabetical
+                return aName.localeCompare(bName);
             })
             .slice(0, 50);
 
-        if (files.length === 0) {
+        if (files.length === 0 && queryParts.length > 0) {
             this.close();
             return;
         }
@@ -119,11 +147,14 @@ export class TiptapLinkSuggest {
     render() {
         if (!this.suggestionEl) {
             this.suggestionEl = document.createElement('div');
+            // Use native Obsidian classes for consistent styling
             this.suggestionEl.className = 'suggestion-container colophon-link-suggestions';
             document.body.appendChild(this.suggestionEl);
         }
 
         const coords = this.editor.view.coordsAtPos(this.context.end);
+        
+        // Position relative to viewport
         this.suggestionEl.style.position = 'fixed';
         this.suggestionEl.style.top = `${coords.bottom + 5}px`;
         this.suggestionEl.style.left = `${coords.left}px`;
@@ -139,7 +170,9 @@ export class TiptapLinkSuggest {
             itemEl.createDiv({ text: file.basename, cls: 'suggestion-title' });
             itemEl.createDiv({ text: file.path, cls: 'suggestion-content' });
             
-            itemEl.addEventListener('click', () => {
+            itemEl.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 this.selectedIndex = i;
                 this.selectCurrent();
             });
@@ -156,6 +189,12 @@ export class TiptapLinkSuggest {
         
         const rightIns = footerEl.createDiv({ cls: 'prompt-instruction' });
         rightIns.innerHTML = '<span class="prompt-instruction-command">Type |</span> to change display text';
+
+        // Flip position if it overflows bottom
+        const rect = this.suggestionEl.getBoundingClientRect();
+        if (rect.bottom > window.innerHeight) {
+            this.suggestionEl.style.top = `${coords.top - rect.height - 5}px`;
+        }
     }
 
     moveSelection(dir) {
