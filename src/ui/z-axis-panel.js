@@ -22,17 +22,6 @@ export class ZAxisPanel {
     render() {
         this.containerEl = this.parentEl.createDiv({ cls: 'colophon-z-axis-panel' });
         
-        // Header
-        const header = this.containerEl.createDiv({ cls: 'colophon-panel-header' });
-        this.titleEl = header.createDiv({ cls: 'colophon-panel-title', text: 'Footnotes' });
-        
-        const closeBtn = header.createEl('button', { 
-            cls: 'colophon-ui-btn colophon-icon-only colophon-panel-close',
-            attr: { 'aria-label': 'Close Panel' }
-        });
-        setIcon(closeBtn, 'x');
-        closeBtn.onclick = () => this.hide();
-
         // Content Area
         this.contentEl = this.containerEl.createDiv({ cls: 'colophon-panel-content' });
         
@@ -179,9 +168,12 @@ export class ZAxisPanel {
         this.activeTab = tab;
         this.isVisible = true;
         this.containerEl.addClass('is-visible');
-        this.titleEl.setText(tab === 'footnotes' ? 'Footnotes' : 'Comments');
         this.update();
         
+        if (this.view.toolbar) {
+            this.view.toolbar.update();
+        }
+
         if (callback) {
             // Use requestAnimationFrame to ensure DOM is ready
             requestAnimationFrame(() => callback());
@@ -191,7 +183,10 @@ export class ZAxisPanel {
     hide() {
         this.isVisible = false;
         this.containerEl.removeClass('is-visible');
-        this.cleanupEditors();
+        
+        if (this.view.toolbar) {
+            this.view.toolbar.update();
+        }
     }
 
     toggle(tab = 'footnotes') {
