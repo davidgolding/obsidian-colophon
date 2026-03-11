@@ -6,6 +6,7 @@
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",
   "smartDashes": false,
+  "footnoteTrigger": "(( ",
   "blocks": {
     "body": {
       "after-block": "0pt",

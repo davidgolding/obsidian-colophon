@@ -765,41 +765,37 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--background-modifier-border);
-    background-color: var(--background-secondary-alt);
+    background-color: var(--background-primary);
     position: sticky;
     top: 0;
     z-index: 10;
+    height: 40px;
 }
 
 .colophon-panel-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-normal);
+    font-weight: 500;
+    font-size: 0.75rem;
+    color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.1em;
 }
 
 .colophon-panel-close {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    padding: 4px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
 }
 
 .colophon-panel-close:hover {
+    opacity: 1;
     background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
 }
 
 .colophon-panel-content {
     flex: 1;
-    padding: 16px;
+    padding: 24px 16px;
+    overflow-y: auto;
 }
 
 .colophon-panel-empty {
@@ -807,48 +803,57 @@
     font-style: italic;
     text-align: center;
     margin-top: 40px;
+    font-size: 0.9rem;
 }
 
 /* Footnotes Sidebar */
 .colophon-footnote-list {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    /* Gap handled by individual items margin-bottom in StyleManager */
 }
 
 .colophon-footnote-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
+    border-bottom: 1px solid var(--background-modifier-border-faint);
+    padding-bottom: 16px;
+}
+
+.colophon-footnote-item:last-child {
+    border-bottom: none;
 }
 
 .colophon-footnote-number {
     font-weight: bold;
     cursor: pointer;
     color: var(--text-accent);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     align-self: flex-start;
+    opacity: 0.8;
 }
 
 .colophon-footnote-number:hover {
-    text-decoration: underline;
+    opacity: 1;
 }
 
 .colophon-footnote-editor-container {
-    border: 1px solid transparent;
-    border-radius: 4px;
-    transition: border-color 0.2s;
-}
-
-.colophon-footnote-editor-container:focus-within {
-    border-color: var(--background-modifier-border);
-    background-color: var(--background-primary);
+    border: none;
+    padding: 0;
 }
 
 .colophon-footnote-editor {
     outline: none;
-    min-height: 1.5em;
+    min-height: 1em;
+    cursor: text;
 }
+
+/* Fix for the "double box" appearance: remove the border from the container when focused */
+.colophon-footnote-editor-container:focus-within {
+    background-color: transparent;
+}
+
 
 /* Footnote Marker in Canvas */
 .colophon-footnote-marker {
