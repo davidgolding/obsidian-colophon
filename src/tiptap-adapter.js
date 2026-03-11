@@ -27,14 +27,10 @@ export class TiptapAdapter {
     }
 
     mount(content) {
-        const dynamicExtensions = this.settings ? generateExtensions(this.settings) : [];
-
-        this.editor = new Editor({
-            element: this.parentElement,
-            // Pass app and plugin to options so extensions can access them
-            app: this.app,
-            plugin: this.plugin,
-            extensions: [
+        // Cache extensions at the adapter level to prevent re-parsing and duplicate warnings
+        if (!this.sharedExtensions) {
+            const dynamicExtensions = this.settings ? generateExtensions(this.settings) : [];
+            this.sharedExtensions = [
                 StarterKit.configure({
                     paragraph: false,
                     heading: false,
@@ -56,8 +52,14 @@ export class TiptapAdapter {
                     doubleQuoteStyle: this.settings?.doubleQuoteStyle ?? "“|”",
                     singleQuoteStyle: this.settings?.singleQuoteStyle ?? "‘|’",
                 }),
-                // FixedFeed extension removed
-            ],
+            ];
+        }
+
+        this.editor = new Editor({
+            element: this.parentElement,
+            app: this.app,
+            plugin: this.plugin,
+            extensions: this.sharedExtensions,
             content: content || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor }) => {
                 if (this.onUpdate) {
@@ -72,7 +74,6 @@ export class TiptapAdapter {
                 this.handleScroll();
             },
             onFocus: ({ editor }) => {
-                // Ensure scroll update on focus
                 this.handleScroll();
             },
             editorProps: {
@@ -86,141 +87,6 @@ export class TiptapAdapter {
         // Initial scroll check after mount
         this.handleScroll();
         this.updateFootnoteSequence();
-    }
-
-    setContent(content, footnotes) {
-        if (this.editor) {
-            this.footnotes = footnotes || {};
-            this.editor.commands.setContent(content);
-            this.updateFootnoteSequence();
-        }
-    }
-
-    getJSON() {
-        return this.editor ? this.editor.getJSON() : null;
-    }
-
-    focus() {
-        if (this.editor) {
-            this.editor.commands.focus();
-        }
-    }
-
-    toggleBold() {
-        if (this.editor) {
-            this.editor.chain().focus().toggleBold().run();
-        }
-    }
-
-    toggleItalic() {
-        if (this.editor) {
-            this.editor.chain().focus().toggleItalic().run();
-        }
-    }
-
-    toggleStrike() {
-        if (this.editor) {
-            this.editor.chain().focus().toggleStrike().run();
-        }
-    }
-
-    updateSettings(settings) {
-        if (!this.editor) {
-            this.settings = settings;
-            return;
-        }
-
-        // Check if we need to re-mount because of structural changes (schema)
-        const oldBlockKeys = Object.keys(this.settings.blocks).sort().join(',');
-        const newBlockKeys = Object.keys(settings.blocks).sort().join(',');
-
-        // Also check structural fields that are baked into the extensions
-        const oldStruct = JSON.stringify(Object.values(this.settings.blocks).map(b => ({
-            t: b['syntax-trigger'],
-            f: b['following-entity'] || b['following-block']
-        })));
-        const newStruct = JSON.stringify(Object.values(settings.blocks).map(b => ({
-            t: b['syntax-trigger'],
-            f: b['following-entity'] || b['following-block']
-        })));
-
-        const needsRemount = oldBlockKeys !== newBlockKeys || 
-                            oldStruct !== newStruct ||
-                            this.settings.footnoteTrigger !== settings.footnoteTrigger;
-
-        this.settings = settings;
-
-        if (needsRemount) {
-            const content = this.getJSON();
-            const footnotes = this.footnotes;
-            this.destroy();
-            this.mount(content);
-            this.footnotes = footnotes; // Restore footnotes map
-            this.focus(); // Try to restore focus
-            return;
-        }
-
-        // Update Substitution Options for existing extensions
-        this.editor.setOptions('substitutions', {
-            smartQuotes: settings.smartQuotes,
-            smartDashes: settings.smartDashes,
-            doubleQuoteStyle: settings.doubleQuoteStyle,
-            singleQuoteStyle: settings.singleQuoteStyle,
-        });
-
-        // Trigger an immediate scroll update so the view reacts to slider changes
-        this.handleScroll();
-    }
-
-    handleScroll() {
-        if (!this.editor || !this.settings || !this.settings.fixedFeedPosition) return;
-
-        // Use requestAnimationFrame to ensure layout is settled and minimize jank
-        requestAnimationFrame(() => {
-            const container = this.parentElement;
-            if (!container) return;
-
-            // Ensure editor view and DOM exist
-            if (!this.editor.view || !this.editor.view.dom) return;
-
-            const selection = this.editor.state.selection;
-            if (!selection) return;
-
-            const view = this.editor.view;
-            const containerRect = container.getBoundingClientRect();
-
-            // Calculate target position line
-            const paddingPercent = this.settings.feedPadding ?? 40;
-            const ratioFromTop = 1 - (paddingPercent / 100);
-            const targetOffset = containerRect.height * ratioFromTop;
-            const targetViewportY = containerRect.top + targetOffset;
-
-            // Get cursor position
-            const coords = view.coordsAtPos(selection.from);
-            const currentCursorY = coords.bottom;
-
-            // Calculate delta
-            const delta = currentCursorY - targetViewportY;
-
-            // Threshold to avoid micro-adjustments/jitter (2px)
-            if (Math.abs(delta) > 2) {
-                container.scrollBy({
-                    top: delta,
-                    behavior: 'smooth'
-                });
-            }
-        });
-    }
-
-    destroy() {
-        if (this.linkSuggest) {
-            this.linkSuggest.close();
-            this.linkSuggest = null;
-        }
-        if (this.editor) {
-            this.editor.destroy();
-            this.editor = null;
-        }
     }
 
     // --- Footnote Management ---
@@ -242,11 +108,16 @@ export class TiptapAdapter {
         return markers.map(m => ({
             id: m.id,
             number: m.number,
-            content: this.footnotes[m.id] || { type: 'doc', content: [{ type: 'body' }] }
+            content: this.footnotes[m.id] || { type: 'doc', content: [{ type: 'footnote' }] }
         }));
     }
 
     updateFootnote(id, content) {
+        // Prevent update loop: check if content actually changed
+        const current = JSON.stringify(this.footnotes[id]);
+        const next = JSON.stringify(content);
+        if (current === next) return;
+
         this.footnotes[id] = content;
         if (this.onUpdate) this.onUpdate();
     }
