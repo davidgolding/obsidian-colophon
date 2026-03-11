@@ -147,7 +147,6 @@ export class TiptapLinkSuggest {
     render() {
         if (!this.suggestionEl) {
             this.suggestionEl = document.createElement('div');
-            // Use native Obsidian classes for consistent styling
             this.suggestionEl.className = 'suggestion-container colophon-link-suggestions';
             document.body.appendChild(this.suggestionEl);
         }
@@ -158,9 +157,11 @@ export class TiptapLinkSuggest {
         this.suggestionEl.style.position = 'fixed';
         this.suggestionEl.style.top = `${coords.bottom + 5}px`;
         this.suggestionEl.style.left = `${coords.left}px`;
-        this.suggestionEl.style.display = 'block';
+        this.suggestionEl.style.display = 'flex'; // Use flex for column layout
 
         this.suggestionEl.empty();
+        
+        // 1. Suggestions List
         const listEl = this.suggestionEl.createDiv({ cls: 'suggestion' });
 
         this.suggestions.forEach((file, i) => {
@@ -178,7 +179,7 @@ export class TiptapLinkSuggest {
             });
         });
 
-        // Add instructions footer matching Obsidian native style
+        // 2. Instructions Footer (Always render)
         const footerEl = this.suggestionEl.createDiv({ cls: 'prompt-instructions' });
         
         const leftIns = footerEl.createDiv({ cls: 'prompt-instruction' });
@@ -206,20 +207,21 @@ export class TiptapLinkSuggest {
         const file = this.suggestions[this.selectedIndex];
         if (!file) return;
 
-        const { start, end, type } = this.context;
+        const { start, end } = this.context;
         const activeFile = this.app.workspace.getActiveFile();
         const linkPath = this.app.metadataCache.fileToLinktext(file, activeFile ? activeFile.path : '');
         
-        let replacement = '';
-        if (type === 'md') {
-            replacement = `[${file.basename}](${linkPath})`;
-        } else {
-            replacement = `[[${linkPath}]]`;
-        }
-
+        // Insert the actual internalLink node instead of text
         this.editor.chain()
             .focus()
-            .insertContentAt({ from: start, to: end }, replacement)
+            .deleteRange({ from: start, to: end })
+            .insertContent({
+                type: 'internalLink',
+                attrs: {
+                    target: linkPath,
+                    alias: file.basename !== linkPath ? file.basename : null
+                }
+            })
             .run();
 
         this.close();
