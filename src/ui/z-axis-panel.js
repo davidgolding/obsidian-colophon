@@ -1,4 +1,4 @@
-import { setIcon } from 'obsidian';
+import { setIcon, debounce } from 'obsidian';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { generateExtensions } from '../extensions/universal-block';
@@ -15,6 +15,11 @@ export class ZAxisPanel {
         this.activeTab = 'footnotes'; // 'footnotes' | 'comments'
         this.editors = new Map(); // id -> Editor instance
         this.extensions = null; // Memoized extensions
+        
+        this.lastFootnotesJSON = null;
+
+        // Debounce update to avoid excessive re-renders during typing
+        this.update = debounce(this.update.bind(this), 250);
 
         this.render();
     }
@@ -43,6 +48,11 @@ export class ZAxisPanel {
         
         const footnotes = this.view.adapter.getFootnotes();
         
+        // Performance optimization: Skip if data is unchanged
+        const currentJSON = JSON.stringify(footnotes);
+        if (this.lastFootnotesJSON === currentJSON) return;
+        this.lastFootnotesJSON = currentJSON;
+        
         if (footnotes.length === 0) {
             this.cleanupEditors();
             this.contentEl.empty();
@@ -63,7 +73,7 @@ export class ZAxisPanel {
         // Track active IDs
         const activeIds = new Set(footnotes.map(f => f.id));
 
-        // 1. Cleanup old editors/elements
+        // 1. Cleanup old editors/elements/data
         for (const [id, editor] of this.editors) {
             if (!activeIds.has(id)) {
                 editor.destroy();
@@ -78,7 +88,7 @@ export class ZAxisPanel {
             let itemEl = listEl.querySelector(`[data-footnote-id="${fn.id}"]`);
             
             if (!itemEl) {
-                // CREATE
+                // CREATE PREVIEW (Lazy Load)
                 itemEl = listEl.createDiv({ cls: 'colophon-footnote-item' });
                 itemEl.dataset.footnoteId = fn.id;
 
@@ -87,12 +97,22 @@ export class ZAxisPanel {
                     text: `${fn.number}.` 
                 });
                 
-                markerEl.onclick = () => {
+                markerEl.onclick = (e) => {
+                    e.stopPropagation();
                     this.view.adapter.focusMarker(fn.id);
                 };
 
                 const editorContainer = itemEl.createDiv({ cls: 'colophon-footnote-editor-container' });
-                this.createMiniEditor(fn.id, fn.content, editorContainer);
+                
+                // Initial static preview
+                this.renderPreview(fn.id, fn.content, editorContainer);
+
+                // Initialize editor on click or focus
+                editorContainer.onclick = () => {
+                    if (!this.editors.has(fn.id)) {
+                        this.createMiniEditor(fn.id, fn.content, editorContainer);
+                    }
+                };
             } else {
                 // UPDATE SEQUENCE
                 const markerEl = itemEl.querySelector('.colophon-footnote-number');
@@ -101,13 +121,21 @@ export class ZAxisPanel {
                 }
                 
                 // DATA SYNC (Canvas -> Sidebar)
-                // Only if NOT focused and content actually differs
                 const editor = this.editors.get(fn.id);
-                if (editor && !editor.isFocused) {
-                    const currentJSON = JSON.stringify(editor.getJSON());
-                    const incomingJSON = JSON.stringify(fn.content);
-                    if (currentJSON !== incomingJSON) {
-                        editor.commands.setContent(fn.content, false);
+                if (editor) {
+                    // Update active editor if not focused
+                    if (!editor.isFocused) {
+                        const currentJSON = JSON.stringify(editor.getJSON());
+                        const incomingJSON = JSON.stringify(fn.content);
+                        if (currentJSON !== incomingJSON) {
+                            editor.commands.setContent(fn.content, false);
+                        }
+                    }
+                } else {
+                    // Update preview if data changed
+                    const editorContainer = itemEl.querySelector('.colophon-footnote-editor-container');
+                    if (editorContainer) {
+                        this.renderPreview(fn.id, fn.content, editorContainer);
                     }
                 }
             }
@@ -122,7 +150,37 @@ export class ZAxisPanel {
         });
     }
 
+    renderPreview(id, content, container) {
+        // If an editor already exists, don't overwrite with a preview
+        if (this.editors.has(id)) return;
+
+        // Simple text extraction for preview (could be improved with a proper renderer if needed)
+        // For now, we'll use a simplified approach to show content
+        container.empty();
+        const previewEl = container.createDiv({ cls: 'colophon-footnote-preview' });
+        
+        // Basic text preview from JSON content
+        const getText = (node) => {
+            if (node.text) return node.text;
+            if (node.content) return node.content.map(getText).join(' ');
+            return '';
+        };
+        
+        const previewText = getText(content) || 'Click to edit...';
+        previewEl.setText(previewText);
+        
+        // Add focusable attribute to allow Tab navigation
+        previewEl.tabIndex = 0;
+        previewEl.onfocus = () => {
+            if (!this.editors.has(id)) {
+                this.createMiniEditor(id, content, container);
+            }
+        };
+    }
+
     createMiniEditor(id, content, element) {
+        element.empty();
+        
         // Use shared extensions from main adapter
         const extensions = this.view.adapter.sharedExtensions;
         const isSpellcheckEnabled = this.view.app.vault.getConfig('spellcheck');
@@ -143,6 +201,25 @@ export class ZAxisPanel {
             onFocus: ({ editor }) => {
                 this.view.updateActiveEditor(editor);
             },
+            onBlur: ({ editor }) => {
+                // When focus is lost, we can choose to destroy the editor to save memory
+                // or keep it alive. Given the "Lazy Load" requirement, destroying on blur
+                // is the most aggressive memory optimization.
+                
+                // Save current content one last time
+                const finalContent = editor.getJSON();
+                this.view.adapter.updateFootnote(id, finalContent);
+                
+                // Destroy after a short delay to allow click events on toolbar to process if needed
+                // or just destroy if it's a true blur
+                setTimeout(() => {
+                    if (!editor.isFocused && this.editors.has(id)) {
+                        editor.destroy();
+                        this.editors.delete(id);
+                        this.renderPreview(id, finalContent, element);
+                    }
+                }, 150);
+            },
             editorProps: {
                 attributes: {
                     class: 'colophon-footnote-editor footnote',
@@ -152,6 +229,9 @@ export class ZAxisPanel {
         });
 
         this.editors.set(id, editor);
+
+        // Focus immediately
+        editor.commands.focus('end');
 
         // Add internal link suggestions to footnote editor
         if (this.view.app && this.view.plugin) {

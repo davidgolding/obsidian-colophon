@@ -15,11 +15,11 @@ export class StyleManager {
         const symbolDef = settings.blocks['footnote-symbol'];
         if (symbolDef) {
             css += `.colophon-footnote-marker {\n`;
-            if (symbolDef['font-family']) css += `  font-family: ${symbolDef['font-family']};\n`;
-            if (symbolDef['font-size']) css += `  font-size: ${this.normalizeValue(symbolDef['font-size'])};\n`;
+            if (symbolDef['font-family']) css += `  font-family: ${this.normalizeValue(symbolDef['font-family'], 'font-family')};\n`;
+            if (symbolDef['font-size']) css += `  font-size: ${this.normalizeValue(symbolDef['font-size'], 'font-size')};\n`;
             if (symbolDef['color']) css += `  color: ${symbolDef['color']};\n`;
             if (symbolDef['align']) {
-                css += `  vertical-align: ${this.normalizeValue(symbolDef['align'])};\n`;
+                css += `  vertical-align: ${this.normalizeValue(symbolDef['align'], 'align')};\n`;
                 css += `  line-height: 0;\n`;
             }
             css += `}\n`;
@@ -38,7 +38,7 @@ export class StyleManager {
             const propertyMap = this.getPropertyMap();
             for (const [key, value] of Object.entries(footnoteDef)) {
                 if (propertyMap[key]) {
-                    const normalizedValue = this.normalizeValue(value);
+                    const normalizedValue = this.normalizeValue(value, key);
                     // Use !important to ensure sidebar styles win
                     css += `  ${propertyMap[key]}: ${normalizedValue} !important;\n`;
                 }
@@ -59,15 +59,15 @@ export class StyleManager {
             css += `}\n`;
             
             if (footnoteDef['space-between-notes']) {
-                css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'])}; }\n`;
+                css += `.colophon-footnote-item { margin-bottom: ${this.normalizeValue(footnoteDef['space-between-notes'], 'space-between-notes')}; }\n`;
             }
         }
 
         const numberDef = settings.blocks['footnote-number'];
         if (numberDef) {
             css += `.colophon-footnote-number {\n`;
-            if (numberDef['font-family']) css += `  font-family: ${numberDef['font-family']};\n`;
-            if (numberDef['font-size']) css += `  font-size: ${this.normalizeValue(numberDef['font-size'])};\n`;
+            if (numberDef['font-family']) css += `  font-family: ${this.normalizeValue(numberDef['font-family'], 'font-family')};\n`;
+            if (numberDef['font-size']) css += `  font-size: ${this.normalizeValue(numberDef['font-size'], 'font-size')};\n`;
             if (numberDef['font-weight']) css += `  font-weight: ${numberDef['font-weight']};\n`;
             css += `}\n`;
         }
@@ -140,7 +140,7 @@ export class StyleManager {
         // Standard Properties
         for (const [key, value] of Object.entries(properties)) {
             if (propertyMap[key]) {
-                const normalizedValue = this.normalizeValue(value);
+                const normalizedValue = this.normalizeValue(value, key);
                 blockCss += `  ${propertyMap[key]}: ${normalizedValue};\n`;
             }
         }
@@ -150,10 +150,50 @@ export class StyleManager {
     }
 
     /**
-     * Normalizes values to 'rem' based on the rule 10pt = 1rem.
+     * Sanitizes font-family strings to prevent CSS injection.
+     * Wraps non-generic font names in quotes and strips illegal characters.
      */
-    normalizeValue(value) {
+    sanitizeFontFamily(fontFamily) {
+        if (typeof fontFamily !== 'string' || !fontFamily) return '';
+
+        const genericFamilies = [
+            'serif', 'sans-serif', 'monospace', 'cursive', 'fantasy',
+            'system-ui', 'ui-serif', 'ui-sans-serif', 'ui-monospace',
+            'ui-rounded', 'emoji', 'math', 'fan-out'
+        ];
+
+        return fontFamily.split(',')
+            .map(part => {
+                let trimmed = part.trim();
+                if (!trimmed) return '';
+
+                // Remove illegal characters: ; { } < > \
+                trimmed = trimmed.replace(/[;{}<>\\]/g, '');
+
+                if (genericFamilies.includes(trimmed.toLowerCase())) {
+                    return trimmed;
+                }
+
+                // Strip existing quotes
+                trimmed = trimmed.replace(/^["'](.*)["']$/, '$1');
+
+                // Return quoted, escaping internal double quotes
+                return `"${trimmed.replace(/"/g, '\\"')}"`;
+            })
+            .filter(part => part !== '')
+            .join(', ');
+    }
+
+    /**
+     * Normalizes values to 'rem' based on the rule 10pt = 1rem.
+     * Also handles font-family sanitization if the key is provided.
+     */
+    normalizeValue(value, key) {
         if (typeof value !== 'string') return value;
+
+        if (key === 'font-family') {
+            return this.sanitizeFontFamily(value);
+        }
 
         const match = value.match(/^([\d.]+)([a-z%]+)?$/);
         if (!match) return value;

@@ -132,6 +132,44 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
+        this.addCommand({
+            id: 'colophon:add-link',
+            name: 'Agent: Add Link',
+            callback: (args) => {
+                const { target, alias } = args || {};
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    view.adapter.addLink({ target, alias });
+                }
+            }
+        });
+
+        this.addCommand({
+            id: 'colophon:set-block-type',
+            name: 'Agent: Set Block Type',
+            callback: (args) => {
+                const { typeId } = args || {};
+                if (!typeId) return;
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    view.adapter.setBlockType(typeId);
+                }
+            }
+        });
+
+        this.addCommand({
+            id: 'colophon:focus-footnote',
+            name: 'Agent: Focus Footnote',
+            callback: (args) => {
+                const { id } = args || {};
+                if (!id) return;
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    view.adapter.focusNote(id);
+                }
+            }
+        });
+
         // 5. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
