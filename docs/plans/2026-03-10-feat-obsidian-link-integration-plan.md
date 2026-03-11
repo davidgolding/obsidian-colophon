@@ -1,7 +1,7 @@
 ---
 title: "feat: Obsidian Link Integration (Z-Axis)"
 type: feat
-status: active
+status: completed
 date: 2026-03-10
 origin: docs/brainstorms/2026-03-10-obsidian-link-integration-brainstorm.md
 ---
