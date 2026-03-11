@@ -55,7 +55,7 @@ export const FootnoteMarker = Node.create({
                 e.stopPropagation();
                 
                 // Dispatch decoupled event
-                document.body.dispatchEvent(new CustomEvent('colophon-focus-footnote', {
+                document.body.dispatchEvent(new CustomEvent('colophon:footnote:focus', {
                     detail: { id: node.attrs.id }
                 }));
             });
@@ -83,7 +83,7 @@ export const FootnoteMarker = Node.create({
                     
                     // Signal creation to be caught by adapter
                     setTimeout(() => {
-                        document.body.dispatchEvent(new CustomEvent('colophon-create-footnote', {
+                        document.body.dispatchEvent(new CustomEvent('colophon:footnote:create', {
                             detail: { id }
                         }));
                     }, 10);

@@ -523,6 +523,31 @@
     border: 0 !important;
 }
 
+.colophon-footnote-preview {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color 0.1s ease, color 0.1s ease;
+    min-height: 1.2em;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.colophon-footnote-preview:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+.colophon-footnote-preview:focus {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+    outline: none;
+    box-shadow: 0 0 0 1px var(--interactive-accent);
+}
+
 .colophon-footnote-editor .ProseMirror {
     padding: 0 !important;
     margin: 0 !important;

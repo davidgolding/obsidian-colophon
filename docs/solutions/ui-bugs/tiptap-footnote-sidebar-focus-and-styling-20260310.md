@@ -30,13 +30,13 @@ When implementing a sidebar of "mini" Tiptap editors for footnotes, several UI a
 Instead of the extension directly calling the plugin adapter, it now dispatches standard DOM events. The adapter listens for these and handles the UI changes (like opening the sidebar).
 ```javascript
 // In footnote-marker.js
-document.body.dispatchEvent(new CustomEvent('colophon-create-footnote', {
+document.body.dispatchEvent(new CustomEvent('colophon:footnote:create', {
     detail: { id }
 }));
 
 // In tiptap-adapter.js
 this.createHandler = (e) => this.focusNote(e.detail.id);
-document.body.addEventListener('colophon-create-footnote', this.createHandler);
+document.body.addEventListener('colophon:footnote:create', this.createHandler);
 ```
 
 ### 2. Selective Rendering (Fixing Focus Loss)
