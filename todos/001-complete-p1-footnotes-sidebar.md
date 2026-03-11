@@ -41,11 +41,11 @@ Writers need a way to manage annotations without leaving the flow of their prose
 - Added re-sequencing logic to `TiptapAdapter`.
 - Integrated bi-directional navigation.
 
-### 2026-03-10 - Fluid Typing & No-Mouse Workflow
+### 2026-03-10 - Final Stability & Workflow Fixes
 **By:** Gemini CLI
 **Actions:**
-- Implemented `sharedExtensions` in `TiptapAdapter` to eliminate "duplicate extension" warnings and schema overhead.
-- Refactored `ZAxisPanel` update logic to strictly preserve focused editors, enabling fluid typing.
-- Updated `FootnoteMarker` input rule to automatically focus the new footnote in the sidebar.
-- Refined `StyleManager` selectors to ensure sidebar editors respect all footnote-specific typography settings.
-- Added content-change detection in `updateFootnote` to prevent recursive re-renders.
+- Fixed `TypeError` by ensuring `plugin` is passed to Editor options for extension access.
+- Refined `ZAxisPanel.show()` to prevent accidental closing during footnote creation.
+- Implemented spellcheck parity between main canvas and sidebar mini-editors.
+- Optimized CSS to remove redundant borders and ensure editors are naturally sized.
+

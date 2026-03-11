@@ -143,6 +143,7 @@ export class ZAxisPanel {
     createMiniEditor(id, content, element) {
         // Use the shared extensions from the main adapter to ensure schema parity and no warnings
         const extensions = this.view.adapter.sharedExtensions;
+        const isSpellcheckEnabled = this.view.app.vault.getConfig('spellcheck');
 
         const editor = new Editor({
             element: element,
@@ -158,6 +159,7 @@ export class ZAxisPanel {
             editorProps: {
                 attributes: {
                     class: 'colophon-footnote-editor',
+                    spellcheck: isSpellcheckEnabled ? 'true' : 'false',
                 }
             }
         });
