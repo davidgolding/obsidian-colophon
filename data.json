@@ -84,7 +84,8 @@
       "line-spacing": "9pt",
       "name": "Footnote",
       "right-indent": "0pt",
-      "space-between-notes": "10pt"
+      "space-between-notes": "10pt",
+      "text-align": "left"
     },
     "footnote-number": {
       "font-family": "var(--font-text-theme), var(--font-text-override)",

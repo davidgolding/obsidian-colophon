@@ -76,7 +76,9 @@ export const FootnoteMarker = Node.create({
         
         return [
             new InputRule({
-                find: new RegExp(`${escapedTrigger}$`),
+                // Match the trigger either with or without a space
+                // but only at the end of a line/word
+                find: new RegExp(`\\(\\($`),
                 handler: ({ state, range }) => {
                     const id = `fn-${crypto.randomUUID()}`;
                     const { tr } = state;

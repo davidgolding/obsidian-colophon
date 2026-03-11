@@ -841,12 +841,27 @@
 .colophon-footnote-editor-container {
     border: none;
     padding: 0;
+    width: 100%;
 }
 
 .colophon-footnote-editor {
     outline: none;
-    min-height: 1em;
+    min-height: 1.2em;
     cursor: text;
+    width: 100%;
+}
+
+.colophon-footnote-editor .ProseMirror {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+}
+
+/* Ensure footnote content respects block styles but resets sidebar-specific layout */
+.colophon-footnote-editor p {
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* Fix for the "double box" appearance: remove the border from the container when focused */
