@@ -26,6 +26,7 @@ export class ColophonView extends TextFileView {
     }
 
     async onOpen() {
+        await super.onOpen();
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
 
@@ -52,6 +53,7 @@ export class ColophonView extends TextFileView {
     }
 
     async onClose() {
+        await super.onClose();
         if (this.adapter) {
             this.adapter.destroy();
             this.adapter = null;
