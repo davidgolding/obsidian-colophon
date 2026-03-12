@@ -92,6 +92,13 @@ export class MetadataManager {
             // Recursive extraction
             this.extractMetadata(data.doc, links, blockIds);
 
+            // Extract from footnotes
+            if (data.footnotes) {
+                for (const footnoteContent of Object.values(data.footnotes)) {
+                    this.extractMetadata(footnoteContent, links, blockIds);
+                }
+            }
+
             // Create/Update shadow markdown file for indexing
             await this.updateShadowFile(file, links, blockIds);
         } catch (err) {
@@ -218,6 +225,13 @@ export class MetadataManager {
             };
 
             updateLinks(data.doc);
+            
+            // Also update links in footnotes
+            if (data.footnotes) {
+                for (const footnoteContent of Object.values(data.footnotes)) {
+                    updateLinks(footnoteContent);
+                }
+            }
 
             if (modified) {
                 await this.app.vault.modify(colophonFile, JSON.stringify(data, null, 2));
