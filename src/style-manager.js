@@ -1,10 +1,12 @@
 export class StyleManager {
     constructor() {
         this.styleTagId = 'colophon-dynamic-styles';
+        this.settings = null;
     }
 
     applyStyles(settings) {
         if (!settings || !settings.blocks) return;
+        this.settings = settings;
 
         let css = '';
 
@@ -207,12 +209,14 @@ export class StyleManager {
 
         if (!unit) return value;
 
+        const scale = this.settings?.globalScale || 1.0;
+
         switch (unit) {
-            case 'pt': return `${num * 1.3333}px`;
-            case 'pc': return `${num * 16}px`;
-            case 'in': return `${num * 96}px`;
-            case 'cm': return `${num * 37.795}px`;
-            case 'mm': return `${num * 3.7795}px`;
+            case 'pt': return `calc(${num / 12} * ${scale} * var(--font-text-size))`;
+            case 'pc': return `calc(${num} * ${scale} * var(--font-text-size))`;
+            case 'in': return `calc(${num * 6} * ${scale} * var(--font-text-size))`;
+            case 'cm': return `calc(${num * (6 / 2.54)} * ${scale} * var(--font-text-size))`;
+            case 'mm': return `calc(${num * (0.6 / 2.54)} * ${scale} * var(--font-text-size))`;
             case 'px': return `${num}px`;
             case 'rem':
             case 'em':
