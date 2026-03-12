@@ -18,6 +18,18 @@ export class ColophonSettingTab extends PluginSettingTab {
         const pluginSettingsItems = pluginSettingsGroup.createDiv({ cls: 'setting-items' });
 
         new Setting(pluginSettingsItems)
+            .setName('Global scale')
+            .setDesc('Scale all typographic units (pt, in, etc.) relative to Obsidian\'s text size. 12pt = (Scale * Obsidian Text Size).')
+            .addSlider(slider => slider
+                .setLimits(0.5, 2.0, 0.1)
+                .setValue(this.plugin.settings.globalScale || 1.0)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.globalScale = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(pluginSettingsItems)
             .setName('Text column width')
             .setDesc('Adjust the width of the writing canvas (500px - 1240px).')
             .addSlider(slider => slider
