@@ -29,10 +29,14 @@ export class StyleManager {
         const footnoteDef = settings.blocks['footnote'];
         if (footnoteDef) {
             // High-precision selectors for sidebar content.
-            // We target the ProseMirror element directly by joining the classes.
+            // We target the ProseMirror element directly by joining the classes,
+            // and also target the static preview element.
+            // Prepend .colophon-workspace to increase specificity.
+            const workspaceBase = '.colophon-workspace';
             const sidebarBase = '.ProseMirror.colophon-footnote-editor';
+            const previewBase = '.colophon-footnote-preview';
             
-            css += `${sidebarBase}, ${sidebarBase} p {\n`;
+            css += `${workspaceBase} ${sidebarBase}, ${workspaceBase} ${sidebarBase} p, ${workspaceBase} ${previewBase}, ${workspaceBase} ${previewBase} p {\n`;
             
             // Map all properties from the definition using our property map
             const propertyMap = this.getPropertyMap();
@@ -170,7 +174,7 @@ export class StyleManager {
                 // Remove illegal characters: ; { } < > \
                 trimmed = trimmed.replace(/[;{}<>\\]/g, '');
 
-                if (genericFamilies.includes(trimmed.toLowerCase())) {
+                if (genericFamilies.includes(trimmed.toLowerCase()) || trimmed.startsWith('var(')) {
                     return trimmed;
                 }
 
@@ -204,12 +208,12 @@ export class StyleManager {
         if (!unit) return value;
 
         switch (unit) {
-            case 'pt': return `${num * 0.1}rem`;
-            case 'pc': return `${num * 1.2}rem`;
-            case 'in': return `${num * 7.2}rem`;
-            case 'cm': return `${(num * 7.2) / 2.54}rem`;
-            case 'mm': return `${(num * 0.72) / 2.54}rem`;
-            case 'px': return `${num * 0.075}rem`;
+            case 'pt': return `${num * 1.3333}px`;
+            case 'pc': return `${num * 16}px`;
+            case 'in': return `${num * 96}px`;
+            case 'cm': return `${num * 37.795}px`;
+            case 'mm': return `${num * 3.7795}px`;
+            case 'px': return `${num}px`;
             case 'rem':
             case 'em':
             case '%':
