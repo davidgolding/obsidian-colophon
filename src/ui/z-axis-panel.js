@@ -154,20 +154,56 @@ export class ZAxisPanel {
         // If an editor already exists, don't overwrite with a preview
         if (this.editors.has(id)) return;
 
-        // Simple text extraction for preview (could be improved with a proper renderer if needed)
-        // For now, we'll use a simplified approach to show content
         container.empty();
         const previewEl = container.createDiv({ cls: 'colophon-footnote-preview' });
         
-        // Basic text preview from JSON content
-        const getText = (node) => {
-            if (node.text) return node.text;
-            if (node.content) return node.content.map(getText).join(' ');
-            return '';
+        // Recursive renderer for Tiptap JSON to simple HTML
+        const renderNode = (node, parentEl) => {
+            if (node.type === 'text') {
+                let el = parentEl;
+                if (node.marks) {
+                    node.marks.forEach(mark => {
+                        let tag = 'span';
+                        let cls = '';
+                        
+                        if (mark.type === 'bold') tag = 'strong';
+                        else if (mark.type === 'italic') tag = 'em';
+                        else if (mark.type === 'underline') tag = 'u';
+                        else if (mark.type === 'strike') tag = 's';
+                        else if (mark.type === 'superscript') tag = 'sup';
+                        else if (mark.type === 'subscript') tag = 'sub';
+                        else if (mark.type === 'smallCaps') cls = 'colophon-small-caps';
+                        
+                        const markEl = document.createElement(tag);
+                        if (cls) markEl.className = cls;
+                        el.appendChild(markEl);
+                        el = markEl;
+                    });
+                }
+                el.textContent = node.text;
+            } else if (node.type === 'internalLink') {
+                const linkEl = parentEl.createSpan({ cls: 'colophon-internal-link' });
+                const target = node.attrs?.target || '';
+                const alias = node.attrs?.alias;
+                linkEl.textContent = alias || target.split('/').pop().replace('.md', '').replace('.colophon', '');
+                linkEl.title = `Click to open ${target}`;
+            } else {
+                let el = parentEl;
+                if (node.type === 'paragraph' || node.type === 'body') {
+                    el = parentEl.createEl('p', { cls: node.type });
+                }
+                
+                if (node.content) {
+                    node.content.forEach(child => renderNode(child, el));
+                }
+            }
         };
         
-        const previewText = getText(content) || 'Click to edit...';
-        previewEl.setText(previewText);
+        if (content && content.content) {
+            renderNode(content, previewEl);
+        } else {
+            previewEl.setText('Click to edit...');
+        }
         
         // Add focusable attribute to allow Tab navigation
         previewEl.tabIndex = 0;
