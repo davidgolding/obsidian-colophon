@@ -180,7 +180,7 @@ export class ZAxisPanel {
                         el = markEl;
                     });
                 }
-                el.textContent = node.text;
+                el.appendChild(document.createTextNode(node.text));
             } else if (node.type === 'internalLink') {
                 const linkEl = parentEl.createSpan({ cls: 'colophon-internal-link' });
                 const target = node.attrs?.target || '';
@@ -281,6 +281,9 @@ export class ZAxisPanel {
     }
 
     show(tab = 'footnotes', callback = null) {
+        if (this.activeTab !== tab) {
+            this.lastFootnotesJSON = null;
+        }
         this.activeTab = tab;
         this.isVisible = true;
         this.containerEl.addClass('is-visible');
