@@ -1,4 +1,5 @@
 export const DEFAULT_SETTINGS = {
+    globalScale: 1.0,
     textColumnWidth: 700,
     fixedFeedPosition: false,
     feedPadding: 40,
