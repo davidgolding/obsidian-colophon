@@ -396,16 +396,41 @@ export class TiptapAdapter {
         const { tr } = this.editor.state;
         let sequence = 1;
         let changed = false;
+        const seenIds = new Set();
 
         this.editor.state.doc.descendants((node, pos) => {
             if (node.type.name === 'footnoteMarker') {
-                if (node.attrs.number !== sequence) {
-                    tr.setNodeMarkup(pos, null, {
-                        ...node.attrs,
-                        number: sequence
-                    });
+                let id = node.attrs.id;
+                let isDuplicate = seenIds.has(id);
+                
+                let markupChanged = false;
+                let newAttrs = { ...node.attrs };
+
+                if (isDuplicate || !id) {
+                    const newId = `fn-${crypto.randomUUID()}`;
+                    if (id && this.footnotes[id]) {
+                        // copy content from old note
+                        this.footnotes[newId] = JSON.parse(JSON.stringify(this.footnotes[id]));
+                    } else {
+                        // empty note
+                        this.footnotes[newId] = { type: 'doc', content: [{ type: 'body' }] };
+                    }
+                    newAttrs.id = newId;
+                    id = newId;
+                    markupChanged = true;
+                }
+                seenIds.add(id);
+
+                if (newAttrs.number !== sequence) {
+                    newAttrs.number = sequence;
+                    markupChanged = true;
+                }
+
+                if (markupChanged) {
+                    tr.setNodeMarkup(pos, null, newAttrs);
                     changed = true;
                 }
+                
                 sequence++;
             }
         });
@@ -435,13 +460,7 @@ export class TiptapAdapter {
     focusNote(id) {
         if (this.plugin && this.plugin.zAxisPanel) {
             this.plugin.zAxisPanel.show('footnotes', () => {
-                const editor = this.plugin.zAxisPanel.editors.get(id);
-                if (editor) {
-                    // Focus at the end of the document to allow immediate typing
-                    editor.commands.focus('end');
-                    const el = this.plugin.zAxisPanel.containerEl.querySelector(`[data-footnote-id="${id}"]`);
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+                this.plugin.zAxisPanel.focusEditor(id);
             });
         }
     }
