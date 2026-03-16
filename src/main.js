@@ -267,10 +267,9 @@ export default class ColophonPlugin extends Plugin {
     }
 
     onunload() {
-        // Obsidian doesn't support unpatching cleanly without storing originals globally,
-        // but since we modify the app instance, reloading the plugin might leak if not careful.
-        // For a simple reload it's usually fine as the app object persists. 
-        // Ideally we would restore commands here.
+        if (this.sidebarManager) {
+            this.sidebarManager.destroy();
+        }
     }
 
     async createNewColophonFile(type, folderPath = '') {
