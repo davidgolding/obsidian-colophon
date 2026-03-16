@@ -314,6 +314,7 @@ export class TiptapAdapter {
         const ids = new Set();
         if (!this.editor) return ids;
 
+        // 1. Scan main document
         this.editor.state.doc.descendants((node) => {
             if (node.marks) {
                 node.marks.forEach(mark => {
@@ -324,7 +325,28 @@ export class TiptapAdapter {
             }
         });
 
+        // 2. Scan footnotes
+        if (this.footnotes) {
+            for (const footnoteContent of Object.values(this.footnotes)) {
+                this.scanForThreadIds(footnoteContent, ids);
+            }
+        }
+
         return ids;
+    }
+
+    scanForThreadIds(node, ids) {
+        if (!node) return;
+        if (node.marks) {
+            node.marks.forEach(mark => {
+                if (mark.type.name === 'commentHighlight' && mark.attrs.threadId) {
+                    ids.add(mark.attrs.threadId);
+                }
+            });
+        }
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => this.scanForThreadIds(child, ids));
+        }
     }
 
     getFootnotes() {
