@@ -599,10 +599,14 @@ export class ZAxisPanel {
         if (!footer) {
             footer = cardEl.createDiv({ cls: 'colophon-comment-footer' });
             
-            const replyBtn = footer.createEl('button', { cls: 'colophon-comment-action', text: 'Reply' });
+            const replyBtn = footer.createEl('button', { cls: 'colophon-comment-action' });
+            setIcon(replyBtn.createSpan({ cls: 'colophon-comment-action-icon' }), 'reply');
+            replyBtn.createSpan({ text: 'Reply' });
             replyBtn.onclick = () => this.addReply(threadId);
 
-            const deleteBtn = footer.createEl('button', { cls: 'colophon-comment-action is-danger', text: 'Delete' });
+            const deleteBtn = footer.createEl('button', { cls: 'colophon-comment-action is-danger' });
+            setIcon(deleteBtn.createSpan({ cls: 'colophon-comment-action-icon' }), 'trash-2');
+            deleteBtn.createSpan({ text: 'Delete' });
             deleteBtn.onclick = () => this.deleteThread(threadId);
         }
     }
