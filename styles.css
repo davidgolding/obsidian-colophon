@@ -463,7 +463,8 @@
 
 .colophon-comment-footer {
     display: flex;
-    gap: 12px;
+    justify-content: flex-end;
+    gap: 8px;
     padding: 8px 12px;
     background-color: var(--background-secondary-alt);
     border-top: 1px solid var(--background-modifier-border);
@@ -472,20 +473,39 @@
 .colophon-comment-action {
     background: transparent;
     border: none;
-    padding: 0;
-    font-size: 0.75rem;
+    padding: 4px 8px;
+    font-size: 0.7rem;
     color: var(--text-muted);
     cursor: pointer;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 4px;
+    transition: background-color 0.1s ease, color 0.1s ease;
+    white-space: nowrap;
 }
 
 .colophon-comment-action:hover {
+    background-color: var(--background-modifier-hover);
     color: var(--text-normal);
-    text-decoration: underline;
+    text-decoration: none;
+}
+
+.colophon-comment-action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.colophon-comment-action-icon svg {
+    width: 14px;
+    height: 14px;
 }
 
 .colophon-comment-action.is-danger:hover {
     color: var(--text-error);
+    background-color: color-mix(in srgb, var(--text-error) 10%, transparent);
 }
 
 /* 9. MAIN LAYOUT (Flex) */
