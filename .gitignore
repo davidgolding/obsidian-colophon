@@ -6,3 +6,4 @@ pnpm-workspace.yaml
 .vscode
 /.gemini
 /.colophon-cache
+/docs
