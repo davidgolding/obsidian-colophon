@@ -135,6 +135,21 @@ export class ColophonSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(pluginSettingsItems)
+            .setName('Sidebar location')
+            .setDesc('Where to show footnotes and comments: in the document or the global sidebar.')
+            .addDropdown(dropdown => dropdown
+                .addOption('local', 'In Document')
+                .addOption('global', 'Global Sidebar')
+                .setValue(this.plugin.settings.sidebarLocation || 'local')
+                .onChange(async (value) => {
+                    this.plugin.settings.sidebarLocation = value;
+                    await this.plugin.saveSettings();
+                    if (this.plugin.refreshLayout) {
+                        this.plugin.refreshLayout();
+                    }
+                }));
+
 
         // --- Block Settings Group ---
         const blockSettingsGroup = containerEl.createDiv({ cls: 'setting-group' });

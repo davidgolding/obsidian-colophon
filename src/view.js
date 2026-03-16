@@ -45,7 +45,17 @@ export class ColophonView extends TextFileView {
         this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container' });
 
         // Add Z-Axis Panel (Sidebar)
-        this.zAxisPanel = new ZAxisPanel(this, this.mainLayout);
+        // Note: We always create it, but refreshSidebarVisibility() determines if it's visible in the DOM
+        this.zAxisPanel = new ZAxisPanel(
+            this.app, 
+            this.plugin, 
+            {
+                getAdapter: () => this.adapter,
+                updateActiveEditor: (editor) => this.updateActiveEditor(editor),
+                getToolbar: () => this.toolbar
+            },
+            this.mainLayout
+        );
 
         // Target the standard Obsidian header elements
         const viewHeader = this.containerEl.querySelector('.view-header');
@@ -58,6 +68,8 @@ export class ColophonView extends TextFileView {
                 this.toolbar = new ColophonToolbar(this, titleContainer);
             }
         }
+
+        this.refreshSidebarVisibility();
     }
 
     async onClose() {
@@ -75,27 +87,56 @@ export class ColophonView extends TextFileView {
         }
     }
 
+    refreshSidebarVisibility() {
+        const isGlobal = this.plugin.settings.sidebarLocation === 'global';
+        
+        if (isGlobal) {
+            this.mainLayout.addClass('is-global-sidebar');
+            if (this.zAxisPanel) {
+                this.zAxisPanel.hide();
+            }
+        } else {
+            this.mainLayout.removeClass('is-global-sidebar');
+        }
+    }
+
     // --- Panel Toggles ---
 
     toggleFootnotes() {
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar();
+            return;
+        }
         if (this.zAxisPanel) {
             this.zAxisPanel.toggle('footnotes');
         }
     }
 
     toggleComments() {
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar();
+            return;
+        }
         if (this.zAxisPanel) {
             this.zAxisPanel.toggle('comments');
         }
     }
 
     showFootnotes() {
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar();
+            return;
+        }
         if (this.zAxisPanel) {
             this.zAxisPanel.show('footnotes');
         }
     }
 
     showComments() {
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar();
+            return;
+        }
         if (this.zAxisPanel) {
             this.zAxisPanel.show('comments');
         }
@@ -143,7 +184,13 @@ export class ColophonView extends TextFileView {
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
-                    if (this.zAxisPanel) this.zAxisPanel.update();
+                    
+                    // Update whichever panel is active
+                    if (this.plugin.settings.sidebarLocation === 'global') {
+                        this.plugin.sidebarManager.update();
+                    } else if (this.zAxisPanel) {
+                        this.zAxisPanel.update();
+                    }
                 }
             });
         } else {
@@ -249,6 +296,8 @@ export class ColophonView extends TextFileView {
         if (this.adapter) {
             this.adapter.updateSettings(settings);
         }
+        
+        this.refreshSidebarVisibility();
     }
 
     migrateContent(node) {

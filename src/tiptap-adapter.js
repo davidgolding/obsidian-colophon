@@ -458,9 +458,21 @@ export class TiptapAdapter {
     }
 
     focusNote(id) {
-        if (this.plugin && this.plugin.zAxisPanel) {
-            this.plugin.zAxisPanel.show('footnotes', () => {
-                this.plugin.zAxisPanel.focusEditor(id);
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar().then(() => {
+                const sidebarLeaf = this.app.workspace.getLeavesOfType('colophon-sidebar')[0];
+                if (sidebarLeaf && sidebarLeaf.view.zAxisPanel) {
+                    sidebarLeaf.view.zAxisPanel.show('footnotes', () => {
+                        sidebarLeaf.view.zAxisPanel.focusEditor(id);
+                    });
+                }
+            });
+            return;
+        }
+
+        if (this.view && this.view.zAxisPanel) {
+            this.view.zAxisPanel.show('footnotes', () => {
+                this.view.zAxisPanel.focusEditor(id);
             });
         }
     }
