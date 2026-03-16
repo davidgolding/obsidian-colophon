@@ -162,7 +162,7 @@ export class ColophonView extends TextFileView {
         }
         this.lastLoadedData = data;
 
-        let parsedData = { type: 'manuscript', doc: null, footnotes: {} };
+        let parsedData = { type: 'manuscript', doc: null, footnotes: {}, comments: {} };
 
         try {
             if (data && data.trim() !== '') {
@@ -191,6 +191,7 @@ export class ColophonView extends TextFileView {
             this.adapter = new TiptapAdapter(this.scrollContainer, {
                 content: parsedData.doc,
                 footnotes: parsedData.footnotes || {},
+                comments: parsedData.comments || {},
                 type: this.docType,
                 settings: this.plugin ? this.plugin.settings : null,
                 isSpellcheckEnabled: isSpellcheckEnabled,
@@ -213,7 +214,7 @@ export class ColophonView extends TextFileView {
             // If clear is true, it means we are reloading the file entirely
             if (clear) {
                 this.adapter.type = this.docType; // Update type if it changed
-                this.adapter.setContent(parsedData.doc || {}, parsedData.footnotes || {});
+                this.adapter.setContent(parsedData.doc || {}, parsedData.footnotes || {}, parsedData.comments || {});
 
                 // Force update attributes if type or spellcheck changed
                 if (this.adapter.editor) {
@@ -236,10 +237,23 @@ export class ColophonView extends TextFileView {
     getViewData() {
         if (!this.adapter) return '';
 
+        // Garbage collection: Only keep comments that are still referenced in the document
+        const activeThreadIds = this.adapter.getActiveCommentThreadIds();
+        const cleanedComments = {};
+        
+        if (this.adapter.comments) {
+            for (const threadId in this.adapter.comments) {
+                if (activeThreadIds.has(threadId)) {
+                    cleanedComments[threadId] = this.adapter.comments[threadId];
+                }
+            }
+        }
+
         const data = {
             type: this.docType,
             doc: this.adapter.getJSON(),
-            footnotes: this.adapter.footnotes
+            footnotes: this.adapter.footnotes,
+            comments: cleanedComments
         };
         return JSON.stringify(data, null, 2);
     }
@@ -297,6 +311,45 @@ export class ColophonView extends TextFileView {
 
         // Focus will handle opening the panel and scrolling to the new note
         this.adapter.focusNote(id);
+    }
+
+    insertComment() {
+        if (!this.adapter) return;
+        
+        const editor = this.activeEditor || this.adapter.editor;
+        if (!editor || editor.state.selection.empty) return;
+
+        const threadId = `comment-${crypto.randomUUID()}`;
+        const author = this.plugin.settings.authorName || this.app.vault.getName();
+        const date = new Date().toISOString();
+
+        // 1. Mark the text in the editor
+        editor.chain().focus().setMark('commentHighlight', { threadId }).run();
+
+        // 2. Initialize metadata
+        if (!this.adapter.comments[threadId]) {
+            this.adapter.comments[threadId] = [{
+                author,
+                date,
+                content: { type: 'doc', content: [{ type: 'body' }] },
+                replies: []
+            }];
+        }
+
+        // 3. Open Sidebar and focus the new comment
+        this.showComments();
+        
+        // Use a timeout to ensure sidebar has rendered
+        setTimeout(() => {
+            if (this.zAxisPanel) {
+                this.zAxisPanel.focusComment(threadId);
+            } else if (this.plugin.settings.sidebarLocation === 'global') {
+                const sidebarLeaf = this.app.workspace.getLeavesOfType('colophon-sidebar')[0];
+                if (sidebarLeaf && sidebarLeaf.view.zAxisPanel) {
+                    sidebarLeaf.view.zAxisPanel.focusComment(threadId);
+                }
+            }
+        }, 100);
     }
 
     updateSettings() {

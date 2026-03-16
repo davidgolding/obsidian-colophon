@@ -97,6 +97,25 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'insert-comment',
+            name: 'Insert Comment',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    // Only allow if text is selected
+                    const editor = view.activeEditor || (view.adapter ? view.adapter.editor : null);
+                    if (editor && !editor.state.selection.empty) {
+                        if (!checking) {
+                            view.insertComment();
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'toggle-underline',
             name: 'Toggle Underline',
             checkCallback: (checking) => {
@@ -186,7 +205,25 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
-        // 5. Context Menu (File Explorer)
+        // 5. Context Menu (Editor)
+        this.registerEvent(
+            this.app.workspace.on('editor-menu', (menu, editor, view) => {
+                if (!(view instanceof ColophonView)) return;
+
+                if (editor.getSelection()) {
+                    menu.addItem((item) => {
+                        item
+                            .setTitle('Add comment')
+                            .setIcon('message-square-plus')
+                            .onClick(() => {
+                                view.insertComment();
+                            });
+                    });
+                }
+            })
+        );
+
+        // 6. Context Menu (File Explorer)
         this.registerEvent(
             this.app.workspace.on('file-menu', (menu, file) => {
                 if (file instanceof TFolder) {
