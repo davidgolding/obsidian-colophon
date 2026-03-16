@@ -62,6 +62,7 @@ export class ColophonView extends TextFileView {
             {
                 getAdapter: () => this.adapter,
                 updateActiveEditor: (editor) => this.updateActiveEditor(editor),
+                getActiveEditor: () => this.activeEditor,
                 getToolbar: () => this.toolbar
             },
             this.mainLayout
@@ -175,6 +176,11 @@ export class ColophonView extends TextFileView {
         // Migration: Convert 'paragraph' to 'body' if present (legacy support)
         if (parsedData && parsedData.doc) {
             this.migrateContent(parsedData.doc);
+        }
+
+        // Data Cleanup: If comments were accidentally saved into footnotes (due to a bug in renderPreview focus), move them back.
+        if (parsedData && parsedData.footnotes) {
+            this.migrateComments(parsedData);
         }
 
         this.docType = parsedData.type || 'manuscript';
@@ -323,18 +329,17 @@ export class ColophonView extends TextFileView {
         const author = this.plugin.settings.authorName || this.app.vault.getName();
         const date = new Date().toISOString();
 
-        // 1. Mark the text in the editor
-        editor.chain().focus().setMark('commentHighlight', { threadId }).run();
+        // 1. Initialize metadata FIRST so garbage collection finds it if setMark triggers an immediate save
+        if (!this.adapter.comments) this.adapter.comments = {};
+        this.adapter.comments[threadId] = [{
+            author,
+            date,
+            content: { type: 'doc', content: [{ type: 'body' }] },
+            replies: []
+        }];
 
-        // 2. Initialize metadata
-        if (!this.adapter.comments[threadId]) {
-            this.adapter.comments[threadId] = [{
-                author,
-                date,
-                content: { type: 'doc', content: [{ type: 'body' }] },
-                replies: []
-            }];
-        }
+        // 2. Mark the text in the editor
+        editor.chain().focus().setMark('commentHighlight', { threadId }).run();
 
         // 3. Open Sidebar and focus the new comment
         this.showComments();
@@ -378,6 +383,42 @@ export class ColophonView extends TextFileView {
 
         if (node.content && Array.isArray(node.content)) {
             node.content.forEach(child => this.migrateContent(child));
+        }
+    }
+
+    migrateComments(data) {
+        if (!data.comments) data.comments = {};
+        
+        for (const key in data.footnotes) {
+            if (key.startsWith('comment-')) {
+                // Key format: "comment-UUID:index"
+                const parts = key.split(':');
+                if (parts.length === 2) {
+                    const threadId = parts[0];
+                    const index = parseInt(parts[1]);
+                    const content = data.footnotes[key];
+
+                    if (!data.comments[threadId]) {
+                        data.comments[threadId] = [];
+                    }
+
+                    // If thread is missing the metadata for this index, initialize it
+                    if (!data.comments[threadId][index]) {
+                        data.comments[threadId][index] = {
+                            author: this.plugin.settings.authorName || this.app.vault.getName(),
+                            date: new Date().toISOString(),
+                            content: content,
+                            replies: []
+                        };
+                    } else {
+                        // Just update content
+                        data.comments[threadId][index].content = content;
+                    }
+
+                    // Delete from footnotes
+                    delete data.footnotes[key];
+                }
+            }
         }
     }
 }

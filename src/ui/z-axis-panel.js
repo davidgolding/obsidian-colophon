@@ -37,10 +37,42 @@ export class ZAxisPanel {
     render() {
         this.containerEl = this.parentEl.createDiv({ cls: 'colophon-z-axis-panel' });
         
+        // Panel Switcher (only for global sidebar or if explicitly enabled)
+        this.renderSwitcher();
+
         // Content Area
         this.contentEl = this.containerEl.createDiv({ cls: 'colophon-panel-content' });
         
         this.refresh();
+    }
+
+    renderSwitcher() {
+        const isGlobal = this.parentEl.classList.contains('colophon-sidebar-view');
+        if (!isGlobal) return;
+
+        this.switcherEl = this.containerEl.createDiv({ cls: 'colophon-panel-switcher' });
+        const group = this.switcherEl.createDiv({ cls: 'colophon-switcher-group' });
+
+        this.fnSwitchBtn = group.createEl('button', { 
+            cls: 'colophon-switcher-btn', 
+            text: 'Footnotes' 
+        });
+        this.fnSwitchBtn.onclick = () => this.show('footnotes');
+
+        this.cmSwitchBtn = group.createEl('button', { 
+            cls: 'colophon-switcher-btn', 
+            text: 'Comments' 
+        });
+        this.cmSwitchBtn.onclick = () => this.show('comments');
+        
+        this.updateSwitcher();
+    }
+
+    updateSwitcher() {
+        if (!this.switcherEl) return;
+
+        this.fnSwitchBtn.classList.toggle('colophon-active', this.activeTab === 'footnotes');
+        this.cmSwitchBtn.classList.toggle('colophon-active', this.activeTab === 'comments');
     }
 
     update() {
@@ -50,6 +82,8 @@ export class ZAxisPanel {
     refresh() {
         if (!this.isVisible) return;
         
+        this.updateSwitcher();
+
         if (this.activeTab === 'footnotes') {
             this.renderFootnotes();
         } else {
@@ -71,12 +105,13 @@ export class ZAxisPanel {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     // Optionally trigger edit mode if it's the first comment in thread and empty
                     const editorContainer = el.querySelector('.colophon-comment-editor-container');
-                    if (editorContainer && !this.editors.has(threadId)) {
+                    const editorId = `${threadId}:0`;
+                    if (editorContainer && !this.editors.has(editorId)) {
                         const adapter = this.provider.getAdapter();
                         if (adapter && adapter.comments[threadId]) {
                             const thread = adapter.comments[threadId];
                             if (thread.length > 0 && (!thread[0].content || !thread[0].content.content)) {
-                                this.createCommentEditor(threadId, 0, thread[0].content, editorContainer);
+                                this.createCommentEditor(threadId, 0, thread[0], editorContainer);
                             }
                         }
                     }
@@ -165,9 +200,11 @@ export class ZAxisPanel {
                 const editorContainer = itemEl.createDiv({ cls: 'colophon-footnote-editor-container' });
                 
                 // Initial static preview
-                this.renderPreview(fn.id, fn.content, editorContainer);
+                this.renderPreview(fn.id, fn.content, editorContainer, () => {
+                    this.createMiniEditor(fn.id, fn.content, editorContainer);
+                });
 
-                // Initialize editor on click or focus
+                // Initialize editor on click
                 editorContainer.onclick = () => {
                     if (!this.editors.has(fn.id)) {
                         this.createMiniEditor(fn.id, fn.content, editorContainer);
@@ -195,7 +232,9 @@ export class ZAxisPanel {
                     // Update preview if data changed
                     const editorContainer = itemEl.querySelector('.colophon-footnote-editor-container');
                     if (editorContainer) {
-                        this.renderPreview(fn.id, fn.content, editorContainer);
+                        this.renderPreview(fn.id, fn.content, editorContainer, () => {
+                            this.createMiniEditor(fn.id, fn.content, editorContainer);
+                        });
                     }
                 }
             }
@@ -210,7 +249,7 @@ export class ZAxisPanel {
         });
     }
 
-    renderPreview(id, content, container) {
+    renderPreview(id, content, container, onFocus = null) {
         // If an editor already exists, don't overwrite with a preview
         if (this.editors.has(id)) return;
 
@@ -219,6 +258,7 @@ export class ZAxisPanel {
         
         // Recursive renderer for Tiptap JSON to simple HTML
         const renderNode = (node, parentEl) => {
+            if (!node) return;
             if (node.type === 'text') {
                 let el = parentEl;
                 if (node.marks) {
@@ -269,7 +309,11 @@ export class ZAxisPanel {
         previewEl.tabIndex = 0;
         previewEl.onfocus = () => {
             if (!this.editors.has(id)) {
-                this.createMiniEditor(id, content, container);
+                if (onFocus) {
+                    onFocus();
+                } else {
+                    this.createMiniEditor(id, content, container);
+                }
             }
         };
     }
@@ -316,6 +360,13 @@ export class ZAxisPanel {
                 // or just destroy if it's a true blur
                 const timer = setTimeout(() => {
                     if (!editor.isFocused && this.editors.has(id)) {
+                        // Clear active editor if it was this one
+                        const adapter = this.provider.getAdapter();
+                        const activeEditor = this.provider.getActiveEditor ? this.provider.getActiveEditor() : (adapter ? adapter.view.activeEditor : null);
+                        if (activeEditor === editor) {
+                            this.provider.updateActiveEditor(null);
+                        }
+                        
                         editor.destroy();
                         this.editors.delete(id);
                         this.renderPreview(id, finalContent, element);
@@ -400,9 +451,8 @@ export class ZAxisPanel {
         }
 
         const comments = adapter.comments || {};
-        const activeThreadIds = adapter.getActiveCommentThreadIds();
 
-        // Filter and sort by appearance order in document if possible
+        // Filter and sort by appearance order in document
         const threads = [];
         adapter.editor.state.doc.descendants((node) => {
             if (node.marks) {
@@ -452,7 +502,7 @@ export class ZAxisPanel {
             }
         });
 
-        // 2. Render/Sync Threads
+        // 2. Render/Sync Threads (Surgically)
         threads.forEach((thread, index) => {
             let threadEl = listEl.querySelector(`[data-thread-id="${thread.id}"]`);
             if (!threadEl) {
@@ -473,45 +523,88 @@ export class ZAxisPanel {
     }
 
     renderCommentCard(threadId, comments, container) {
-        container.empty();
-        const cardEl = container.createDiv({ cls: 'colophon-comment-card' });
+        let cardEl = container.querySelector('.colophon-comment-card');
+        if (!cardEl) {
+            cardEl = container.createDiv({ cls: 'colophon-comment-card' });
+        }
+
+        let commentListEl = cardEl.querySelector('.colophon-comment-items');
+        if (!commentListEl) {
+            commentListEl = cardEl.createDiv({ cls: 'colophon-comment-items' });
+        }
+
+        // Cleanup orphaned comment elements (replies removed)
+        const currentIndices = new Set(comments.map((_, i) => i.toString()));
+        const existingItems = commentListEl.querySelectorAll('[data-comment-index]');
+        existingItems.forEach(item => {
+            if (!currentIndices.has(item.dataset.commentIndex)) {
+                item.remove();
+            }
+        });
 
         comments.forEach((comment, index) => {
-            const isReply = index > 0;
-            const commentItem = cardEl.createDiv({ 
-                cls: isReply ? 'colophon-comment-reply' : 'colophon-comment-parent' 
-            });
+            let commentItem = commentListEl.querySelector(`[data-comment-index="${index}"]`);
+            if (!commentItem) {
+                const isReply = index > 0;
+                commentItem = commentListEl.createDiv({ 
+                    cls: isReply ? 'colophon-comment-reply' : 'colophon-comment-parent' 
+                });
+                commentItem.dataset.commentIndex = index;
+                
+                const header = commentItem.createDiv({ cls: 'colophon-comment-header' });
+                header.createSpan({ cls: 'colophon-comment-author', text: comment.author });
+                header.createSpan({ cls: 'colophon-comment-date' });
 
-            const header = commentItem.createDiv({ cls: 'colophon-comment-header' });
-            header.createSpan({ cls: 'colophon-comment-author', text: comment.author });
-            header.createSpan({ 
-                cls: 'colophon-comment-date', 
-                text: new Date(comment.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
-            });
+                commentItem.createDiv({ cls: 'colophon-comment-editor-container' });
+            }
 
-            const editorContainer = commentItem.createDiv({ cls: 'colophon-comment-editor-container' });
+            // Sync Header Date
+            const dateEl = commentItem.querySelector('.colophon-comment-date');
+            const dateText = new Date(comment.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            if (dateEl.getText() !== dateText) {
+                dateEl.setText(dateText);
+            }
+
+            const editorContainer = commentItem.querySelector('.colophon-comment-editor-container');
             const editorId = `${threadId}:${index}`;
 
-            // Lazy load / Preview
-            if (this.editors.has(editorId)) {
-                // If editor exists, re-attach
-                this.createCommentEditor(threadId, index, comment.content, editorContainer);
+            const editor = this.editors.get(editorId);
+            if (editor) {
+                // DATA SYNC (Canvas -> Sidebar)
+                // Only set content if NOT focused and content actually changed
+                if (!editor.isFocused) {
+                    const currentJSON = JSON.stringify(editor.getJSON());
+                    const incomingJSON = JSON.stringify(comment.content);
+                    if (currentJSON !== incomingJSON) {
+                        editor.commands.setContent(comment.content, false);
+                    }
+                }
             } else {
-                this.renderPreview(editorId, comment.content, editorContainer);
+                // Preview or lazy editor
+                this.renderPreview(editorId, comment.content, editorContainer, () => {
+                    this.createCommentEditor(threadId, index, comment, editorContainer);
+                });
+                
+                // Ensure click handler is present
                 editorContainer.onclick = () => {
-                    this.createCommentEditor(threadId, index, comment.content, editorContainer);
+                    if (!this.editors.has(editorId)) {
+                        this.createCommentEditor(threadId, index, comment, editorContainer);
+                    }
                 };
             }
         });
 
-        // Action Footer (Reply / Delete)
-        const footer = cardEl.createDiv({ cls: 'colophon-comment-footer' });
-        
-        const replyBtn = footer.createEl('button', { cls: 'colophon-comment-action', text: 'Reply' });
-        replyBtn.onclick = () => this.addReply(threadId);
+        // Sync Footer (create if not exists)
+        let footer = cardEl.querySelector('.colophon-comment-footer');
+        if (!footer) {
+            footer = cardEl.createDiv({ cls: 'colophon-comment-footer' });
+            
+            const replyBtn = footer.createEl('button', { cls: 'colophon-comment-action', text: 'Reply' });
+            replyBtn.onclick = () => this.addReply(threadId);
 
-        const deleteBtn = footer.createEl('button', { cls: 'colophon-comment-action is-danger', text: 'Delete' });
-        deleteBtn.onclick = () => this.deleteThread(threadId);
+            const deleteBtn = footer.createEl('button', { cls: 'colophon-comment-action is-danger', text: 'Delete' });
+            deleteBtn.onclick = () => this.deleteThread(threadId);
+        }
     }
 
     addReply(threadId) {
@@ -521,21 +614,26 @@ export class ZAxisPanel {
         const author = this.plugin.settings.authorName || this.app.vault.getName();
         const date = new Date().toISOString();
 
-        adapter.comments[threadId].push({
+        const newComment = {
             author,
             date,
             content: { type: 'doc', content: [{ type: 'body' }] },
             replies: []
-        });
+        };
+        adapter.comments[threadId].push(newComment);
 
         this.refresh();
         
         // Focus new reply
         const newIndex = adapter.comments[threadId].length - 1;
         setTimeout(() => {
-            const editorContainer = this.containerEl.querySelector(`[data-thread-id="${threadId}"] .colophon-comment-reply:last-of-type .colophon-comment-editor-container`);
-            if (editorContainer) {
-                this.createCommentEditor(threadId, newIndex, adapter.comments[threadId][newIndex].content, editorContainer);
+            const threadEl = this.containerEl.querySelector(`[data-thread-id="${threadId}"]`);
+            if (threadEl) {
+                const lastItem = threadEl.querySelector('.colophon-comment-reply:last-of-type');
+                const editorContainer = lastItem?.querySelector('.colophon-comment-editor-container');
+                if (editorContainer) {
+                    this.createCommentEditor(threadId, newIndex, newComment, editorContainer);
+                }
             }
         }, 50);
     }
@@ -563,7 +661,7 @@ export class ZAxisPanel {
         this.refresh();
     }
 
-    createCommentEditor(threadId, index, content, element) {
+    createCommentEditor(threadId, index, comment, element) {
         const editorId = `${threadId}:${index}`;
         if (this.editors.has(editorId)) return;
 
@@ -575,17 +673,21 @@ export class ZAxisPanel {
         const extensions = adapter.sharedExtensions;
         const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
 
+        // Deep clone the initial content to isolate editor state from the shared metadata
+        const initialContent = JSON.parse(JSON.stringify(comment.content));
+
         const editor = new Editor({
             element: element,
             app: this.app,
             plugin: this.plugin,
             extensions: extensions,
-            content: content,
+            content: initialContent,
             onUpdate: ({ editor }) => {
+                // Update by reference to the comment object to avoid index-shift bugs
+                comment.content = editor.getJSON();
                 const adapter = this.provider.getAdapter();
-                if (adapter && adapter.comments[threadId]) {
-                    adapter.comments[threadId][index].content = editor.getJSON();
-                    if (adapter.onUpdate) adapter.onUpdate();
+                if (adapter && adapter.onUpdate) {
+                    adapter.onUpdate();
                 }
             },
             onSelectionUpdate: ({ editor }) => {
@@ -600,14 +702,21 @@ export class ZAxisPanel {
             },
             onBlur: ({ editor }) => {
                 const finalContent = editor.getJSON();
+                // Final sync by reference
+                comment.content = finalContent;
                 const adapter = this.provider.getAdapter();
-                if (adapter && adapter.comments[threadId]) {
-                    adapter.comments[threadId][index].content = finalContent;
-                    if (adapter.onUpdate) adapter.onUpdate();
+                if (adapter && adapter.onUpdate) {
+                    adapter.onUpdate();
                 }
                 
                 const timer = setTimeout(() => {
                     if (!editor.isFocused && this.editors.has(editorId)) {
+                        // Clear active editor if it was this one
+                        const activeEditor = this.provider.getActiveEditor ? this.provider.getActiveEditor() : (adapter ? adapter.view.activeEditor : null);
+                        if (activeEditor === editor) {
+                            this.provider.updateActiveEditor(null);
+                        }
+
                         editor.destroy();
                         this.editors.delete(editorId);
                         this.renderPreview(editorId, finalContent, element);
@@ -637,6 +746,8 @@ export class ZAxisPanel {
     show(tab = 'footnotes', callback = null) {
         if (this.activeTab !== tab) {
             this.lastFootnotesJSON = null;
+            // Clear active editor when switching tabs to prevent stale references in toolbar
+            this.provider.updateActiveEditor(null);
         }
         this.activeTab = tab;
         this.isVisible = true;
