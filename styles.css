@@ -401,6 +401,93 @@
     background-color: rgba(255, 214, 10, 0.5);
 }
 
+.colophon-comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.colophon-comment-card {
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.colophon-comment-card:focus-within {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.colophon-comment-parent,
+.colophon-comment-reply {
+    padding: 12px;
+}
+
+.colophon-comment-reply {
+    border-top: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary-alt);
+}
+
+.colophon-comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.colophon-comment-author {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-accent); /* Apple Pages uses blue for author */
+}
+
+.colophon-comment-date {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.colophon-comment-editor-container {
+    width: 100%;
+}
+
+.colophon-comment-editor {
+    font-size: 0.9rem;
+    line-height: 1.4;
+    min-height: 1.2em;
+    outline: none;
+}
+
+.colophon-comment-footer {
+    display: flex;
+    gap: 12px;
+    padding: 8px 12px;
+    background-color: var(--background-secondary-alt);
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.colophon-comment-action {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.colophon-comment-action:hover {
+    color: var(--text-normal);
+    text-decoration: underline;
+}
+
+.colophon-comment-action.is-danger:hover {
+    color: var(--text-error);
+}
+
 /* 9. MAIN LAYOUT (Flex) */
 .colophon-main-layout {
     display: flex;
