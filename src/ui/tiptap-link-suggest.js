@@ -25,6 +25,8 @@ export class TiptapLinkSuggest {
         this.editor.on('destroy', () => this.close());
         
         // Key handling for suggestions
+        const existingHandleKeyDown = this.editor.options.editorProps?.handleKeyDown;
+
         this.editor.setOptions({
             editorProps: {
                 handleKeyDown: (view, event) => {
@@ -46,6 +48,12 @@ export class TiptapLinkSuggest {
                             return true;
                         }
                     }
+
+                    // Pass through to existing handler if not handled by suggest
+                    if (existingHandleKeyDown) {
+                        return existingHandleKeyDown(view, event);
+                    }
+
                     return false;
                 }
             }

@@ -227,13 +227,12 @@ export class ColophonView extends TextFileView {
         if (this.docType === 'script') return;
 
         const id = `fn-${crypto.randomUUID()}`;
-        this.adapter.editor.chain().focus().insertContent({
+        this.adapter.editor.chain().insertContent({
             type: 'footnoteMarker',
             attrs: { id }
         }).run();
 
-        // Open panel and focus
-        this.showFootnotes();
+        // Focus will handle opening the panel and scrolling to the new note
         this.adapter.focusNote(id);
     }
 

@@ -19,7 +19,7 @@ export class ZAxisPanel {
         this.lastFootnotesJSON = null;
 
         // Debounce update to avoid excessive re-renders during typing
-        this.update = debounce(this.update.bind(this), 250);
+        this.update = debounce(this.refresh.bind(this), 250);
 
         this.render();
     }
@@ -30,10 +30,14 @@ export class ZAxisPanel {
         // Content Area
         this.contentEl = this.containerEl.createDiv({ cls: 'colophon-panel-content' });
         
-        this.update();
+        this.refresh();
     }
 
     update() {
+        // This is replaced by the debounced refresh in constructor
+    }
+
+    refresh() {
         if (!this.isVisible) return;
         
         if (this.activeTab === 'footnotes') {
@@ -78,10 +82,17 @@ export class ZAxisPanel {
             if (!activeIds.has(id)) {
                 editor.destroy();
                 this.editors.delete(id);
-                const itemEl = listEl.querySelector(`[data-footnote-id="${id}"]`);
-                if (itemEl) itemEl.remove();
             }
         }
+        
+        // Ensure ALL orphaned items are removed from DOM (including lazy-loaded previews)
+        const allItems = listEl.querySelectorAll('.colophon-footnote-item');
+        allItems.forEach(item => {
+            const id = item.dataset.footnoteId;
+            if (!activeIds.has(id)) {
+                item.remove();
+            }
+        });
 
         // 2. Sync existing or create new
         footnotes.forEach((fn, index) => {
@@ -257,6 +268,15 @@ export class ZAxisPanel {
                 }, 150);
             },
             editorProps: {
+                handleKeyDown: (view, event) => {
+                    // Shift+Tab to jump back to main editor marker
+                    if (event.key === 'Tab' && event.shiftKey) {
+                        event.preventDefault();
+                        this.view.adapter.focusMarker(id);
+                        return true;
+                    }
+                    return false;
+                },
                 attributes: {
                     class: 'colophon-footnote-editor footnote',
                     spellcheck: isSpellcheckEnabled ? 'true' : 'false',
@@ -275,6 +295,33 @@ export class ZAxisPanel {
         }
     }
 
+    focusEditor(id) {
+        // Use a timeout to ensure DOM and Tiptap have settled and main editor has finished its cycle
+        setTimeout(() => {
+            let editor = this.editors.get(id);
+            
+            if (!editor) {
+                // Find the element and create it (Lazy Load bypass)
+                const itemEl = this.containerEl.querySelector(`[data-footnote-id="${id}"]`);
+                if (itemEl) {
+                    const container = itemEl.querySelector('.colophon-footnote-editor-container');
+                    const footnotes = this.view.adapter.getFootnotes();
+                    const fn = footnotes.find(f => f.id === id);
+                    if (fn && container) {
+                        this.createMiniEditor(id, fn.content, container);
+                        editor = this.editors.get(id);
+                    }
+                }
+            }
+            
+            if (editor) {
+                editor.commands.focus('end');
+                const el = this.containerEl.querySelector(`[data-footnote-id="${id}"]`);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 50);
+    }
+
     renderComments() {
         this.contentEl.empty();
         this.contentEl.createDiv({ text: 'Comments coming soon...' });
@@ -287,7 +334,9 @@ export class ZAxisPanel {
         this.activeTab = tab;
         this.isVisible = true;
         this.containerEl.addClass('is-visible');
-        this.update();
+        
+        // Immediate sync update instead of debounced
+        this.refresh();
         
         if (this.view.toolbar) {
             this.view.toolbar.update();
