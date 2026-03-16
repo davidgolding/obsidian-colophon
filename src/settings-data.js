@@ -4,6 +4,7 @@ export const DEFAULT_SETTINGS = {
     fixedFeedPosition: false,
     feedPadding: 40,
     sidebarLocation: "local", // "local" | "global"
+    authorName: "", // If empty, will use app.vault.getName()
     smartQuotes: true,
     doubleQuoteStyle: "“|”",
     singleQuoteStyle: "‘|’",

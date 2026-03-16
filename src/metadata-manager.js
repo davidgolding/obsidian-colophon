@@ -99,6 +99,19 @@ export class MetadataManager {
                 }
             }
 
+            // Extract from comments
+            if (data.comments) {
+                for (const thread of Object.values(data.comments)) {
+                    if (Array.isArray(thread)) {
+                        thread.forEach(comment => {
+                            if (comment.content) {
+                                this.extractMetadata(comment.content, links, blockIds);
+                            }
+                        });
+                    }
+                }
+            }
+
             // Create/Update shadow markdown file for indexing
             await this.updateShadowFile(file, links, blockIds);
         } catch (err) {
@@ -230,6 +243,19 @@ export class MetadataManager {
             if (data.footnotes) {
                 for (const footnoteContent of Object.values(data.footnotes)) {
                     updateLinks(footnoteContent);
+                }
+            }
+
+            // Also update links in comments
+            if (data.comments) {
+                for (const thread of Object.values(data.comments)) {
+                    if (Array.isArray(thread)) {
+                        thread.forEach(comment => {
+                            if (comment.content) {
+                                updateLinks(comment.content);
+                            }
+                        });
+                    }
                 }
             }
 
