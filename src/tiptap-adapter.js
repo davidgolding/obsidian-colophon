@@ -45,30 +45,6 @@ export class TiptapAdapter {
         this.sharedExtensions = null;
 
         this.mount(content);
-        
-        if (this.app && this.plugin) {
-            this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this.editor);
-        }
-
-        this.setupGlobalEvents();
-    }
-
-    setupGlobalEvents() {
-        this.focusHandler = (e) => {
-            if (e instanceof CustomEvent) {
-                this.focusNote(e.detail.id);
-            }
-        };
-        
-        this.createHandler = (e) => {
-            if (e instanceof CustomEvent) {
-                // When creating via trigger, we want to open sidebar AND focus
-                this.focusNote(e.detail.id);
-            }
-        };
-
-        document.body.addEventListener('colophon:footnote:focus', this.focusHandler);
-        document.body.addEventListener('colophon:footnote:create', this.createHandler);
     }
 
     mount(content) {
@@ -142,6 +118,11 @@ export class TiptapAdapter {
                 },
             },
         });
+
+        // Ensure link suggestions are attached
+        if (this.app && this.plugin) {
+            this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this.editor);
+        }
 
         // Initial scroll check after mount
         this.handleScroll();
@@ -299,12 +280,6 @@ export class TiptapAdapter {
     }
 
     destroy() {
-        if (this.focusHandler) {
-            document.body.removeEventListener('colophon:footnote:focus', this.focusHandler);
-        }
-        if (this.createHandler) {
-            document.body.removeEventListener('colophon:footnote:create', this.createHandler);
-        }
         if (this.linkSuggest) {
             this.linkSuggest.close();
             this.linkSuggest = null;
