@@ -53,7 +53,7 @@ export class ColophonView extends TextFileView {
         this.mainLayout = this.contentEl.createDiv({ cls: 'colophon-main-layout' });
 
         // Add scroll container which is the target for our FixedFeed logic and CSS
-        this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container' });
+        this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container colophon-editor-host' });
 
         // Add Z-Axis Panel (Sidebar)
         this.zAxisPanel = new ZAxisPanel(
@@ -185,9 +185,15 @@ export class ColophonView extends TextFileView {
 
         this.docType = parsedData.type || 'manuscript';
 
-        // Apply class for specific styling
-        this.contentEl.removeClass('type-manuscript', 'type-script');
+        // Apply classes for specific styling
+        this.contentEl.removeClass('type-manuscript', 'type-script', 'is-manuscript-mode', 'is-script-mode');
         this.contentEl.addClass(`type-${this.docType}`);
+        this.contentEl.addClass(`is-${this.docType}-mode`);
+
+        if (this.scrollContainer) {
+            this.scrollContainer.removeClass('is-manuscript-mode', 'is-script-mode');
+            this.scrollContainer.addClass(`is-${this.docType}-mode`);
+        }
 
         this.updateSettings(); // Apply initial settings like fixedFeed class
 
@@ -227,7 +233,7 @@ export class ColophonView extends TextFileView {
                     this.adapter.editor.setOptions({
                         editorProps: {
                             attributes: {
-                                class: `colophon-editor type-${this.docType}`,
+                                class: `colophon-editor colophon-main-editor type-${this.docType} is-${this.docType}-mode`,
                                 spellcheck: isSpellcheckEnabled ? 'true' : 'false',
                             },
                         }
