@@ -38,6 +38,10 @@ export class ColophonSidebarView extends ItemView {
                     const activeView = this.plugin.sidebarManager.activeView;
                     if (activeView) activeView.updateActiveEditor(editor);
                 },
+                getActiveEditor: () => {
+                    const activeView = this.plugin.sidebarManager.activeView;
+                    return activeView ? activeView.activeEditor : null;
+                },
                 getToolbar: () => {
                     const activeView = this.plugin.sidebarManager.activeView;
                     return activeView ? activeView.toolbar : null;

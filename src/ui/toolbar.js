@@ -128,7 +128,17 @@ export class ColophonToolbar {
 
     update() {
         const editor = this.view.activeEditor || (this.view.adapter ? this.view.adapter.editor : null);
-        if (!editor) return;
+        
+        // Safety check: Ensure editor is available and NOT destroyed
+        if (!editor || (editor.isDestroyed)) return;
+
+        // Tiptap v3 throws if accessing view properties on a destroyed editor
+        let viewDOM = null;
+        try {
+            viewDOM = editor.view?.dom;
+        } catch (e) {
+            return; // Editor view not ready or already gone
+        }
 
         // Update Formatting Buttons
         this.toggleBtnState(this.boldBtn, editor.isActive('bold'));
@@ -148,7 +158,7 @@ export class ColophonToolbar {
         }
 
         // Update Block Selector Text
-        const isFootnote = editor.view?.dom?.classList?.contains('footnote');
+        const isFootnote = viewDOM?.classList?.contains('footnote');
         
         if (isFootnote) {
             this.blockSelectBtn.firstChild.textContent = 'Footnote';
