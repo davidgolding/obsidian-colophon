@@ -35,8 +35,19 @@ export class ColophonView extends TextFileView {
 
     async onOpen() {
         await super.onOpen();
+        
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
+
+        // Idempotency: If mainLayout already exists, just ensure it's attached to the new contentEl
+        if (this.mainLayout) {
+            if (this.mainLayout.parentElement !== this.contentEl) {
+                this.contentEl.empty();
+                this.contentEl.appendChild(this.mainLayout);
+            }
+            this.refreshSidebarVisibility();
+            return;
+        }
 
         // Main Layout Container (Editor + Sidebar)
         this.mainLayout = this.contentEl.createDiv({ cls: 'colophon-main-layout' });
@@ -45,7 +56,6 @@ export class ColophonView extends TextFileView {
         this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container' });
 
         // Add Z-Axis Panel (Sidebar)
-        // Note: We always create it, but refreshSidebarVisibility() determines if it's visible in the DOM
         this.zAxisPanel = new ZAxisPanel(
             this.app, 
             this.plugin, 
@@ -146,6 +156,12 @@ export class ColophonView extends TextFileView {
      * Called when the file content is modified externally or when loading.
      */
     setViewData(data, clear) {
+        // Optimization: Skip if data hasn't changed to preserve undo history and selection
+        if (!clear && data === this.lastLoadedData) {
+            return;
+        }
+        this.lastLoadedData = data;
+
         let parsedData = { type: 'manuscript', doc: null, footnotes: {} };
 
         try {
