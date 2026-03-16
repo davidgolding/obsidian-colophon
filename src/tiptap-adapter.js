@@ -6,6 +6,7 @@ import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
 import { InternalLink } from './extensions/internal-link';
 import { FootnoteMarker } from './extensions/footnote-marker';
+import { CommentHighlight } from './extensions/comment-highlight';
 import { SmallCaps } from './extensions/small-caps';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 // FixedFeed extension removed in favor of inline logic
@@ -31,7 +32,7 @@ const ColophonAgentCommands = Extension.create({
 });
 
 export class TiptapAdapter {
-    constructor(parentElement, { content, footnotes, type, settings, isSpellcheckEnabled, onUpdate, app, plugin, view }) {
+    constructor(parentElement, { content, footnotes, comments, type, settings, isSpellcheckEnabled, onUpdate, app, plugin, view }) {
         this.parentElement = parentElement;
         this.type = type || 'manuscript';
         this.settings = settings;
@@ -42,6 +43,7 @@ export class TiptapAdapter {
         this.view = view;
         this.editor = null;
         this.footnotes = footnotes || {}; // fn-id -> content
+        this.comments = comments || {}; // threadId -> [ { author, date, content, replies } ]
         this.sharedExtensions = null;
 
         this.mount(content);
@@ -66,6 +68,7 @@ export class TiptapAdapter {
                 Subscript,
                 SmallCaps,
                 InternalLink,
+                CommentHighlight,
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(( "
                 }),
@@ -112,6 +115,20 @@ export class TiptapAdapter {
                 this.handleScroll();
             },
             editorProps: {
+                handleClick: (view, pos, event) => {
+                    const { schema, doc } = view.state;
+                    const mark = schema.marks.commentHighlight;
+                    if (!mark) return false;
+
+                    const $pos = doc.resolve(pos);
+                    const commentMark = $pos.marks().find(m => m.type === mark);
+                    
+                    if (commentMark && commentMark.attrs.threadId) {
+                        this.focusComment(commentMark.attrs.threadId);
+                        return true;
+                    }
+                    return false;
+                },
                 attributes: {
                     class: `colophon-editor colophon-main-editor type-${this.type}`,
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
@@ -129,9 +146,10 @@ export class TiptapAdapter {
         this.updateFootnoteSequence();
     }
 
-    setContent(content, footnotes) {
+    setContent(content, footnotes, comments) {
         if (this.editor) {
             this.footnotes = footnotes || {};
+            this.comments = comments || {};
             this.editor.commands.setContent(content);
             this.updateFootnoteSequence();
         }
@@ -292,6 +310,23 @@ export class TiptapAdapter {
 
     // --- Footnote Management ---
 
+    getActiveCommentThreadIds() {
+        const ids = new Set();
+        if (!this.editor) return ids;
+
+        this.editor.state.doc.descendants((node) => {
+            if (node.marks) {
+                node.marks.forEach(mark => {
+                    if (mark.type.name === 'commentHighlight' && mark.attrs.threadId) {
+                        ids.add(mark.attrs.threadId);
+                    }
+                });
+            }
+        });
+
+        return ids;
+    }
+
     getFootnotes() {
         const markers = [];
         if (!this.editor) return [];
@@ -449,6 +484,22 @@ export class TiptapAdapter {
             this.view.zAxisPanel.show('footnotes', () => {
                 this.view.zAxisPanel.focusEditor(id);
             });
+        }
+    }
+
+    focusComment(threadId) {
+        if (this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.openSidebar().then(() => {
+                const sidebarLeaf = this.app.workspace.getLeavesOfType('colophon-sidebar')[0];
+                if (sidebarLeaf && sidebarLeaf.view.zAxisPanel) {
+                    sidebarLeaf.view.zAxisPanel.focusComment(threadId);
+                }
+            });
+            return;
+        }
+
+        if (this.view && this.view.zAxisPanel) {
+            this.view.zAxisPanel.focusComment(threadId);
         }
     }
 }

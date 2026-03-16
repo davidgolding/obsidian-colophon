@@ -28,6 +28,8 @@ export class ColophonToolbar {
         this.superBtn = this.createButton(formatGroup, 'superscript', 'Superscript', () => this.view.toggleSuperscript());
         this.subBtn = this.createButton(formatGroup, 'subscript', 'Subscript', () => this.view.toggleSubscript());
         this.smallCapsBtn = this.createButton(formatGroup, 'a-large-small', 'Small Caps', () => this.view.toggleSmallCaps());
+        
+        this.insertCommentBtn = this.createButton(formatGroup, 'message-square-plus', 'Add Comment', () => this.view.insertComment());
 
         // Spacer
         this.createSpacer();
@@ -136,6 +138,14 @@ export class ColophonToolbar {
         this.toggleBtnState(this.superBtn, editor.isActive('superscript'));
         this.toggleBtnState(this.subBtn, editor.isActive('subscript'));
         this.toggleBtnState(this.smallCapsBtn, editor.isActive('smallCaps'));
+        
+        // Disable Add Comment if no selection
+        const hasSelection = !editor.state.selection.empty;
+        if (hasSelection) {
+            this.insertCommentBtn.removeClass('is-disabled');
+        } else {
+            this.insertCommentBtn.addClass('is-disabled');
+        }
 
         // Update Block Selector Text
         const isFootnote = editor.view?.dom?.classList?.contains('footnote');

@@ -3,6 +3,8 @@
   "textColumnWidth": 880,
   "fixedFeedPosition": false,
   "feedPadding": 0,
+  "sidebarLocation": "global",
+  "authorName": "",
   "smartQuotes": true,
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",

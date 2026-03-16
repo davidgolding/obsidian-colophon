@@ -25,6 +25,8 @@ export class ZAxisPanel {
         this.extensions = null; // Memoized extensions
         
         this.lastFootnotesJSON = null;
+        this.focusTimer = null;
+        this.blurTimers = new Map(); // id -> timer
 
         // Debounce update to avoid excessive re-renders during typing
         this.update = debounce(this.refresh.bind(this), 250);
@@ -53,6 +55,35 @@ export class ZAxisPanel {
         } else {
             this.renderComments();
         }
+    }
+
+    focusComment(threadId) {
+        if (this.focusTimer) {
+            clearTimeout(this.focusTimer);
+        }
+
+        // Switch to comments tab first
+        this.show('comments', () => {
+            // Wait for render
+            this.focusTimer = setTimeout(() => {
+                const el = this.containerEl.querySelector(`[data-thread-id="${threadId}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Optionally trigger edit mode if it's the first comment in thread and empty
+                    const editorContainer = el.querySelector('.colophon-comment-editor-container');
+                    if (editorContainer && !this.editors.has(threadId)) {
+                        const adapter = this.provider.getAdapter();
+                        if (adapter && adapter.comments[threadId]) {
+                            const thread = adapter.comments[threadId];
+                            if (thread.length > 0 && (!thread[0].content || !thread[0].content.content)) {
+                                this.createCommentEditor(threadId, 0, thread[0].content, editorContainer);
+                            }
+                        }
+                    }
+                }
+                this.focusTimer = null;
+            }, 100);
+        });
     }
 
     renderFootnotes() {
@@ -268,13 +299,14 @@ export class ZAxisPanel {
                 this.provider.updateActiveEditor(editor);
             },
             onFocus: ({ editor }) => {
+                // Cancel pending blur
+                if (this.blurTimers.has(id)) {
+                    clearTimeout(this.blurTimers.get(id));
+                    this.blurTimers.delete(id);
+                }
                 this.provider.updateActiveEditor(editor);
             },
             onBlur: ({ editor }) => {
-                // When focus is lost, we can choose to destroy the editor to save memory
-                // or keep it alive. Given the "Lazy Load" requirement, destroying on blur
-                // is the most aggressive memory optimization.
-                
                 // Save current content one last time
                 const finalContent = editor.getJSON();
                 const adapter = this.provider.getAdapter();
@@ -282,13 +314,16 @@ export class ZAxisPanel {
                 
                 // Destroy after a short delay to allow click events on toolbar to process if needed
                 // or just destroy if it's a true blur
-                setTimeout(() => {
+                const timer = setTimeout(() => {
                     if (!editor.isFocused && this.editors.has(id)) {
                         editor.destroy();
                         this.editors.delete(id);
                         this.renderPreview(id, finalContent, element);
                     }
+                    this.blurTimers.delete(id);
                 }, 150);
+                
+                this.blurTimers.set(id, timer);
             },
             editorProps: {
                 handleKeyDown: (view, event) => {
@@ -320,8 +355,12 @@ export class ZAxisPanel {
     }
 
     focusEditor(id) {
+        if (this.focusTimer) {
+            clearTimeout(this.focusTimer);
+        }
+        
         // Use a timeout to ensure DOM and Tiptap have settled and main editor has finished its cycle
-        setTimeout(() => {
+        this.focusTimer = setTimeout(() => {
             let editor = this.editors.get(id);
             
             if (!editor) {
@@ -344,12 +383,255 @@ export class ZAxisPanel {
                 const el = this.containerEl.querySelector(`[data-footnote-id="${id}"]`);
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+            this.focusTimer = null;
         }, 50);
     }
 
     renderComments() {
-        this.contentEl.empty();
-        this.contentEl.createDiv({ text: 'Comments coming soon...' });
+        const adapter = this.provider.getAdapter();
+        if (!adapter) {
+            this.cleanupEditors();
+            this.contentEl.empty();
+            this.contentEl.createDiv({ 
+                cls: 'colophon-panel-empty', 
+                text: 'The margins are quiet.' 
+            });
+            return;
+        }
+
+        const comments = adapter.comments || {};
+        const activeThreadIds = adapter.getActiveCommentThreadIds();
+
+        // Filter and sort by appearance order in document if possible
+        const threads = [];
+        adapter.editor.state.doc.descendants((node) => {
+            if (node.marks) {
+                node.marks.forEach(mark => {
+                    if (mark.type.name === 'commentHighlight' && mark.attrs.threadId) {
+                        const threadId = mark.attrs.threadId;
+                        if (comments[threadId] && !threads.some(t => t.id === threadId)) {
+                            threads.push({ id: threadId, data: comments[threadId] });
+                        }
+                    }
+                });
+            }
+        });
+
+        if (threads.length === 0) {
+            this.cleanupEditors();
+            this.contentEl.empty();
+            this.contentEl.createDiv({ 
+                cls: 'colophon-panel-empty', 
+                text: 'No comments here yet.' 
+            });
+            return;
+        }
+
+        // Ensure list container exists
+        let listEl = this.contentEl.querySelector('.colophon-comment-list');
+        if (!listEl) {
+            this.contentEl.empty();
+            listEl = this.contentEl.createDiv({ cls: 'colophon-comment-list' });
+        }
+
+        // Track active thread IDs for cleanup
+        const activeThreads = new Set(threads.map(t => t.id));
+
+        // 1. Cleanup old editors/elements
+        for (const [id, editor] of this.editors) {
+            if (id.startsWith('comment-') && !activeThreads.has(id.split(':')[0])) {
+                editor.destroy();
+                this.editors.delete(id);
+            }
+        }
+
+        const allCards = listEl.querySelectorAll('.colophon-comment-thread');
+        allCards.forEach(card => {
+            if (!activeThreads.has(card.dataset.threadId)) {
+                card.remove();
+            }
+        });
+
+        // 2. Render/Sync Threads
+        threads.forEach((thread, index) => {
+            let threadEl = listEl.querySelector(`[data-thread-id="${thread.id}"]`);
+            if (!threadEl) {
+                threadEl = listEl.createDiv({ cls: 'colophon-comment-thread' });
+                threadEl.dataset.threadId = thread.id;
+            }
+
+            this.renderCommentCard(thread.id, thread.data, threadEl);
+        });
+
+        // 3. Re-order DOM
+        threads.forEach((thread, index) => {
+            const el = listEl.querySelector(`[data-thread-id="${thread.id}"]`);
+            if (el && listEl.children[index] !== el) {
+                listEl.insertBefore(el, listEl.children[index]);
+            }
+        });
+    }
+
+    renderCommentCard(threadId, comments, container) {
+        container.empty();
+        const cardEl = container.createDiv({ cls: 'colophon-comment-card' });
+
+        comments.forEach((comment, index) => {
+            const isReply = index > 0;
+            const commentItem = cardEl.createDiv({ 
+                cls: isReply ? 'colophon-comment-reply' : 'colophon-comment-parent' 
+            });
+
+            const header = commentItem.createDiv({ cls: 'colophon-comment-header' });
+            header.createSpan({ cls: 'colophon-comment-author', text: comment.author });
+            header.createSpan({ 
+                cls: 'colophon-comment-date', 
+                text: new Date(comment.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+            });
+
+            const editorContainer = commentItem.createDiv({ cls: 'colophon-comment-editor-container' });
+            const editorId = `${threadId}:${index}`;
+
+            // Lazy load / Preview
+            if (this.editors.has(editorId)) {
+                // If editor exists, re-attach
+                this.createCommentEditor(threadId, index, comment.content, editorContainer);
+            } else {
+                this.renderPreview(editorId, comment.content, editorContainer);
+                editorContainer.onclick = () => {
+                    this.createCommentEditor(threadId, index, comment.content, editorContainer);
+                };
+            }
+        });
+
+        // Action Footer (Reply / Delete)
+        const footer = cardEl.createDiv({ cls: 'colophon-comment-footer' });
+        
+        const replyBtn = footer.createEl('button', { cls: 'colophon-comment-action', text: 'Reply' });
+        replyBtn.onclick = () => this.addReply(threadId);
+
+        const deleteBtn = footer.createEl('button', { cls: 'colophon-comment-action is-danger', text: 'Delete' });
+        deleteBtn.onclick = () => this.deleteThread(threadId);
+    }
+
+    addReply(threadId) {
+        const adapter = this.provider.getAdapter();
+        if (!adapter || !adapter.comments[threadId]) return;
+
+        const author = this.plugin.settings.authorName || this.app.vault.getName();
+        const date = new Date().toISOString();
+
+        adapter.comments[threadId].push({
+            author,
+            date,
+            content: { type: 'doc', content: [{ type: 'body' }] },
+            replies: []
+        });
+
+        this.refresh();
+        
+        // Focus new reply
+        const newIndex = adapter.comments[threadId].length - 1;
+        setTimeout(() => {
+            const editorContainer = this.containerEl.querySelector(`[data-thread-id="${threadId}"] .colophon-comment-reply:last-of-type .colophon-comment-editor-container`);
+            if (editorContainer) {
+                this.createCommentEditor(threadId, newIndex, adapter.comments[threadId][newIndex].content, editorContainer);
+            }
+        }, 50);
+    }
+
+    deleteThread(threadId) {
+        const adapter = this.provider.getAdapter();
+        if (!adapter) return;
+
+        // 1. Remove mark from main editor
+        const { tr } = adapter.editor.state;
+        adapter.editor.state.doc.descendants((node, pos) => {
+            if (node.marks) {
+                node.marks.forEach(mark => {
+                    if (mark.type.name === 'commentHighlight' && mark.attrs.threadId === threadId) {
+                        tr.removeMark(pos, pos + node.nodeSize, mark.type);
+                    }
+                });
+            }
+        });
+        adapter.editor.view.dispatch(tr);
+
+        // 2. Remove from metadata
+        delete adapter.comments[threadId];
+
+        this.refresh();
+    }
+
+    createCommentEditor(threadId, index, content, element) {
+        const editorId = `${threadId}:${index}`;
+        if (this.editors.has(editorId)) return;
+
+        element.empty();
+        
+        const adapter = this.provider.getAdapter();
+        if (!adapter) return;
+
+        const extensions = adapter.sharedExtensions;
+        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
+
+        const editor = new Editor({
+            element: element,
+            app: this.app,
+            plugin: this.plugin,
+            extensions: extensions,
+            content: content,
+            onUpdate: ({ editor }) => {
+                const adapter = this.provider.getAdapter();
+                if (adapter && adapter.comments[threadId]) {
+                    adapter.comments[threadId][index].content = editor.getJSON();
+                    if (adapter.onUpdate) adapter.onUpdate();
+                }
+            },
+            onSelectionUpdate: ({ editor }) => {
+                this.provider.updateActiveEditor(editor);
+            },
+            onFocus: ({ editor }) => {
+                if (this.blurTimers.has(editorId)) {
+                    clearTimeout(this.blurTimers.get(editorId));
+                    this.blurTimers.delete(editorId);
+                }
+                this.provider.updateActiveEditor(editor);
+            },
+            onBlur: ({ editor }) => {
+                const finalContent = editor.getJSON();
+                const adapter = this.provider.getAdapter();
+                if (adapter && adapter.comments[threadId]) {
+                    adapter.comments[threadId][index].content = finalContent;
+                    if (adapter.onUpdate) adapter.onUpdate();
+                }
+                
+                const timer = setTimeout(() => {
+                    if (!editor.isFocused && this.editors.has(editorId)) {
+                        editor.destroy();
+                        this.editors.delete(editorId);
+                        this.renderPreview(editorId, finalContent, element);
+                    }
+                    this.blurTimers.delete(editorId);
+                }, 150);
+                
+                this.blurTimers.set(editorId, timer);
+            },
+            editorProps: {
+                attributes: {
+                    class: 'colophon-comment-editor',
+                    spellcheck: isSpellcheckEnabled ? 'true' : 'false',
+                }
+            }
+        });
+
+        this.editors.set(editorId, editor);
+        editor.commands.focus('end');
+
+        // Add internal link suggestions to comment editor
+        if (this.app && this.plugin) {
+            new TiptapLinkSuggest(this.app, this.plugin, editor);
+        }
     }
 
     show(tab = 'footnotes', callback = null) {
