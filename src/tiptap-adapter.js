@@ -130,7 +130,7 @@ export class TiptapAdapter {
                     return false;
                 },
                 attributes: {
-                    class: `colophon-editor colophon-main-editor type-${this.type}`,
+                    class: `colophon-editor colophon-main-editor type-${this.type} is-${this.type}-mode`,
                     spellcheck: this.isSpellcheckEnabled ? 'true' : 'false',
                 },
             },
