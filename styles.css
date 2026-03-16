@@ -438,6 +438,27 @@
     visibility: visible;
 }
 
+/* GLOBAL SIDEBAR OVERRIDES */
+.colophon-main-layout.is-global-sidebar .colophon-z-axis-panel {
+    display: none;
+    width: 0 !important;
+    border-left: none !important;
+}
+
+.colophon-sidebar-view .colophon-z-axis-panel {
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    visibility: visible;
+    border-left: none;
+    background: transparent;
+}
+
+.colophon-sidebar-view .colophon-panel-content {
+    width: 100%;
+    min-width: 0;
+}
+
 .colophon-panel-content {
     flex: 1;
     padding: 24px 16px;

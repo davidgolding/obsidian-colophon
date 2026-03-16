@@ -6,10 +6,18 @@ import { Substitutions } from '../extensions/substitutions';
 import { InternalLink } from '../extensions/internal-link';
 import { TiptapLinkSuggest } from './tiptap-link-suggest';
 
+/**
+ * ZAxisPanel handles the rendering and editing of footnotes and comments.
+ * It is decoupled from the main view and can be hosted locally within a leaf 
+ * or globally in the Obsidian right sidebar.
+ */
 export class ZAxisPanel {
-    constructor(view, parentEl) {
-        this.view = view;
+    constructor(app, plugin, provider, parentEl) {
+        this.app = app;
+        this.plugin = plugin;
+        this.provider = provider;
         this.parentEl = parentEl;
+        
         this.containerEl = null;
         this.isVisible = false;
         this.activeTab = 'footnotes'; // 'footnotes' | 'comments'
@@ -48,9 +56,18 @@ export class ZAxisPanel {
     }
 
     renderFootnotes() {
-        if (!this.view.adapter) return;
+        const adapter = this.provider.getAdapter();
+        if (!adapter) {
+            this.cleanupEditors();
+            this.contentEl.empty();
+            this.contentEl.createDiv({ 
+                cls: 'colophon-panel-empty', 
+                text: 'The margins are quiet.' 
+            });
+            return;
+        }
         
-        const footnotes = this.view.adapter.getFootnotes();
+        const footnotes = adapter.getFootnotes();
         
         // Performance optimization: Skip if data is unchanged
         const currentJSON = JSON.stringify(footnotes);
@@ -110,7 +127,8 @@ export class ZAxisPanel {
                 
                 markerEl.onclick = (e) => {
                     e.stopPropagation();
-                    this.view.adapter.focusMarker(fn.id);
+                    const adapter = this.provider.getAdapter();
+                    if (adapter) adapter.focusMarker(fn.id);
                 };
 
                 const editorContainer = itemEl.createDiv({ cls: 'colophon-footnote-editor-container' });
@@ -228,25 +246,29 @@ export class ZAxisPanel {
     createMiniEditor(id, content, element) {
         element.empty();
         
+        const adapter = this.provider.getAdapter();
+        if (!adapter) return;
+
         // Use shared extensions from main adapter
-        const extensions = this.view.adapter.sharedExtensions;
-        const isSpellcheckEnabled = this.view.app.vault.getConfig('spellcheck');
+        const extensions = adapter.sharedExtensions;
+        const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
 
         const editor = new Editor({
             element: element,
-            app: this.view.app,
-            plugin: this.view.plugin,
+            app: this.app,
+            plugin: this.plugin,
             extensions: extensions,
             content: content,
             onUpdate: ({ editor }) => {
                 // Push change to adapter
-                this.view.adapter.updateFootnote(id, editor.getJSON());
+                const adapter = this.provider.getAdapter();
+                if (adapter) adapter.updateFootnote(id, editor.getJSON());
             },
             onSelectionUpdate: ({ editor }) => {
-                this.view.updateActiveEditor(editor);
+                this.provider.updateActiveEditor(editor);
             },
             onFocus: ({ editor }) => {
-                this.view.updateActiveEditor(editor);
+                this.provider.updateActiveEditor(editor);
             },
             onBlur: ({ editor }) => {
                 // When focus is lost, we can choose to destroy the editor to save memory
@@ -255,7 +277,8 @@ export class ZAxisPanel {
                 
                 // Save current content one last time
                 const finalContent = editor.getJSON();
-                this.view.adapter.updateFootnote(id, finalContent);
+                const adapter = this.provider.getAdapter();
+                if (adapter) adapter.updateFootnote(id, finalContent);
                 
                 // Destroy after a short delay to allow click events on toolbar to process if needed
                 // or just destroy if it's a true blur
@@ -272,7 +295,8 @@ export class ZAxisPanel {
                     // Shift+Tab to jump back to main editor marker
                     if (event.key === 'Tab' && event.shiftKey) {
                         event.preventDefault();
-                        this.view.adapter.focusMarker(id);
+                        const adapter = this.provider.getAdapter();
+                        if (adapter) adapter.focusMarker(id);
                         return true;
                     }
                     return false;
@@ -290,8 +314,8 @@ export class ZAxisPanel {
         editor.commands.focus('end');
 
         // Add internal link suggestions to footnote editor
-        if (this.view.app && this.view.plugin) {
-            new TiptapLinkSuggest(this.view.app, this.view.plugin, editor);
+        if (this.app && this.plugin) {
+            new TiptapLinkSuggest(this.app, this.plugin, editor);
         }
     }
 
@@ -305,7 +329,8 @@ export class ZAxisPanel {
                 const itemEl = this.containerEl.querySelector(`[data-footnote-id="${id}"]`);
                 if (itemEl) {
                     const container = itemEl.querySelector('.colophon-footnote-editor-container');
-                    const footnotes = this.view.adapter.getFootnotes();
+                    const adapter = this.provider.getAdapter();
+                    const footnotes = adapter ? adapter.getFootnotes() : [];
                     const fn = footnotes.find(f => f.id === id);
                     if (fn && container) {
                         this.createMiniEditor(id, fn.content, container);
@@ -338,8 +363,9 @@ export class ZAxisPanel {
         // Immediate sync update instead of debounced
         this.refresh();
         
-        if (this.view.toolbar) {
-            this.view.toolbar.update();
+        const toolbar = this.provider.getToolbar ? this.provider.getToolbar() : null;
+        if (toolbar) {
+            toolbar.update();
         }
 
         if (callback) {
@@ -352,8 +378,9 @@ export class ZAxisPanel {
         this.isVisible = false;
         this.containerEl.removeClass('is-visible');
         
-        if (this.view.toolbar) {
-            this.view.toolbar.update();
+        const toolbar = this.provider.getToolbar ? this.provider.getToolbar() : null;
+        if (toolbar) {
+            toolbar.update();
         }
     }
 
