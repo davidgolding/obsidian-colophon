@@ -28,10 +28,31 @@ export class SidebarManager {
             })
         );
 
+        // Global Footnote Events (Centralized here to prevent race conditions across multiple open documents)
+        this.focusHandler = (e) => {
+            if (e instanceof CustomEvent && this.activeView && this.activeView.adapter) {
+                this.activeView.adapter.focusNote(e.detail.id);
+            }
+        };
+        
+        this.createHandler = (e) => {
+            if (e instanceof CustomEvent && this.activeView && this.activeView.adapter) {
+                this.activeView.adapter.focusNote(e.detail.id);
+            }
+        };
+
+        document.body.addEventListener('colophon:footnote:focus', this.focusHandler);
+        document.body.addEventListener('colophon:footnote:create', this.createHandler);
+
         // Initial check
         this.app.workspace.onLayoutReady(() => {
             this.handleActiveLeafChange(this.app.workspace.activeLeaf);
         });
+    }
+
+    destroy() {
+        document.body.removeEventListener('colophon:footnote:focus', this.focusHandler);
+        document.body.removeEventListener('colophon:footnote:create', this.createHandler);
     }
 
     handleActiveLeafChange(leaf) {
