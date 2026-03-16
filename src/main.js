@@ -1,18 +1,23 @@
 import { Plugin, TFolder, Modal } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
+import { ColophonSidebarView, VIEW_TYPE_COLOPHON_SIDEBAR } from './sidebar-view';
 import { DEFAULT_SETTINGS } from './settings-data';
 import { StyleManager } from './style-manager';
 import { ColophonSettingTab } from './settings-tab';
 import { MetadataManager } from './metadata-manager';
+import { SidebarManager } from './sidebar-manager';
 
 export default class ColophonPlugin extends Plugin {
     async onload() {
         // Load Settings
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
-        // Initialize Metadata Manager
+        // Initialize Managers
         this.metadataManager = new MetadataManager(this);
         this.metadataManager.setup();
+
+        this.sidebarManager = new SidebarManager(this);
+        this.sidebarManager.setup();
 
         // Initialize Style Manager
         this.styleManager = new StyleManager();
@@ -24,6 +29,11 @@ export default class ColophonPlugin extends Plugin {
         this.registerView(
             VIEW_TYPE_COLOPHON,
             (leaf) => new ColophonView(leaf, this)
+        );
+
+        this.registerView(
+            VIEW_TYPE_COLOPHON_SIDEBAR,
+            (leaf) => new ColophonSidebarView(leaf, this)
         );
 
         // 2. Register the File Extension
@@ -45,6 +55,12 @@ export default class ColophonPlugin extends Plugin {
             id: 'new-script',
             name: 'New Script',
             callback: () => this.createNewColophonFile('script')
+        });
+
+        this.addCommand({
+            id: 'open-sidebar',
+            name: 'Open Sidebar',
+            callback: () => this.openSidebar()
         });
 
         this.addCommand({
@@ -312,6 +328,36 @@ export default class ColophonPlugin extends Plugin {
         } catch (err) {
             console.error('Failed to create Colophon file:', err);
         }
+    }
+
+    refreshLayout() {
+        // 1. Notify all open ColophonViews to refresh their local sidebar visibility
+        this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON).forEach(leaf => {
+            if (leaf.view instanceof ColophonView) {
+                leaf.view.refreshSidebarVisibility();
+            }
+        });
+
+        // 2. Notify the global sidebar to refresh its content
+        if (this.sidebarManager) {
+            this.sidebarManager.update();
+        }
+    }
+
+    async openSidebar() {
+        const { workspace } = this.app;
+
+        let leaf = null;
+        const leaves = workspace.getLeavesOfType(VIEW_TYPE_COLOPHON_SIDEBAR);
+
+        if (leaves.length > 0) {
+            leaf = leaves[0];
+        } else {
+            leaf = workspace.getRightLeaf(false);
+            await leaf.setViewState({ type: VIEW_TYPE_COLOPHON_SIDEBAR, active: true });
+        }
+
+        workspace.revealLeaf(leaf);
     }
 }
 
