@@ -35,13 +35,13 @@ export class ColophonToolbar {
         this.createSpacer();
 
         // 3. Z-Axis Panels
-        const zAxisGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
+        this.zAxisGroup = this.containerEl.createDiv({ cls: 'colophon-btn-group' });
 
-        this.footnoteBtn = this.createButton(zAxisGroup, 'list-ordered', 'Footnotes', () => {
+        this.footnoteBtn = this.createButton(this.zAxisGroup, 'list-ordered', 'Footnotes', () => {
             this.view.toggleFootnotes();
         });
 
-        this.commentBtn = this.createButton(zAxisGroup, 'message-square', 'Comments', () => {
+        this.commentBtn = this.createButton(this.zAxisGroup, 'message-square', 'Comments', () => {
             this.view.toggleComments();
         });
     }
@@ -183,10 +183,15 @@ export class ColophonToolbar {
         }
 
         // Update Panel Status Indicators
-        if (this.view.zAxisPanel) {
-            const panel = this.view.zAxisPanel;
-            this.toggleBtnState(this.footnoteBtn, panel.isVisible && panel.activeTab === 'footnotes');
-            this.toggleBtnState(this.commentBtn, panel.isVisible && panel.activeTab === 'comments');
+        if (this.view.plugin.settings.sidebarLocation === 'global') {
+            this.zAxisGroup.hide();
+        } else {
+            this.zAxisGroup.show();
+            if (this.view.zAxisPanel) {
+                const panel = this.view.zAxisPanel;
+                this.toggleBtnState(this.footnoteBtn, panel.isVisible && panel.activeTab === 'footnotes');
+                this.toggleBtnState(this.commentBtn, panel.isVisible && panel.activeTab === 'comments');
+            }
         }
     }
 

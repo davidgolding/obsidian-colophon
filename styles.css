@@ -459,6 +459,23 @@
     line-height: 1.4;
     min-height: 1.2em;
     outline: none;
+    /* Revert to theme defaults for comments */
+    font-family: var(--font-interface-theme) !important;
+    font-variant: normal !important;
+    text-indent: 0 !important;
+}
+
+/* Comment Preview Overrides */
+.colophon-comment-card .colophon-footnote-preview,
+.colophon-comment-card .colophon-footnote-preview p {
+    font-family: var(--font-interface-theme) !important;
+    font-size: 0.9rem !important;
+    font-variant: normal !important;
+    font-style: normal !important;
+    text-indent: 0 !important;
+    padding: 0 !important;
+    color: var(--text-normal) !important;
+    line-height: 1.4 !important;
 }
 
 .colophon-comment-footer {
