@@ -1,5 +1,6 @@
 import { Editor, Extension } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import { generateExtensions } from './extensions/universal-block';
@@ -64,6 +65,7 @@ export class TiptapAdapter {
                     listItem: false,
                     horizontalRule: false,
                 }),
+                HorizontalRule,
                 Superscript,
                 Subscript,
                 SmallCaps,

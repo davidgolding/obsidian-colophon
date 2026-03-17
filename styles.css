@@ -8,6 +8,10 @@
     align-items: center;
 }
 
+.colophon-view-header .view-header-title-parent {
+    display: none;
+}
+
 /* 1. WORKSPACE CONTAINER */
 .colophon-workspace {
     background-color: var(--background-primary);
