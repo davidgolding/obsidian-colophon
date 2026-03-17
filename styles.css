@@ -460,15 +460,15 @@
     min-height: 1.2em;
     outline: none;
     /* Revert to theme defaults for comments */
-    font-family: var(--font-interface-theme) !important;
+    font-family: var(--font-interface) !important;
     font-variant: normal !important;
     text-indent: 0 !important;
 }
 
 /* Comment Preview Overrides */
-.colophon-comment-card .colophon-footnote-preview,
-.colophon-comment-card .colophon-footnote-preview p {
-    font-family: var(--font-interface-theme) !important;
+.colophon-comment-preview,
+.colophon-comment-preview p {
+    font-family: var(--font-text-interface) !important;
     font-size: 0.9rem !important;
     font-variant: normal !important;
     font-style: normal !important;
@@ -476,13 +476,22 @@
     padding: 0 !important;
     color: var(--text-normal) !important;
     line-height: 1.4 !important;
+    cursor: pointer;
+    min-height: 1.2em;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
+
+.colophon-comment-preview:hover {
+    background-color: var(--background-modifier-hover);
+}
+
 
 .colophon-comment-footer {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    padding: 8px 12px;
+    padding: 4px 8px 8px 12px;
     background-color: var(--background-secondary-alt);
     border-top: 1px solid var(--background-modifier-border);
 }
