@@ -259,7 +259,9 @@ export class ZAxisPanel {
         if (this.editors.has(id)) return;
 
         container.empty();
-        const previewEl = container.createDiv({ cls: 'colophon-footnote-preview' });
+        const isComment = id.startsWith('comment-');
+        const previewClass = isComment ? 'colophon-comment-preview' : 'colophon-footnote-preview';
+        const previewEl = container.createDiv({ cls: previewClass });
         
         // Recursive renderer for Tiptap JSON to simple HTML
         const renderNode = (node, parentEl) => {
