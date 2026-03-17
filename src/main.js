@@ -1,4 +1,4 @@
-import { Plugin, TFolder, Modal } from 'obsidian';
+import { Plugin, TFolder, Modal, Notice } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 import { ColophonSidebarView, VIEW_TYPE_COLOPHON_SIDEBAR } from './sidebar-view';
 import { DEFAULT_SETTINGS } from './settings-data';
@@ -419,8 +419,6 @@ export default class ColophonPlugin extends Plugin {
     }
 
     async convertLegacyManuscriptFiles() {
-        const { Notice } = await import('obsidian');
-
         const files = this.app.vault.getFiles().filter(f => f.extension === 'md');
 
         const legacyFiles = [];
