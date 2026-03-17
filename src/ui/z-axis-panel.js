@@ -103,17 +103,22 @@ export class ZAxisPanel {
                 const el = this.containerEl.querySelector(`[data-thread-id="${threadId}"]`);
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    // Optionally trigger edit mode if it's the first comment in thread and empty
-                    const editorContainer = el.querySelector('.colophon-comment-editor-container');
+                    
                     const editorId = `${threadId}:0`;
-                    if (editorContainer && !this.editors.has(editorId)) {
+                    let editor = this.editors.get(editorId);
+
+                    if (!editor) {
+                        const editorContainer = el.querySelector('.colophon-comment-editor-container');
                         const adapter = this.provider.getAdapter();
-                        if (adapter && adapter.comments[threadId]) {
+                        if (editorContainer && adapter && adapter.comments[threadId]) {
                             const thread = adapter.comments[threadId];
-                            if (thread.length > 0 && (!thread[0].content || !thread[0].content.content)) {
-                                this.createCommentEditor(threadId, 0, thread[0], editorContainer);
-                            }
+                            this.createCommentEditor(threadId, 0, thread[0], editorContainer);
+                            editor = this.editors.get(editorId);
                         }
+                    }
+
+                    if (editor) {
+                        editor.commands.focus('end');
                     }
                 }
                 this.focusTimer = null;
