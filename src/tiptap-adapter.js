@@ -1,16 +1,26 @@
 import { Editor, Extension } from '@tiptap/core';
-import StarterKit from '@tiptap/starter-kit';
+import Document from '@tiptap/extension-document';
+import Text from '@tiptap/extension-text';
+import HardBreak from '@tiptap/extension-hard-break';
+import Bold from '@tiptap/extension-bold';
+import Italic from '@tiptap/extension-italic';
+import Strike from '@tiptap/extension-strike';
+import Underline from '@tiptap/extension-underline';
+import History from '@tiptap/extension-history';
+import Dropcursor from '@tiptap/extension-dropcursor';
+import Gapcursor from '@tiptap/extension-gapcursor';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Superscript from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
+
 import { generateExtensions } from './extensions/universal-block';
 import { Substitutions } from './extensions/substitutions';
 import { InternalLink } from './extensions/internal-link';
 import { FootnoteMarker } from './extensions/footnote-marker';
 import { CommentHighlight } from './extensions/comment-highlight';
 import { SmallCaps } from './extensions/small-caps';
+import { TrailingNode } from './extensions/trailing-node';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
-// FixedFeed extension removed in favor of inline logic
 
 const ColophonAgentCommands = Extension.create({
     name: 'colophonAgentCommands',
@@ -50,27 +60,57 @@ export class TiptapAdapter {
         this.mount(content);
     }
 
+    /**
+     * Ensures the document has a valid structure for editing.
+     * Prevents issues where a document contains only non-textblock nodes (like horizontalRule),
+     * which would leave the user with no place to put the cursor.
+     */
+    repairDocument(content) {
+        if (!content || !content.content) return content;
+
+        // 1. Remove leading horizontal rules which can block the cursor
+        while (content.content.length > 0 && content.content[0].type === 'horizontalRule') {
+            content.content.shift();
+        }
+
+        // 2. Ensure at least one textblock exists if the document is empty
+        const hasTextblock = content.content.some(node => {
+            return node.type !== 'horizontalRule';
+        });
+
+        if (!hasTextblock) {
+            content.content.push({ type: 'body', content: [] });
+        }
+
+        return content;
+    }
+
     mount(content) {
+        // Repair content before mounting
+        const repairedContent = this.repairDocument(content);
+
         // Cache extensions at the adapter level to prevent re-parsing and duplicate warnings
         if (!this.sharedExtensions) {
             const dynamicExtensions = this.settings ? generateExtensions(this.settings) : [];
             this.sharedExtensions = [
-                StarterKit.configure({
-                    paragraph: false,
-                    heading: false,
-                    codeBlock: false,
-                    blockquote: false,
-                    bulletList: false,
-                    orderedList: false,
-                    listItem: false,
-                    horizontalRule: false,
-                }),
+                Document,
+                Text,
+                ...dynamicExtensions,
+                History,
+                HardBreak,
+                Bold,
+                Italic,
+                Strike,
+                Underline,
+                Dropcursor,
+                Gapcursor,
                 HorizontalRule,
                 Superscript,
                 Subscript,
                 SmallCaps,
                 InternalLink,
                 CommentHighlight,
+                TrailingNode,
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(( "
                 }),
@@ -91,7 +131,7 @@ export class TiptapAdapter {
             plugin: this.plugin,
             adapter: this,
             extensions: this.sharedExtensions,
-            content: content || { type: 'doc', content: [{ type: 'body' }] },
+            content: repairedContent || { type: 'doc', content: [{ type: 'body' }] },
             onUpdate: ({ editor, transaction }) => {
                 if (this.onUpdate) {
                     this.onUpdate();
@@ -152,7 +192,8 @@ export class TiptapAdapter {
         if (this.editor) {
             this.footnotes = footnotes || {};
             this.comments = comments || {};
-            this.editor.commands.setContent(content);
+            const repairedContent = this.repairDocument(content);
+            this.editor.commands.setContent(repairedContent);
             this.updateFootnoteSequence();
         }
     }
