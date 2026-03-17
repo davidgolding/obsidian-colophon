@@ -563,23 +563,32 @@ export default class ColophonPlugin extends Plugin {
     migrateInternalLinks(node) {
         if (!node) return;
 
-        if (node.marks) {
-            node.marks = node.marks.map(mark => {
-                if (mark.type === 'internallink') {
-                    return {
+        if (node.content && Array.isArray(node.content)) {
+            const newContent = [];
+            
+            for (const child of node.content) {
+                const linkMark = child.marks?.find(m => m.type === 'internallink');
+                
+                if (linkMark && child.type === 'text') {
+                    newContent.push({
                         type: 'internalLink',
                         attrs: {
-                            target: mark.attrs?.href || '',
-                            label: mark.attrs?.text || ''
+                            target: linkMark.attrs?.href || '',
+                            alias: linkMark.attrs?.text || child.text || ''
                         }
-                    };
+                    });
+                } else {
+                    if (child.marks) {
+                        child.marks = child.marks.filter(m => m.type !== 'internallink');
+                    }
+                    if (child.content) {
+                        this.migrateInternalLinks(child);
+                    }
+                    newContent.push(child);
                 }
-                return mark;
-            });
-        }
-
-        if (node.content && Array.isArray(node.content)) {
-            node.content.forEach(child => this.migrateInternalLinks(child));
+            }
+            
+            node.content = newContent;
         }
     }
 }
