@@ -539,6 +539,22 @@ export default class ColophonPlugin extends Plugin {
             node.type = 'body';
         }
 
+        if (node.type === 'heading') {
+            const level = node.attrs?.level;
+            const blockClass = node.attrs?.class;
+
+            if (blockClass) {
+                node.type = blockClass;
+            } else if (level) {
+                node.type = `heading-${level}`;
+            } else {
+                node.type = 'heading-1';
+            }
+
+            delete node.attrs.level;
+            delete node.attrs.class;
+        }
+
         if (node.content && Array.isArray(node.content)) {
             node.content.forEach(child => this.migrateContentNodes(child));
         }
