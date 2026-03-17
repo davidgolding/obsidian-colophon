@@ -504,9 +504,13 @@ export default class ColophonPlugin extends Plugin {
 
         if (Array.isArray(data.footnotes)) {
             const footnotes = {};
-            data.footnotes.forEach((fn, index) => {
-                const id = `fn-${crypto.randomUUID()}`;
-                footnotes[id] = fn;
+            data.footnotes.forEach((fn) => {
+                const id = fn.id || `fn-${crypto.randomUUID()}`;
+                const content = fn.content || { type: 'doc', content: [{ type: 'body' }] };
+                this.migrateContentNodes(content);
+                this.migrateInternalLinks(content);
+                // In 2.x, we only store the content object in the footnotes dictionary
+                footnotes[id] = content;
             });
             data.footnotes = footnotes;
         } else {
@@ -515,8 +519,16 @@ export default class ColophonPlugin extends Plugin {
 
         if (Array.isArray(data.comments)) {
             const comments = {};
-            data.comments.forEach((comment, index) => {
-                const id = `comment-${crypto.randomUUID()}`;
+            data.comments.forEach((comment) => {
+                const id = comment.id || `comment-${crypto.randomUUID()}`;
+                if (comment.content) {
+                    this.migrateContentNodes(comment.content);
+                    this.migrateInternalLinks(comment.content);
+                }
+                // Ensure replies array exists for v2.0
+                if (!comment.replies) {
+                    comment.replies = [];
+                }
                 comments[id] = [comment];
             });
             data.comments = comments;
@@ -535,27 +547,64 @@ export default class ColophonPlugin extends Plugin {
     migrateContentNodes(node) {
         if (!node) return;
 
+        // Generate a simple 6-char random ID for v2.0 blocks
+        const generateId = () => Math.random().toString(36).substring(2, 8);
+
         if (node.type === 'paragraph') {
-            node.type = 'body';
+            const blockClass = node.attrs?.class;
+            if (blockClass) {
+                node.type = blockClass;
+            } else {
+                node.type = 'body';
+            }
+            
+            // Ensure every block has a unique ID for v2.0
+            if (!node.attrs) node.attrs = {};
+            node.attrs.id = generateId();
+            delete node.attrs.class;
         }
 
         if (node.type === 'heading') {
             const level = node.attrs?.level;
             const blockClass = node.attrs?.class;
 
-            if (blockClass) {
-                node.type = blockClass;
+            if (blockClass === 'title') {
+                node.type = 'title';
             } else if (level) {
                 node.type = `heading-${level}`;
             } else {
                 node.type = 'heading-1';
             }
 
+            if (!node.attrs) node.attrs = {};
+            node.attrs.id = generateId();
             delete node.attrs.level;
             delete node.attrs.class;
         }
 
+        if (node.type === 'footnote') {
+            node.type = 'footnoteMarker';
+        }
+
         if (node.content && Array.isArray(node.content)) {
+            // 1. Flatten standard lists (bulletList, orderedList) by extracting their listItem contents
+            const processedContent = [];
+            for (const child of node.content) {
+                if (child.type === 'bulletList' || child.type === 'orderedList') {
+                    if (child.content && Array.isArray(child.content)) {
+                        for (const listItem of child.content) {
+                            if (listItem.type === 'listItem' && listItem.content) {
+                                processedContent.push(...listItem.content);
+                            }
+                        }
+                    }
+                } else {
+                    processedContent.push(child);
+                }
+            }
+            node.content = processedContent;
+
+            // 2. Recursively migrate all nodes in the (potentially new) content array
             node.content.forEach(child => this.migrateContentNodes(child));
         }
     }
@@ -567,7 +616,11 @@ export default class ColophonPlugin extends Plugin {
             const newContent = [];
             
             for (const child of node.content) {
-                const linkMark = child.marks?.find(m => m.type === 'internallink');
+                // Catch legacy 'internallink' marks OR 'link' marks with 'internal-link' class
+                const linkMark = child.marks?.find(m => 
+                    m.type === 'internallink' || 
+                    (m.type === 'link' && m.attrs?.class === 'internal-link')
+                );
                 
                 if (linkMark && child.type === 'text') {
                     newContent.push({
@@ -578,8 +631,15 @@ export default class ColophonPlugin extends Plugin {
                         }
                     });
                 } else {
+                    // Filter out any link marks that we've now converted to internalLink nodes
                     if (child.marks) {
-                        child.marks = child.marks.filter(m => m.type !== 'internallink');
+                        child.marks = child.marks.filter(m => 
+                            m.type !== 'internallink' && 
+                            !(m.type === 'link' && m.attrs?.class === 'internal-link')
+                        );
+                        if (child.marks.length === 0) {
+                            delete child.marks;
+                        }
                     }
                     if (child.content) {
                         this.migrateInternalLinks(child);
