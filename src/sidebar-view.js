@@ -27,6 +27,7 @@ export class ColophonSidebarView extends ItemView {
         const { contentEl } = this;
         contentEl.empty();
         contentEl.addClass('colophon-sidebar-view');
+        contentEl.addClass('colophon-workspace');
 
         // The SidebarManager acts as the provider for the ZAxisPanel
         this.zAxisPanel = new ZAxisPanel(

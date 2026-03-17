@@ -253,6 +253,13 @@ export default class ColophonPlugin extends Plugin {
             this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
             this.patchCommand('editor:toggle-strikethrough', (view) => view.toggleStrike());
             this.patchCommand('editor:insert-footnote', (view) => view.insertFootnote());
+
+            // Initial cleanup: if local sidebar is selected, ensure no global leaf exists
+            if (this.settings.sidebarLocation !== 'global') {
+                this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON_SIDEBAR).forEach(leaf => {
+                    leaf.detach();
+                });
+            }
         });
     }
 
@@ -367,6 +374,8 @@ export default class ColophonPlugin extends Plugin {
     }
 
     refreshLayout() {
+        const isGlobal = this.settings.sidebarLocation === 'global';
+
         // 1. Notify all open ColophonViews to refresh their local sidebar visibility
         this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON).forEach(leaf => {
             if (leaf.view instanceof ColophonView) {
@@ -374,7 +383,14 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
-        // 2. Notify the global sidebar to refresh its content
+        // 2. If transitioning to local, remove the global sidebar leaf
+        if (!isGlobal) {
+            this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON_SIDEBAR).forEach(leaf => {
+                leaf.detach();
+            });
+        }
+
+        // 3. Notify the global sidebar to refresh its content
         if (this.sidebarManager) {
             this.sidebarManager.update();
         }
