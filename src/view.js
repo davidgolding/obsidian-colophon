@@ -347,20 +347,8 @@ export class ColophonView extends TextFileView {
         // 2. Mark the text in the editor
         editor.chain().focus().setMark('commentHighlight', { threadId }).run();
 
-        // 3. Open Sidebar and focus the new comment
-        this.showComments();
-        
-        // Use a timeout to ensure sidebar has rendered
-        setTimeout(() => {
-            if (this.zAxisPanel) {
-                this.zAxisPanel.focusComment(threadId);
-            } else if (this.plugin.settings.sidebarLocation === 'global') {
-                const sidebarLeaf = this.app.workspace.getLeavesOfType('colophon-sidebar')[0];
-                if (sidebarLeaf && sidebarLeaf.view.zAxisPanel) {
-                    sidebarLeaf.view.zAxisPanel.focusComment(threadId);
-                }
-            }
-        }, 100);
+        // 3. Focus the new comment (handles sidebar logic and editor instantiation)
+        this.adapter.focusComment(threadId);
     }
 
     updateSettings() {
