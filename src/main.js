@@ -205,6 +205,12 @@ export default class ColophonPlugin extends Plugin {
             }
         });
 
+        this.addCommand({
+            id: 'convert-legacy-manuscripts',
+            name: 'Convert Legacy Manuscript Files',
+            callback: () => this.convertLegacyManuscriptFiles()
+        });
+
         // 5. Context Menu (Editor)
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
@@ -410,6 +416,157 @@ export default class ColophonPlugin extends Plugin {
         }
 
         workspace.revealLeaf(leaf);
+    }
+
+    async convertLegacyManuscriptFiles() {
+        const { Notice } = await import('obsidian');
+
+        const files = this.app.vault.getFiles().filter(f => f.extension === 'md');
+
+        const legacyFiles = [];
+        for (const file of files) {
+            const cache = this.app.metadataCache.getCache(file.path);
+            if (cache?.frontmatter?.['colophon-plugin'] === 'manuscript') {
+                legacyFiles.push(file);
+            }
+        }
+
+        if (legacyFiles.length === 0) {
+            new Notice('No legacy manuscript files found.');
+            return;
+        }
+
+        const results = { converted: 0, skipped: 0, errors: [] };
+
+        for (const file of legacyFiles) {
+            try {
+                const content = await this.app.vault.read(file);
+                const parsed = this.parseLegacyFormat(content);
+
+                if (!parsed) {
+                    results.skipped++;
+                    results.errors.push({ file: file.path, error: 'Failed to parse colophon data block' });
+                    console.error(`Colophon: Failed to parse legacy file: ${file.path}`);
+                    continue;
+                }
+
+                const transformed = this.transformLegacyData(parsed);
+
+                const newPath = file.path.replace(/\.md$/, '.colophon');
+
+                if (await this.app.vault.adapter.exists(newPath)) {
+                    let counter = 1;
+                    let basePath = newPath.replace('.colophon', '');
+                    while (await this.app.vault.adapter.exists(`${basePath} ${counter}.colophon`)) {
+                        counter++;
+                    }
+                    await this.app.vault.create(`${basePath} ${counter}.colophon`, JSON.stringify(transformed, null, 2));
+                } else {
+                    await this.app.vault.create(newPath, JSON.stringify(transformed, null, 2));
+                }
+
+                await this.app.vault.delete(file);
+
+                results.converted++;
+            } catch (err) {
+                results.errors.push({ file: file.path, error: err.message });
+                console.error(`Colophon: Error converting ${file.path}:`, err);
+            }
+        }
+
+        let message = `Converted ${results.converted} files.`;
+        if (results.skipped > 0) {
+            message += ` ${results.skipped} skipped.`;
+        }
+        if (results.errors.length > 0) {
+            message += ` ${results.errors.length} errors.`;
+        }
+        new Notice(message);
+
+        if (results.errors.length > 0) {
+            console.error('Colophon: Legacy conversion errors:', results.errors);
+        }
+    }
+
+    parseLegacyFormat(content) {
+        const match = content.match(/%% colophon:data\s*\{(.+?)\}\s*%%/s);
+        if (!match) return null;
+
+        try {
+            return JSON.parse('{' + match[1] + '}');
+        } catch (err) {
+            console.error('Colophon: Failed to parse legacy data block:', err);
+            return null;
+        }
+    }
+
+    transformLegacyData(data) {
+        this.migrateContentNodes(data.doc);
+        this.migrateInternalLinks(data.doc);
+
+        if (Array.isArray(data.footnotes)) {
+            const footnotes = {};
+            data.footnotes.forEach((fn, index) => {
+                const id = `fn-${crypto.randomUUID()}`;
+                footnotes[id] = fn;
+            });
+            data.footnotes = footnotes;
+        } else {
+            data.footnotes = data.footnotes || {};
+        }
+
+        if (Array.isArray(data.comments)) {
+            const comments = {};
+            data.comments.forEach((comment, index) => {
+                const id = `comment-${crypto.randomUUID()}`;
+                comments[id] = [comment];
+            });
+            data.comments = comments;
+        } else {
+            data.comments = data.comments || {};
+        }
+
+        return {
+            type: 'manuscript',
+            doc: data.doc,
+            footnotes: data.footnotes,
+            comments: data.comments
+        };
+    }
+
+    migrateContentNodes(node) {
+        if (!node) return;
+
+        if (node.type === 'paragraph') {
+            node.type = 'body';
+        }
+
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => this.migrateContentNodes(child));
+        }
+    }
+
+    migrateInternalLinks(node) {
+        if (!node) return;
+
+        if (node.marks) {
+            node.marks = node.marks.map(mark => {
+                if (mark.type === 'internallink') {
+                    return {
+                        type: 'internalLink',
+                        attrs: {
+                            target: mark.attrs?.href || '',
+                            label: mark.attrs?.text || ''
+                        }
+                    };
+                }
+                return mark;
+            });
+        }
+
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => this.migrateInternalLinks(child));
+        }
     }
 }
 
