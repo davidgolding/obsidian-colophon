@@ -52,11 +52,13 @@ export default class ColophonPlugin extends Plugin {
             callback: () => this.createNewColophonFile('manuscript')
         });
 
+        /*
         this.addCommand({
             id: 'new-script',
             name: 'New Script',
             callback: () => this.createNewColophonFile('script')
         });
+        */
 
         this.addCommand({
             id: 'open-sidebar',
@@ -264,6 +266,7 @@ export default class ColophonPlugin extends Plugin {
                                 await this.createNewColophonFile('manuscript', file.path);
                             });
                     });
+                    /*
                     menu.addItem((item) => {
                         item
                             .setTitle('New script')
@@ -272,6 +275,7 @@ export default class ColophonPlugin extends Plugin {
                                 await this.createNewColophonFile('script', file.path);
                             });
                     });
+                    */
                 }
             })
         );
