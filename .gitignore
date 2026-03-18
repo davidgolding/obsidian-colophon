@@ -8,3 +8,4 @@ pnpm-workspace.yaml
 /.colophon-cache
 /docs
 skills-lock.json
+/.agent
