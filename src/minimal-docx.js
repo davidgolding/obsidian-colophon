@@ -1,24 +1,39 @@
-const JSZip = require('jszip');
+import JSZip from 'jszip';
 
-class MinimalDocxGenerator {
+export class MinimalDocxGenerator {
     constructor(options = {}) {
         this.paragraphs = options.paragraphs || [];
         this.styles = options.styles || [];
         this.fonts = options.fonts || ['Times New Roman', 'Arial'];
         this.footnotes = options.footnotes || {};
-        this.pageSize = options.pageSize || { width: 'Letter' };
+        
+        // Fix P1-001: Normalize pageSize to object with width
+        const rawPageSize = options.pageSize || 'Letter';
+        this.pageSize = typeof rawPageSize === 'string' ? { width: rawPageSize } : rawPageSize;
+        
         this.margins = options.margins || { top: 1, bottom: 1, left: 1, right: 1 };
         this.stylesConfig = options.stylesConfig || {}; // Source of truth from 2.0 Settings (blocks)
+        
+        // Fix P1-002: Store scale factor
+        this.scale = (options.scale || 100) / 100;
+        
         this.footnoteIdMap = new Map(); // Map<stringId, intId>
+        this.comments = options.comments || {};
+        this.commentIdMap = new Map(); // Map<stringId, intId>
     }
 
     async generate() {
         const zip = new JSZip();
 
-        // 0. Map Footnote IDs to Integers (1-based)
+        // 0. Map IDs to Integers (1-based)
         let fnIndex = 1;
         Object.keys(this.footnotes).forEach(id => {
             this.footnoteIdMap.set(id, fnIndex++);
+        });
+
+        let cmIndex = 0;
+        Object.keys(this.comments).forEach(id => {
+            this.commentIdMap.set(id, cmIndex++);
         });
 
         zip.file('[Content_Types].xml', this.createContentTypesXml());
@@ -30,34 +45,17 @@ class MinimalDocxGenerator {
         word.file('fontTable.xml', this.createFontTableXml());
         word.file('footnotes.xml', this.createFootnotesXml());
         word.file('settings.xml', this.createSettingsXml());
+        word.file('comments.xml', this.createCommentsXml());
 
         word.folder('_rels').file('document.xml.rels', this.createDocumentRelsXml());
 
         return zip.generateAsync({ type: 'nodebuffer' });
     }
 
-    minifyXMLString(xml) {
-        xml = xml.replace(/<!--[\s\S]*?-->/g, ''); // Remove XML comments
-        const cdataBlocks = [];
-        xml = xml.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match) => {
-            cdataBlocks.push(match);
-            return `__CDATA_${cdataBlocks.length - 1}__`;
-        });
-        xml = xml.replace(/>\s+</g, '><'); // Remove whitespace between tags
-        xml = xml.replace(/\s*=\s*/g, '='); // Remove whitespace around =
-        xml = xml.replace(/<([^>]+)>/g, (match, content) => {
-            return '<' + content.replace(/\s+/g, ' ').trim() + '>';
-        });
-        cdataBlocks.forEach((block, i) => {
-            xml = xml.replace(`__CDATA_${i}__`, block);
-        });
-        return xml.trim();
-    }
-
     // --- XML Generators ---
 
     createContentTypesXml() {
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
     <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
     <Default Extension="xml" ContentType="application/xml"/>
@@ -66,49 +64,51 @@ class MinimalDocxGenerator {
     <Override PartName="/word/fontTable.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"/>
     <Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>
     <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
-</Types>`);
+    <Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/>
+</Types>`;
     }
 
     createRelsXml() {
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
-</Relationships>`);
+</Relationships>`;
     }
 
     createDocumentRelsXml() {
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
     <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/fontTable" Target="fontTable.xml"/>
     <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes" Target="footnotes.xml"/>
     <Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
-</Relationships>`);
+    <Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/>
+</Relationships>`;
     }
 
     createFontTableXml() {
         const fontsXml = this.fonts.map(font => `
-    <w:font w:name="${font}">
+    <w:font w:name="${this.escapeXml(font)}">
         <w:charset w:val="00"/>
         <w:family w:val="auto"/>
         <w:pitch w:val="variable"/>
     </w:font>`).join('');
 
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:fonts xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     ${fontsXml}
-</w:fonts>`);
+</w:fonts>`;
     }
 
     createSettingsXml() {
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:zoom w:percent="100"/>
     <w:defaultTabStop w:val="720"/>
     <w:compat>
         <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
     </w:compat>
-</w:settings>`);
+</w:settings>`;
     }
 
     createStylesXml() {
@@ -117,7 +117,6 @@ class MinimalDocxGenerator {
 
         // 1. Generate styles from blocks config (Source of Truth in 2.0)
         for (const [key, config] of Object.entries(this.stylesConfig)) {
-            // Note: In 2.0, blocks contains things like 'footnote-number', 'footnote-symbol'
             const { id, name, basedOn } = this.getDocxStyleInfo(key, config);
 
             // Generate properties using ONLY config (css=null)
@@ -125,9 +124,9 @@ class MinimalDocxGenerator {
             const rPr = this.cssToRunProps(null, id);
 
             stylesXml += `
-    <w:style w:type="paragraph" w:styleId="${id}">
-        <w:name w:val="${name}"/>
-        ${basedOn ? `<w:basedOn w:val="${basedOn}"/>` : ''}
+    <w:style w:type="paragraph" w:styleId="${this.escapeXml(id)}">
+        <w:name w:val="${this.escapeXml(name)}"/>
+        ${basedOn ? `<w:basedOn w:val="${this.escapeXml(basedOn)}"/>` : ''}
         <w:pPr>
             ${pPr}
         </w:pPr>
@@ -146,9 +145,9 @@ class MinimalDocxGenerator {
                 const rPr = this.cssToRunProps(css, style.id);
 
                 stylesXml += `
-    <w:style w:type="paragraph" w:styleId="${style.id}">
-        <w:name w:val="${style.name}"/>
-        ${style.basedOn ? `<w:basedOn w:val="${style.basedOn}"/>` : ''}
+    <w:style w:type="paragraph" w:styleId="${this.escapeXml(style.id)}">
+        <w:name w:val="${this.escapeXml(style.name)}"/>
+        ${style.basedOn ? `<w:basedOn w:val="${this.escapeXml(style.basedOn)}"/>` : ''}
         <w:pPr>
             ${pPr}
         </w:pPr>
@@ -174,7 +173,7 @@ class MinimalDocxGenerator {
         </w:rPr>
     </w:style>`;
 
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:docDefaults>
         <w:rPrDefault>
@@ -189,14 +188,24 @@ class MinimalDocxGenerator {
     </w:docDefaults>
     ${stylesXml}
     ${footnoteRef}
-</w:styles>`);
+</w:styles>`;
     }
 
     createDocumentXml() {
         const bodyContent = this.paragraphs.map(p => this.createParagraphXml(p)).join('');
 
-        const width = this.pageSize.width === 'A4' ? 11906 : 12240;
-        const height = this.pageSize.width === 'A4' ? 16838 : 15840;
+        // Fix P1-001: Correct page size dimensions and Legal support
+        let width = 12240; // Default Letter
+        let height = 15840;
+
+        if (this.pageSize.width === 'A4') {
+            width = 11906;
+            height = 16838;
+        } else if (this.pageSize.width === 'Legal') {
+            width = 12240;
+            height = 20160;
+        }
+
         const margins = {
             top: Math.round(this.margins.top * 1440),
             bottom: Math.round(this.margins.bottom * 1440),
@@ -204,7 +213,7 @@ class MinimalDocxGenerator {
             right: Math.round(this.margins.right * 1440),
         };
 
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:body>
         ${bodyContent}
@@ -213,7 +222,7 @@ class MinimalDocxGenerator {
             <w:pgMar w:top="${margins.top}" w:right="${margins.right}" w:bottom="${margins.bottom}" w:left="${margins.left}" w:header="720" w:footer="720" w:gutter="0"/>
         </w:sectPr>
     </w:body>
-</w:document>`);
+</w:document>`;
     }
 
     createFootnotesXml() {
@@ -239,10 +248,10 @@ class MinimalDocxGenerator {
                 return this.createParagraphXml(pCopy);
             }).join('');
 
-            return `<w:footnote w:id="${intId}">${content}</w:footnote>`;
+            return `<w:footnote w:id="${this.escapeXml(String(intId))}">${content}</w:footnote>`;
         }).join('');
 
-        return this.minifyXMLString(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
     <w:footnote w:type="separator" w:id="-1">
         <w:p><w:r><w:separator/></w:r></w:p>
@@ -251,7 +260,43 @@ class MinimalDocxGenerator {
         <w:p><w:r><w:continuationSeparator/></w:r></w:p>
     </w:footnote>
     ${footnotesContent}
-</w:footnotes>`);
+</w:footnotes>`;
+    }
+
+    createCommentsXml() {
+        const commentsContent = Object.entries(this.comments).map(([id, threads]) => {
+            const intId = this.commentIdMap.get(id);
+            // In 2.0, a thread is an array of messages
+            const firstMessage = threads[0] || {};
+            const author = firstMessage.author || 'Author';
+            const date = firstMessage.date || new Date().toISOString();
+            
+            // Combine all messages in thread into the comment body
+            const content = threads.map(msg => {
+                const doc = msg.content;
+                // doc is a Tiptap JSON doc
+                return doc.content.map(pNode => {
+                    const runs = [];
+                    if (pNode.content) {
+                        pNode.content.forEach(child => {
+                            if (child.type === 'text') {
+                                runs.push(`<w:r><w:t xml:space="preserve">${this.escapeXml(child.text)}</w:t></w:r>`);
+                            }
+                        });
+                    }
+                    return `<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr>${runs.join('')}</w:p>`;
+                }).join('');
+            }).join('<w:p><w:r><w:t>---</w:t></w:r></w:p>');
+
+            return `<w:comment w:id="${intId}" w:author="${this.escapeXml(author)}" w:date="${this.escapeXml(date)}" w:initials="${this.escapeXml(author.substring(0, 2).toUpperCase())}">
+                ${content}
+            </w:comment>`;
+        }).join('');
+
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    ${commentsContent}
+</w:comments>`;
     }
 
     // --- Element Generators ---
@@ -259,7 +304,7 @@ class MinimalDocxGenerator {
     createParagraphXml(p) {
         const pPr = `
         <w:pPr>
-            <w:pStyle w:val="${p.styleId}"/>
+            <w:pStyle w:val="${this.escapeXml(p.styleId)}"/>
             ${this.cssToParaProps(p.computed, p.styleId)}
         </w:pPr>`;
 
@@ -271,7 +316,7 @@ class MinimalDocxGenerator {
         if (r.type === 'footnoteMarker') {
             const intId = this.footnoteIdMap.get(r.attrs.id);
             const idToUse = intId !== undefined ? intId : r.attrs.id;
-            return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${idToUse}"/></w:r>`;
+            return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${this.escapeXml(String(idToUse))}"/></w:r>`;
         }
 
         const rPr = `
@@ -279,6 +324,23 @@ class MinimalDocxGenerator {
             ${this.cssToRunProps(r.style, styleId)}
             ${this.marksToRunProps(r.marks)}
         </w:rPr>`;
+
+        let runXml = '';
+        
+        // Handle comment highlights (marks in Tiptap)
+        const commentMark = r.marks?.find(m => m.type === 'commentHighlight');
+        if (commentMark) {
+            const intId = this.commentIdMap.get(commentMark.attrs.threadId);
+            if (intId !== undefined) {
+                // Word requires range start/end around the runs. 
+                // Since our serializer flattens marks per run, we can wrap each run.
+                runXml += `<w:commentRangeStart w:id="${intId}"/>`;
+                runXml += `<w:r>${rPr}<w:t xml:space="preserve">${this.escapeXml(r.text)}</w:t></w:r>`;
+                runXml += `<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${intId}"/></w:r>`;
+                runXml += `<w:commentRangeEnd w:id="${intId}"/>`;
+                return runXml;
+            }
+        }
 
         return `<w:r>${rPr}<w:t xml:space="preserve">${this.escapeXml(r.text)}</w:t></w:r>`;
     }
@@ -367,21 +429,22 @@ class MinimalDocxGenerator {
         }
 
         // Line Height
+        // Fix P1-002: Scale line height
         if (override && override['line-spacing']) {
             const val = override['line-spacing'];
             if (String(val).match(/^[0-9.]+$/)) {
-                line = Math.round(parseFloat(val) * 240);
+                line = Math.round(parseFloat(val) * 240 * this.scale);
                 lineRule = 'auto';
             } else {
-                line = this.parseUnit(val, 'twips');
+                line = Math.round(this.parseUnit(val, 'twips') * this.scale);
                 lineRule = 'exact';
             }
         } else if (css && css.lineHeight !== 'normal') {
             if (css.lineHeight.endsWith('px')) {
-                line = this.parseUnit(css.lineHeight, 'twips');
+                line = Math.round(this.parseUnit(css.lineHeight, 'twips') * this.scale);
                 lineRule = 'exact';
             } else if (!isNaN(parseFloat(css.lineHeight))) {
-                line = Math.round(parseFloat(css.lineHeight) * 240);
+                line = Math.round(parseFloat(css.lineHeight) * 240 * this.scale);
             }
         }
 
@@ -411,10 +474,11 @@ class MinimalDocxGenerator {
             firstLine = this.parseUnit(css.textIndent, 'twips');
         }
 
+        // Fix P1-003: Escape all dynamic attributes
         return `
-            <w:jc w:val="${jc}"/>
-            <w:spacing w:before="${before}" w:after="${after}" w:line="${line}" w:lineRule="${lineRule}"/>
-            <w:ind w:left="${left}" w:right="${right}" w:firstLine="${firstLine}"/>
+            <w:jc w:val="${this.escapeXml(jc)}"/>
+            <w:spacing w:before="${this.escapeXml(String(before))}" w:after="${this.escapeXml(String(after))}" w:line="${this.escapeXml(String(line))}" w:lineRule="${this.escapeXml(lineRule)}"/>
+            <w:ind w:left="${this.escapeXml(String(left))}" w:right="${this.escapeXml(String(right))}" w:firstLine="${this.escapeXml(String(firstLine))}"/>
         `;
     }
 
@@ -443,11 +507,12 @@ class MinimalDocxGenerator {
         }
 
         // --- Size ---
+        // Fix P1-002: Scale font size
         let size = 24; // 12pt
         if (override && override['font-size']) {
-            size = this.parseUnit(override['font-size'], 'half-points');
+            size = Math.round(this.parseUnit(override['font-size'], 'half-points') * this.scale);
         } else if (css && css.fontSize) {
-            size = this.parseUnit(css.fontSize, 'half-points');
+            size = Math.round(this.parseUnit(css.fontSize, 'half-points') * this.scale);
         }
 
         const color = 'auto';
@@ -477,11 +542,12 @@ class MinimalDocxGenerator {
             if (css.verticalAlign === 'sub') vertAlign = '<w:vertAlign w:val="subscript"/>';
         }
 
+        // Fix P1-003: Escape all dynamic attributes
         return `
-            <w:rFonts w:ascii="${font}" w:hAnsi="${font}"/>
-            <w:sz w:val="${size}"/>
-            <w:szCs w:val="${size}"/>
-            <w:color w:val="${color}"/>
+            <w:rFonts w:ascii="${this.escapeXml(font)}" w:hAnsi="${this.escapeXml(font)}"/>
+            <w:sz w:val="${this.escapeXml(String(size))}"/>
+            <w:szCs w:val="${this.escapeXml(String(size))}"/>
+            <w:color w:val="${this.escapeXml(color)}"/>
             ${bold}
             ${italic}
             ${underline}
@@ -507,7 +573,8 @@ class MinimalDocxGenerator {
     }
 
     escapeXml(unsafe) {
-        return unsafe.replace(/[<>&'"]/g, function (c) {
+        if (unsafe === null || unsafe === undefined) return '';
+        return String(unsafe).replace(/[<>&'"]/g, function (c) {
             switch (c) {
                 case '<': return '&lt;';
                 case '>': return '&gt;';
@@ -542,7 +609,7 @@ class MinimalDocxGenerator {
     }
 }
 
-function cleanFont(fontStack) {
+export function cleanFont(fontStack) {
     if (!fontStack) return 'Times New Roman';
 
     if (typeof window !== 'undefined' && typeof document !== 'undefined' && fontStack.includes('var(')) {
@@ -555,5 +622,3 @@ function cleanFont(fontStack) {
     const validFont = fonts.find(f => f && f !== '??' && f.toLowerCase() !== 'undefined' && f !== '');
     return validFont || 'Times New Roman';
 }
-
-module.exports = { MinimalDocxGenerator, cleanFont };
