@@ -974,6 +974,41 @@
 .theme-dark .colophon-search-match-active {
     background-color: rgba(255, 140, 0, 0.8);
 }
+
+/* DOCX Export Modal Styles */
+.colophon-export-margins .setting-item-control {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.colophon-export-margins__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    min-width: 240px;
+    margin-top: 10px;
+}
+
+.colophon-export-margins__label {
+    font-size: 11px;
+    line-height: 1.2;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.colophon-export-margins__input {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-modifier-form-field);
+    color: var(--text-normal);
+}
+
+.colophon-export-margins__input:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+}
 /* BLOCK SETTINGS UI */
 .colophon-block-settings {
     margin-top: 20px;

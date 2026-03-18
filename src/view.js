@@ -33,6 +33,18 @@ export class ColophonView extends TextFileView {
         return this.docType === 'script' ? 'clapperboard' : 'feather';
     }
 
+    onPaneMenu(menu, source) {
+        super.onPaneMenu(menu, source);
+        menu.addItem((item) => {
+            item
+                .setTitle('Export to DOCX format')
+                .setIcon('download')
+                .onClick(() => {
+                    this.app.commands.executeCommandById('colophon-writer:export-to-docx');
+                });
+        });
+    }
+
     async onOpen() {
         await super.onOpen();
         

@@ -6,6 +6,7 @@ import { StyleManager } from './style-manager';
 import { ColophonSettingTab } from './settings-tab';
 import { MetadataManager } from './metadata-manager';
 import { SidebarManager } from './sidebar-manager';
+import { ExportModal } from './ui/export-modal';
 
 export default class ColophonPlugin extends Plugin {
     async onload() {
@@ -61,6 +62,27 @@ export default class ColophonPlugin extends Plugin {
             id: 'open-sidebar',
             name: 'Open Sidebar',
             callback: () => this.openSidebar()
+        });
+
+        this.addCommand({
+            id: 'export-to-docx',
+            name: 'Export to Word (.docx)',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) {
+                        new ExportModal(this.app, (exportSettings) => {
+                            view.adapter.editor.commands.exportToDocx({
+                                settings: exportSettings,
+                                footnotes: view.adapter.footnotes,
+                                stylesConfig: this.settings.blocks
+                            });
+                        }).open();
+                    }
+                    return true;
+                }
+                return false;
+            }
         });
 
         this.addCommand({
