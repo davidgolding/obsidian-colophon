@@ -17,14 +17,14 @@ Colophon provides a dedicated, typographically refined environment for writing m
 
 You can create a new Colophon document in several ways:
 
-1. **Right-click in the File Explorer**: Select **New manuscript** or **New script** from any folder's context menu.
+1. **Right-click in the File Explorer**: Select **New manuscript** from any folder's context menu.
 2. **Ribbon Icon**: Click the feather icon in the left ribbon to create a new manuscript.
-3. **Command Palette**: Use the commands `Colophon: New Manuscript` or `Colophon: New Script`.
+3. **Command Palette**: Use the command `Colophon: New Manuscript`.
 
-### Manuscript vs. Script Mode
+### Manuscript Mode
 
-- **Manuscript**: Optimized for essays, chapters, and long-form prose. Features serif typography and centered layouts.
-- **Script Mode**: A dedicated screenwriting environment with industry-standard formatting (Scene Headings, Action, Character, Dialogue) and keyboard shortcuts for rapid drafting.
+- **Manuscript**: Optimized for essays, chapters, and long-form prose. Features a customizable block-based system with rich typographic control and layout parity for export.
+- **Script Mode**: *(Currently Paused)* A dedicated screenwriting environment with industry-standard formatting.
 
 ## Key Features (v2.0)
 
@@ -32,12 +32,49 @@ You can create a new Colophon document in several ways:
 - **Native Integration**: Works seamlessly with Obsidian's workspace, tabs, hotkeys (`Cmd+B`/`I`), and file management.
 - **Word Processing Feel**: A distraction-free "white canvas" experience that feels more like a modern word processor than a code editor.
 
-## Features (In Progress)
+## Core Functionality
 
-- **High-Fidelity Export**: Export to `.docx` with layout parity.
-- **Footnotes & Comments**: Dedicated sidebars for managing annotations.
-- **Smart Substitutions**: Automatic smart quotes and dashes.
-- **Custom Stylesheets**: Define your own typography via YAML snippets.
+### Custom Block Definitions
+Colophon is built on a "Universal Block" architecture. You can customize the geometry and typography of your writing environment in the plugin settings:
+- **Geometry**: Define line spacing, margins (before/after/left/right), and first-line indents for every block type (Body, Title, Epigraph, etc.).
+- **Typography**: Choose font families, sizes, weights, and variants (like small caps or italics).
+- **Triggers**: Assign custom Markdown-style triggers (e.g., `### ` for Heading 3) to switch block types without leaving the keyboard.
+
+### The Z-Axis: Footnotes & Comments
+Manage annotations and editorial feedback through a dedicated transversal interface:
+- **Footnotes**: Insert footnotes via command or shortcut (`Cmd+Shift+F`). A dedicated sidebar allows you to write footnote content in a focused environment that stays in sync with your main manuscript.
+- **Comments**: Highlight text to add editorial comments. Threads are preserved in the sidecar and can be managed without cluttering your prose.
+
+#### Sidebar Options: Global vs. Document
+Colophon offers two ways to manage your Z-Axis content, configurable in the plugin settings:
+- **Document Sidebar (Local)**: The annotations panel is embedded directly within the manuscript view. This is ideal for ultra-focused writing on a single document where you want your notes immediately adjacent to your prose.
+- **Global Sidebar**: The annotations panel lives in a standard Obsidian sidebar leaf (typically on the right). This mode is designed for "transversal" workflows—the global sidebar follows you as you switch between multiple Colophon tabs, automatically syncing its content to the active document.
+
+### High-Fidelity DOCX Export
+When your manuscript is ready, export it to a production-ready `.docx` file with layout parity:
+- **Visual Consistency**: The export engine maps your custom block definitions directly to Word styles, ensuring the geometry and typography of your export match your writing environment.
+- **Native Annotations**: Colophon footnotes and comments are exported as native Word footnotes and comment bubbles.
+- **Configurable Output**: Choose page sizes (Letter, A4, Legal), adjust margins in inches, and apply a global font scale for the final document.
+
+## Migrating from v1.x
+
+Colophon 2.0 introduces a new, high-performance file format (`.colophon`) that is a **breaking change** from the legacy Markdown-based storage (`.md`) used in v1.x.
+
+> [!WARNING]
+> **Backup your files first!**
+> The migration process involves transforming your legacy manuscripts into a new format and deleting the old versions. Please ensure your vault is backed up before running the conversion.
+
+### Why the change?
+The legacy format relied on a "Shadow Markdown" strategy that hid JSON state inside standard `.md` files. This caused significant performance bottlenecks with large manuscripts and created friction with Obsidian's native indexing. Colophon 2.0 uses a dedicated JSON schema that enables:
+- **Instant Loading**: Even for book-length documents.
+- **Atomic Operations**: Precise management of footnotes and comment threads.
+- **Semantic Integrity**: Rigid enforcement of custom block geometries.
+
+### How to Convert
+If you have manuscripts created in Colophon 1.x, you must convert them to the new format to edit them in 2.0:
+1. Open the **Command Palette** (`Cmd/Ctrl + P`).
+2. Run the command: `Colophon: Convert Legacy Manuscript Files`.
+3. The plugin will scan your vault for legacy manuscripts, transform them into `.colophon` files with 100% data fidelity, and remove the legacy `.md` files once successfully converted.
 
 ## Development
 
@@ -139,12 +176,12 @@ The key ontological property of each of these:
 
 ## UX for Word Composition
 
-| Feature      | Word Processing       | Markdown              | Word Composition                        |
-+| ------------ | --------------------- | --------------------- | --------------------------------------- |
-| Input Method | UI buttons, shortcuts | Textual syntax        | Transient syntax, UI buttons, shortcuts |
-| Visual State | WYSIWYG               | What you see is code  | What you see is word-craft              |
-| Consistency  | Low (manual styling)  | High (defined by CSS) | Absolute (locked semantic blocks)       |
-| Aesthetic    | Productivity          | Technical, minimalist | Bibliophile, editorial                  |
+| Feature | Word Processing | Markdown | Word Composition |
+| :--- | :--- | :--- | :--- |
+| Input Method | UI buttons, shortcuts | Textual syntax | Transient syntax, UI buttons, shortcuts |
+| Visual State | WYSIWYG | What you see is code  | What you see is word-craft |
+| Consistency  | Low (manual styling)  | High (defined by CSS) | Absolute (locked semantic blocks) |
+| Aesthetic | Productivity | Technical, minimalist | Bibliophile, editorial |
 
 ## Necessities
 
