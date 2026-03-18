@@ -7,3 +7,4 @@ pnpm-workspace.yaml
 /.gemini
 /.colophon-cache
 /docs
+skills-lock.json
