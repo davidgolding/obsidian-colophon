@@ -2,12 +2,10 @@ import { Extension } from '@tiptap/core';
 import { MinimalDocxGenerator, cleanFont } from '../minimal-docx';
 import { Notice } from 'obsidian';
 
-// Note: In 2.0, we use electron directly from obsidian's global if needed, 
-// but for 'showSaveDialog', we usually use the desktop API.
-// Obsidian provides 'app.vault.adapter' for some things, 
-// but for a native save dialog on desktop, electron is required.
-const electron = require('electron');
-const fs = require('fs');
+// Fix P2-005: Use window.electron instead of deprecated electron.remote
+// Obsidian provides this bridge on Desktop.
+const electron = window.electron;
+const fs = require('fs').promises; // Fix P3-008: Use promises for fs
 
 export const DocxSerializer = Extension.create({
     name: 'docxSerializer',
@@ -15,7 +13,7 @@ export const DocxSerializer = Extension.create({
     addCommands() {
         return {
             exportToDocx: (options) => async ({ editor, view }) => {
-                const { settings, footnotes, stylesConfig } = options;
+                const { settings, footnotes, comments, stylesConfig } = options;
 
                 try {
                     new Notice('Preparing DOCX export...');
@@ -32,8 +30,10 @@ export const DocxSerializer = Extension.create({
                         styles,
                         fonts,
                         footnotes: processedFootnotes,
+                        comments: comments,
                         pageSize: settings.pageSize,
                         margins: settings.margins,
+                        scale: settings.scale,
                         stylesConfig: stylesConfig
                     });
 
@@ -43,6 +43,11 @@ export const DocxSerializer = Extension.create({
                     const activeView = editor.options.adapter?.view;
                     const fileName = (activeView?.file?.basename || 'Untitled') + '.docx';
                     
+                    if (!electron) {
+                        new Notice('Desktop required for DOCX export.');
+                        return false;
+                    }
+
                     const result = await electron.remote.dialog.showSaveDialog({
                         title: 'Export to Word (.docx)',
                         defaultPath: fileName,
@@ -54,14 +59,8 @@ export const DocxSerializer = Extension.create({
                         return true;
                     }
 
-                    fs.writeFile(result.filePath, buffer, (err) => {
-                        if (err) {
-                            console.error('Colophon: Failed to save Word (.docx) file.', err);
-                            new Notice('Failed to save file.');
-                        } else {
-                            new Notice('File saved successfully!');
-                        }
-                    });
+                    await fs.writeFile(result.filePath, buffer);
+                    new Notice('File saved successfully!');
 
                     return true;
                 } catch (error) {
@@ -79,13 +78,10 @@ function processDocument(view, doc, stylesConfig) {
     const styles = new Map();
     const fonts = new Set(['Times New Roman', 'Arial', 'Symbol']);
 
-    function traverse(node, pos) {
-        if (node.isText) return;
+    doc.descendants((node, pos) => {
+        if (node.isText) return false;
 
-        // In 2.0, most blocks are custom node types (body, title, etc.)
-        // We identify them as blocks that are not the root 'doc' node.
         const isBlock = node.isBlock && node.type.name !== 'doc';
-
         if (isBlock) {
             const dom = view.nodeDOM(pos);
             const computed = dom && dom instanceof Element ? getComputedStyle(dom) : {};
@@ -97,50 +93,39 @@ function processDocument(view, doc, stylesConfig) {
             }
 
             const runs = [];
-            if (node.content && node.content.size > 0) {
-                node.content.forEach((child, childOffset) => {
-                    const childPos = pos + 1 + childOffset;
+            node.content.forEach((child) => {
+                const marks = child.marks ? child.marks.map(m => ({ type: m.type.name, attrs: m.attrs })) : [];
 
-                    let childComputed = {};
-                    try {
-                        const domAtPos = view.domAtPos(childPos);
-                        let element = domAtPos.node;
-                        if (element.nodeType === 3) element = element.parentElement;
-                        if (element) childComputed = getComputedStyle(element);
-                    } catch (e) {
-                        // Fallback to parent computed if child fails
-                        childComputed = computed;
-                    }
+                if (child.type.name === 'internalLink') {
+                    const alias = child.attrs.alias || child.attrs.target || 'Link';
+                    runs.push({
+                        text: alias,
+                        style: {},
+                        marks: [...marks, { type: 'bold' }],
+                        type: 'text',
+                        attrs: {}
+                    });
+                    return;
+                }
 
-                    if (childComputed.fontFamily) {
-                        const runFont = cleanFont(childComputed.fontFamily);
-                        if (runFont) fonts.add(runFont);
-                    }
-
-                    const marks = child.marks ? child.marks.map(m => ({ type: m.type.name, attrs: m.attrs })) : [];
-
-                    // 2.0 Internal Links handling (mapped to bold text for visual parity)
-                    if (child.type.name === 'internalLink') {
-                        const alias = child.attrs.alias || child.attrs.target || 'Link';
-                        runs.push({
-                            text: alias,
-                            style: childComputed,
-                            marks: [...marks, { type: 'bold' }],
-                            type: 'text',
-                            attrs: {}
-                        });
-                        return;
-                    }
-
+                if (child.isText) {
                     runs.push({
                         text: child.text || '',
-                        style: childComputed,
+                        style: {},
                         marks: marks,
-                        type: child.type.name,
+                        type: 'text',
+                        attrs: {}
+                    });
+                } else if (child.type.name === 'footnoteMarker') {
+                    runs.push({
+                        text: '',
+                        style: {},
+                        marks: [],
+                        type: 'footnoteMarker',
                         attrs: child.attrs
                     });
-                });
-            }
+                }
+            });
 
             paragraphs.push({
                 type: node.type.name,
@@ -150,19 +135,10 @@ function processDocument(view, doc, stylesConfig) {
                 attrs: node.attrs
             });
 
-            return;
+            return false; // Already handled children as runs
         }
-
-        let childPos = pos + 1;
-        if (node.type.name === 'doc') childPos = 0;
-
-        node.content.forEach((child) => {
-            traverse(child, childPos);
-            childPos += child.nodeSize;
-        });
-    }
-
-    traverse(doc, 0);
+        return true;
+    });
 
     return {
         paragraphs,
