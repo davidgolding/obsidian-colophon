@@ -44,6 +44,10 @@ export class ColophonToolbar {
         this.commentBtn = this.createButton(this.zAxisGroup, 'message-square', 'Comments', () => {
             this.view.toggleComments();
         });
+
+        this.exportBtn = this.createButton(this.zAxisGroup, 'download', 'Export to DOCX', () => {
+            this.view.plugin.app.commands.executeCommandById('colophon-writer:export-to-docx');
+        });
     }
 
     renderBlockSelector() {
