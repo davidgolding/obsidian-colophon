@@ -75,6 +75,7 @@ export default class ColophonPlugin extends Plugin {
                             view.adapter.editor.commands.exportToDocx({
                                 settings: exportSettings,
                                 footnotes: view.adapter.footnotes,
+                                comments: view.adapter.comments,
                                 stylesConfig: this.settings.blocks
                             });
                         }).open();

@@ -1,14 +1,14 @@
 ---
-review_agents: [security-sentinel, performance-oracle, architecture-strategist, code-simplicity-reviewer]
-plan_review_agents: [code-simplicity-reviewer]
+review_agents: [kieran-typescript-reviewer, code-simplicity-reviewer, security-sentinel, performance-oracle, architecture-strategist]
+plan_review_agents: [kieran-typescript-reviewer, code-simplicity-reviewer]
 ---
 
 # Review Context
 
-Add project-specific review instructions here.
-These notes are passed to all review agents during /ce:review and /ce:work.
+This project is an Obsidian plugin for focused prose writing.
 
-Examples:
-- "We use Tiptap for rich text editing — check for editor state synchronization issues"
-- "Obsidian API interaction — ensure proper cleanup of event listeners"
-- "Prose-focused plugin — performance is key during typing"
+- **Obsidian API**: Use official APIs where possible and ensure proper cleanup of all event listeners in `onunload`.
+- **Performance**: High performance is critical for a smooth typing experience. Check for editor state synchronization issues and layout-triggering calls.
+- **Security**: Data integrity is paramount. No data should leave the vault without explicit user action.
+- **UI/UX**: Maintain high visual fidelity and layout parity during export processes.
+- **Compatibility**: Ensure stability on Desktop (primary target).

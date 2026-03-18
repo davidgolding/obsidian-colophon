@@ -52,12 +52,17 @@ export class ExportModal extends Modal {
             const input = field.createEl('input', { type: 'number' });
             input.addClass('colophon-export-margins__input');
             input.step = '0.1';
+            input.min = '0';
+            input.max = '5';
         
             input.value = String(this.settings.margins?.[key] ?? 1);
         
             input.addEventListener('change', () => {
-                const num = parseFloat(input.value);
+                let num = parseFloat(input.value);
                 if (!isNaN(num)) {
+                    // Clamp value
+                    num = Math.max(0, Math.min(5, num));
+                    input.value = String(num);
                     this.settings.margins[key] = num;
                 }
             });
