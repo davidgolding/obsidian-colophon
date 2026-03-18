@@ -9,7 +9,7 @@ export const FootnoteMarker = Node.create({
 
     addOptions() {
         return {
-            trigger: '(( ',
+            trigger: '((',
         };
     },
 
@@ -72,9 +72,14 @@ export const FootnoteMarker = Node.create({
     },
 
     addInputRules() {
+        const trigger = this.options.trigger;
+        // Escape special regex characters
+        const escapedTrigger = trigger.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp(`${escapedTrigger}$`);
+
         return [
             new InputRule({
-                find: /\(\($/,
+                find: re,
                 handler: ({ state, range }) => {
                     const id = `fn-${crypto.randomUUID()}`;
                     const { tr } = state;

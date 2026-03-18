@@ -114,7 +114,7 @@ export class TiptapAdapter {
                 TrailingNode,
                 DocxSerializer,
                 FootnoteMarker.configure({
-                    trigger: this.settings?.footnoteTrigger ?? "(( "
+                    trigger: this.settings?.footnoteTrigger ?? "(("
                 }),
                 ColophonAgentCommands,
                 Substitutions.configure({
