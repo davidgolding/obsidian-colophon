@@ -9,7 +9,7 @@
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",
   "smartDashes": false,
-  "footnoteTrigger": "(( ",
+  "footnoteTrigger": "((",
   "blocks": {
     "body": {
       "after-block": "0pt",

@@ -126,9 +126,9 @@ export class ColophonSettingTab extends PluginSettingTab {
 
         new Setting(pluginSettingsItems)
             .setName('Footnote trigger')
-            .setDesc('Syntax trigger to insert a footnote (must end with space). Default: "(( "')
+            .setDesc('Syntax trigger to insert a footnote. Default: "(("')
             .addText(text => text
-                .setPlaceholder('(( ')
+                .setPlaceholder('((')
                 .setValue(this.plugin.settings.footnoteTrigger)
                 .onChange(async (value) => {
                     this.plugin.settings.footnoteTrigger = value;
