@@ -9,7 +9,7 @@
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",
   "smartDashes": false,
-  "footnoteTrigger": "((",
+  "footnoteTrigger": "(( ",
   "blocks": {
     "body": {
       "after-block": "0pt",
@@ -81,10 +81,10 @@
       "before-block": "0pt",
       "first-indent": "0pt",
       "font-family": "var(--font-text-theme), var(--font-text-override)",
-      "font-size": "7pt",
+      "font-size": "9pt",
       "font-variant": "regular",
       "left-indent": "0in",
-      "line-spacing": "9pt",
+      "line-spacing": "12pt",
       "name": "Footnote",
       "right-indent": "0pt",
       "space-between-notes": "10pt",
