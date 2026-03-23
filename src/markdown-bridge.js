@@ -1,304 +1,269 @@
-const { DOMParser } = require('@tiptap/core');
-const diff = require('fast-diff');
-
+/**
+ * MarkdownBridge handles conversion between Colophon JSON and Clean Markdown (Option B).
+ * 
+ * Strategy:
+ * - Block types and IDs: Stored in preceding HTML comments <!-- colophon-block: id="..." type="..." -->
+ * - Inline Comments: Wrapped in HTML comments <!-- colophon-comment: threadId="..." -->...<!-- colophon-comment-end -->
+ * - Footnotes: Standard Markdown syntax [^id] with definitions at bottom.
+ * - Formatting: Standard Markdown (**bold**, *italic*, `code`).
+ */
 class MarkdownBridge {
-    constructor(schema) {
-        this.schema = schema;
+    constructor() {
+        // No schema needed for this implementation as we work with JSON directly
     }
 
     /**
-     * Dehydrates a ProseMirror document into Markdown Body and Line-Based Metadata.
-     * @param {Object} doc - The ProseMirror JSON document.
-     * @returns {Object} - { markdown: string, linesMeta: Array }
+     * Converts Colophon data into a Clean Markdown string.
      */
-    dehydrate(doc) {
-        if (!doc || !doc.content) return { markdown: '', linesMeta: [] };
+    dehydrate(doc, footnotes = {}, comments = {}) {
+        if (!doc || !doc.content) return '';
 
-        const linesMeta = [];
-        const markdownLines = [];
+        const markdownBlocks = [];
 
-        // We assume block-level nodes map 1:1 to "lines" in our simplified Markdown.
-        // Complex nesting (nested lists) poses a challenge for 1:1 mapping if not careful.
-        // For this MVP, we treat top-level blocks as "lines".
-
-        doc.content.forEach((node, index) => {
-            const lineIndex = index; // Simplified: Top-level index.
-
-            // 1. Extract Structural Metadata (classes, ids, types)
-            // We store anything that isn't standard Markdown.
-            const meta = {
-                line: lineIndex,
-                type: node.type,
-                attrs: node.attrs || {} // We might want to filter standard attrs (level)
-            };
-
-            // Optimization: Only store meta if it has non-default attributes?
-            // For robustness, explicit is better for now.
-            linesMeta.push(meta);
-
-            // 2. Generate Markdown Line
-            markdownLines.push(this.serializeNode(node));
+        // 1. Serialize Blocks
+        doc.content.forEach((node) => {
+            const blockMd = this.serializeNode(node);
+            if (blockMd) {
+                // We no longer add block metadata comments as requested
+                markdownBlocks.push(blockMd);
+            }
         });
 
-        return {
-            markdown: markdownLines.join('\n\n'), // Standard blank line separation
-            linesMeta: linesMeta
-        };
-    }
+        let output = markdownBlocks.join('\n\n');
 
-    /**
-     * Hydrates a ProseMirror document from Markdown and Line-Based Metadata.
-     * @param {string} markdown - The raw markdown content.
-     * @param {Array} linesMeta - The stored metadata array.
-     * @param {string} storedHash - The hash of the markdown when meta was saved.
-     * @returns {Promise<Object>} - The ProseMirror JSON document.
-     */
-    async hydrate(markdown, linesMeta, storedHash) {
-        const currentHash = await this.generateHash(markdown);
-        let validMeta = linesMeta || [];
-
-        // 1. Check for drift
-        if (storedHash && currentHash !== storedHash) {
-            console.log("Colophon: Hash mismatch. Attempting healing...");
-
-            // We need the "Old Markdown" to diff against.
-            // But we don't store the full markdown text in the sidecar (Zero Duplication!).
-            // We only have the hash.
-            // This is a Catch-22 for "Diffing" if we don't have the original text.
-
-            // RFC Update / Correction:
-            // "Diff between Last Known Markdown (reconstructed...) and Current".
-            // To reconstruct, we need the "Old Markdown". 
-            // If we don't store it, we can't diff it.
-            // WE MUST STORE THE MARKDOWN BODY in the sidecar if we want robust diffing?
-            // OR we store "Line Checksums"?
-
-            // Alternative: Heuristic Healing.
-            // If we lack the original text, we can't reliably know WHERE lines were inserted.
-            // However, the metadata array has "types".
-            // We could try to align based on content? No, content changed.
-
-            // Realization: For "Hydrated Text" to support Diff-Healing, we DO need a reference copy.
-            // But storing the full copy violates "Zero Duplication".
-
-            // Hybrid Solution: "Shadow Copy" or "Line Hashes".
-            // Let's store an array of [LineHash, LineMeta] in the sidecar?
-            // If we store a hash for EVERY line, we can re-align.
-            // fast-diff works on strings.
-            // If we store the "Previous Markdown" compressed? Or just accept duplication for safety?
-            // Zero-Duplication was the goal. 
-            // "Line Hashes" is the most efficient Zero-Dupe way.
-
-            // Implementation Adjustment:
-            // dehydrate() now needs to return "Line Hashes".
-            // healMetadata() will diff (OldLineHashes vs NewLineHashes).
-
-            // For this step, I will implement `healMetadata` assuming we have `linesMeta` containing `contentHash` for each line.
-            // I will update `dehydrate` to include `contentHash`.
-
-            validMeta = this.healMetadata(markdown, linesMeta);
+        // 2. Append Footnotes
+        const footnoteEntries = Object.entries(footnotes);
+        if (footnoteEntries.length > 0) {
+            output += '\n\n---\n\n'; // Separator
+            footnoteEntries.forEach(([id, content]) => {
+                // Footnote content is a 'doc' object in Colophon
+                const contentMd = content.content.map(node => this.serializeNode(node)).join(' ').trim();
+                output += `[^${id}]: ${contentMd}\n`;
+            });
         }
 
-        // 2. Parse Markdown into Lines
-        const lines = markdown.split(/\n\n+/);
-
-        // 3. Reconstruct Nodes
-        const content = lines.map((lineText, index) => {
-            // Find metadata for this line index
-            // If healing worked, indices in validMeta should align with 'lines'.
-            const meta = validMeta.find(m => m.line === index);
-
-            let nodeType = 'paragraph';
-            let attrs = {};
-
-            if (meta) {
-                nodeType = meta.type;
-                attrs = meta.attrs;
-            } else {
-                // Infer from Markdown if no meta (e.g. new line added externally)
-                const headingMatch = lineText.match(/^(#{1,6})\s+(.*)/);
-                if (headingMatch) {
-                    nodeType = 'heading';
-                    attrs = { level: headingMatch[1].length };
-                    // Strip markdown syntax from text for the inline parser?
-                    // serializeInline adds it. parseInline logic needs to handle clean text?
-                    // Wait, our parseInline handles raw text.
-                    // If we use 'heading' type, the content should NOT have '#'.
-                    // So we must strip it here.
-                    lineText = headingMatch[2];
-                }
-            }
-
-            return {
-                type: nodeType,
-                attrs: attrs,
-                content: this.parseInline(lineText.trim())
-            };
-        });
-
-        return {
-            type: 'doc',
-            content: content
-        };
+        return output;
     }
 
     /**
-     * Re-aligns metadata indices by diffing line hashes.
+     * Parses Clean Markdown back into Colophon structure.
      */
-    healMetadata(currentMarkdown, oldMeta) {
-        if (!oldMeta || oldMeta.length === 0) return [];
+    hydrate(markdown) {
+        const lines = markdown.split('\n');
+        const docContent = [];
+        const footnotes = {};
+        
+        let currentBlockMeta = null;
+        let currentBlockLines = [];
 
-        const currentLines = currentMarkdown.split(/\n\n+/);
-        // Generate hashes for current lines
-        const currentHashes = currentLines.map(line => `${line.substring(0, 10)}:${line.length}`);
-        const oldHashes = oldMeta.map(m => m.h);
+        const flushBlock = () => {
+            if (currentBlockLines.length === 0 && !currentBlockMeta) return;
+            
+            let text = currentBlockLines.join('\n').trim();
+            if (!text && !currentBlockMeta) return;
 
-        // Simplified Logic for MVP:
-        // Iterate and find best match offset.
-        // If Old Line 0 Hash == Current Line 1 Hash -> Offset +1.
-
-        let validMeta = [];
-        let offset = 0;
-
-        // Very basic "Greedy Match" alignment
-        oldMeta.forEach((meta) => {
-            const oldIdx = meta.line;
-            const targetIdx = oldIdx + offset;
-
-            // Check if match at expected index
-            if (currentHashes[targetIdx] === meta.h) {
-                // Match confirmed
-                validMeta.push({ ...meta, line: targetIdx });
-            } else {
-                // Mismatch. Search neighborhood.
-                // Did we insert lines? Check +1, +2...
-                let found = false;
-                for (let i = 1; i < 5; i++) {
-                    if (currentHashes[targetIdx + i] === meta.h) {
-                        offset += i; // Update offset for subsequent lines
-                        validMeta.push({ ...meta, line: targetIdx + i });
-                        found = true;
-                        break;
-                    }
+            let type = currentBlockMeta?.type || 'body';
+            let attrs = { id: currentBlockMeta?.id || this.generateShortId() };
+            
+            // Auto-detect heading levels if no explicit meta is present
+            const headingMatch = text.match(/^(#{1,4})\s+([\s\S]*)/);
+            if (headingMatch && !currentBlockMeta) {
+                const level = headingMatch[1].length;
+                if (level <= 3) {
+                    type = `heading-${level}`;
+                } else {
+                    // Level 4 maps to body per request
+                    type = 'body'; 
                 }
-
-                if (!found) {
-                    // Check deletions? Check -1, -2...
-                    for (let i = 1; i < 5; i++) {
-                        if (targetIdx - i >= 0 && currentHashes[targetIdx - i] === meta.h) {
-                            offset -= i;
-                            validMeta.push({ ...meta, line: targetIdx - i });
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-                // If still not found, line likely modified heavily. Drop metadata for this line.
+                text = headingMatch[2];
             }
-        });
 
-        return validMeta;
+            // In Colophon v2.0, the node type name IS 'heading-1', 'heading-2', etc.
+            // There is no generic 'heading' node in the schema.
+            docContent.push({
+                type: type,
+                attrs: attrs,
+                content: this.parseInline(text)
+            });
+            
+            currentBlockLines = [];
+            currentBlockMeta = null;
+        };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // 1. Check for Footnote definitions at the bottom
+            const fnMatch = line.match(/^\[\^([\w-]+)\]:\s*(.*)/);
+            if (fnMatch) {
+                flushBlock();
+                const id = fnMatch[1];
+                const fnText = fnMatch[2];
+                footnotes[id] = {
+                    type: 'doc',
+                    content: [{ type: 'body', attrs: { id: this.generateShortId() }, content: this.parseInline(fnText) }]
+                };
+                continue;
+            }
+
+            // 2. Check for separator
+            if (line.trim() === '---' && i > lines.length - 20) {
+                flushBlock();
+                continue;
+            }
+
+            // 3. Check for block metadata (keep support for legacy or manual round-trips)
+            const blockMatch = line.match(/<!-- colophon-block: id="(.*?)" type="(.*?)" -->/);
+            if (blockMatch) {
+                flushBlock();
+                currentBlockMeta = { id: blockMatch[1], type: blockMatch[2] };
+                continue;
+            }
+
+            // 4. Handle empty lines (paragraph breaks)
+            if (line.trim() === '') {
+                flushBlock();
+                continue;
+            }
+
+            currentBlockLines.push(line);
+        }
+        flushBlock();
+
+        return {
+            type: 'manuscript',
+            doc: { type: 'doc', content: docContent },
+            footnotes,
+            comments: {} // Comments are hydrated via parseInline into marks
+        };
     }
 
     serializeNode(node) {
+        if (!node) return '';
+        
         switch (node.type) {
-            case 'paragraph':
-                return this.serializeInline(node.content);
             case 'heading':
-                // We DON'T store '#' in markdown here if we want clean text?
-                // RFC says "clean Markdown body". So yes, standard MD.
-                const level = '#'.repeat(node.attrs.level || 1);
-                return `${level} ${this.serializeInline(node.content)}`;
-            case 'bulletList':
-                return node.content.map(listItem => this.serializeListItem(listItem, '-')).join('\n');
-            case 'orderedList':
-                return node.content.map((listItem, index) => this.serializeListItem(listItem, `${index + 1}.`)).join('\n');
+            case 'heading-1':
+            case 'heading-2':
+            case 'heading-3':
+                let level = node.attrs?.level;
+                if (!level && node.type.startsWith('heading-')) {
+                    level = parseInt(node.type.split('-')[1]);
+                }
+                const prefix = '#'.repeat(level || 1);
+                return `${prefix} ${this.serializeInline(node.content)}`;
+            case 'body':
+            case 'paragraph':
+            case 'supertitle':
+            case 'title':
+            case 'subtitle':
+            case 'epigraph':
+            case 'body-first':
             case 'footnote':
-                return `[^${node.attrs.id}]`;
+                return this.serializeInline(node.content);
+            case 'horizontalRule':
+                return '---';
+            case 'hardBreak':
+                return '\n';
             default:
-                // Fallback for custom nodes: just serialize content
                 return this.serializeInline(node.content);
         }
     }
 
-    serializeListItem(node, bullet) {
-        if (node.type !== 'listItem') return '';
-        const content = node.content.map(child => this.serializeNode(child)).join('\n    ');
-        return `${bullet} ${content}`;
-    }
-
     serializeInline(content) {
-        if (!content) return '';
+        if (!content || !Array.isArray(content)) return '';
+        
         return content.map(node => {
-            let text = node.text || '';
-
-            if (node.type === 'footnote') {
-                return `[^${node.attrs.id}]`;
+            if (node.type === 'footnoteMarker' || node.type === 'footnote') {
+                return `[^${node.attrs?.id}]`;
             }
-
-            let commentId = null;
+            if (node.type === 'internalLink') {
+                const alias = node.attrs?.alias || node.attrs?.target;
+                return `[[${node.attrs?.target}|${alias}]]`;
+            }
+            
+            let text = node.text || '';
             if (node.marks) {
-                const commentMark = node.marks.find(m => m.type === 'comment');
-                if (commentMark) {
-                    commentId = commentMark.attrs.id;
-                }
                 node.marks.forEach(mark => {
-                    if (mark.type === 'comment') return;
                     switch (mark.type) {
                         case 'bold': text = `**${text}**`; break;
                         case 'italic': text = `*${text}*`; break;
                         case 'code': text = `\`${text}\``; break;
+                        case 'strike': text = `~~${text}~~`; break;
+                        case 'underline': text = `<u>${text}</u>`; break;
+                        case 'commentHighlight': 
+                            text = `<!-- colophon-comment: threadId="${mark.attrs?.threadId}" -->${text}<!-- colophon-comment-end -->`;
+                            break;
                     }
                 });
             }
-
-            if (commentId) {
-                text = `{==${text}==}{>> #${commentId} <<}`;
-            }
-
             return text;
         }).join('');
     }
 
     parseInline(text) {
-        // ... (Keep existing robust regex parser)
         const nodes = [];
-        const regex = /(\[\^fn-[\w-]+\])|(\{==(.*?)==\}\{>>\s*#([\w-]+)\s*<<\})/g;
+        // Regex to find footnotes, internal links, comments, and standard markdown marks
+        // 1. Footnotes: [^id]
+        // 2. Internal Links: [[target|alias]]
+        // 3. Comments: <!-- colophon-comment ... -->
+        // 4. Bold: **text**
+        // 5. Italic: *text*
+        // 6. Code: `text`
+        // 7. Strike: ~~text~~
+        // 8. Underline: <u>text</u>
+        const regex = /(\[\^([\w-]+)\])|(\[\[(.*?)(?:\|(.*?))?\]\])|(<!-- colophon-comment: threadId="(.*?)" -->([\s\S]*?)<!-- colophon-comment-end -->)|(\*\*(.*?)\*\*)|(\*(.*?)\*)|(`(.*?)`)|(~~(.*?)~~)|(<u>(.*?)<\/u>)/g;
+        
         let lastIndex = 0;
         let match;
 
         while ((match = regex.exec(text)) !== null) {
+            // Add preceding plain text
             if (match.index > lastIndex) {
                 nodes.push({ type: 'text', text: text.substring(lastIndex, match.index) });
             }
 
-            if (match[1]) {
-                const id = match[1].substring(2, match[1].length - 1);
-                nodes.push({ type: 'footnote', attrs: { id: id, number: '#' } });
-            } else if (match[2]) {
-                const contentText = match[3];
-                const id = match[4];
-                nodes.push({
-                    type: 'text',
-                    text: contentText,
-                    marks: [{ type: 'comment', attrs: { id: id, class: 'comment' } }]
+            if (match[1]) { // Footnote
+                nodes.push({ type: 'footnoteMarker', attrs: { id: match[2] } });
+            } else if (match[3]) { // Internal Link
+                const target = match[4];
+                const alias = match[5] || target;
+                nodes.push({ type: 'internalLink', attrs: { target, alias } });
+            } else if (match[6]) { // Comment
+                const threadId = match[7];
+                const content = match[8];
+                const innerNodes = this.parseInline(content);
+                innerNodes.forEach(n => {
+                    if (n.type === 'text') {
+                        if (!n.marks) n.marks = [];
+                        n.marks.push({ type: 'commentHighlight', attrs: { threadId } });
+                    }
+                    nodes.push(n);
                 });
+            } else if (match[9]) { // Bold
+                nodes.push({ type: 'text', text: match[10], marks: [{ type: 'bold' }] });
+            } else if (match[11]) { // Italic
+                nodes.push({ type: 'text', text: match[12], marks: [{ type: 'italic' }] });
+            } else if (match[13]) { // Code
+                nodes.push({ type: 'text', text: match[14], marks: [{ type: 'code' }] });
+            } else if (match[15]) { // Strike
+                nodes.push({ type: 'text', text: match[16], marks: [{ type: 'strike' }] });
+            } else if (match[17]) { // Underline
+                nodes.push({ type: 'text', text: match[18], marks: [{ type: 'underline' }] });
             }
+            
             lastIndex = regex.lastIndex;
         }
 
         if (lastIndex < text.length) {
             nodes.push({ type: 'text', text: text.substring(lastIndex) });
         }
-        return nodes.length > 0 ? nodes : (text ? [{ type: 'text', text: text }] : []);
+
+        return nodes;
     }
 
-    async generateHash(content) {
-        const msgBuffer = new TextEncoder().encode(content);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    generateShortId() {
+        return Math.random().toString(36).substring(2, 8);
     }
 }
 

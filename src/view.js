@@ -43,6 +43,14 @@ export class ColophonView extends TextFileView {
                     this.app.commands.executeCommandById('colophon-writer:export-to-docx');
                 });
         });
+        menu.addItem((item) => {
+            item
+                .setTitle('Export to Markdown format')
+                .setIcon('file-text')
+                .onClick(() => {
+                    this.app.commands.executeCommandById('colophon-writer:export-to-markdown');
+                });
+        });
     }
 
     async onOpen() {
