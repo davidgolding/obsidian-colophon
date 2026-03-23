@@ -1,4 +1,4 @@
-import { Plugin, TFolder, Modal, Notice } from 'obsidian';
+import { Plugin, TFolder, TFile, Modal, Notice } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 import { ColophonSidebarView, VIEW_TYPE_COLOPHON_SIDEBAR } from './sidebar-view';
 import { DEFAULT_SETTINGS } from './settings-data';
@@ -7,11 +7,15 @@ import { ColophonSettingTab } from './settings-tab';
 import { MetadataManager } from './metadata-manager';
 import { SidebarManager } from './sidebar-manager';
 import { ExportModal } from './ui/export-modal';
+import MarkdownBridge from './markdown-bridge';
 
 export default class ColophonPlugin extends Plugin {
     async onload() {
-        // Load Settings
+        // ... Load Settings ...
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+        // Initialize Bridge
+        this.markdownBridge = new MarkdownBridge();
 
         // Initialize Managers
         this.metadataManager = new MetadataManager(this);
@@ -52,14 +56,6 @@ export default class ColophonPlugin extends Plugin {
             callback: () => this.createNewColophonFile('manuscript')
         });
 
-        /*
-        this.addCommand({
-            id: 'new-script',
-            name: 'New Script',
-            callback: () => this.createNewColophonFile('script')
-        });
-        */
-
         this.addCommand({
             id: 'open-sidebar',
             name: 'Open Sidebar',
@@ -89,15 +85,27 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'export-to-markdown',
+            name: 'Export to Markdown (.md)',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) {
+                        this.exportToMarkdown(view);
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'insert-internal-link',
             name: 'Insert Internal Link',
             checkCallback: (checking) => {
                 const view = this.app.workspace.getActiveViewOfType(ColophonView);
                 if (view && view.adapter) {
                     if (!checking) {
-                        // This will trigger the suggester by inserting '[[', 
-                        // or we could eventually add a prompt.
-                        // For agent-native parity, inserting the trigger is usually best.
                         view.adapter.editor.commands.insertContent('[[');
                     }
                     return true;
@@ -266,21 +274,20 @@ export default class ColophonPlugin extends Plugin {
                                 await this.createNewColophonFile('manuscript', file.path);
                             });
                     });
-                    /*
+                } else if (file instanceof TFile && file.extension === 'md') {
                     menu.addItem((item) => {
                         item
-                            .setTitle('New script')
-                            .setIcon('clapperboard')
+                            .setTitle('Convert to Colophon manuscript format')
+                            .setIcon('feather')
                             .onClick(async () => {
-                                await this.createNewColophonFile('script', file.path);
+                                await this.convertToColophon(file);
                             });
                     });
-                    */
                 }
             })
         );
 
-        // 6. Patch Native Commands
+        // 7. Patch Native Commands
         this.app.workspace.onLayoutReady(() => {
             this.patchCommand('editor:toggle-bold', (view) => view.toggleBold());
             this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
@@ -294,6 +301,67 @@ export default class ColophonPlugin extends Plugin {
                 });
             }
         });
+    }
+
+    async exportToMarkdown(view) {
+        if (!view || !view.adapter) return;
+        
+        const file = view.file;
+        const data = JSON.parse(view.getViewData());
+        
+        const markdown = this.markdownBridge.dehydrate(
+            data.doc, 
+            data.footnotes || {}, 
+            data.comments || {}
+        );
+        
+        const mdPath = file.path.replace(/\.colophon$/, '.md');
+        let finalPath = mdPath;
+        let count = 1;
+        
+        while (await this.app.vault.adapter.exists(finalPath)) {
+            finalPath = mdPath.replace(/\.md$/, ` ${count}.md`);
+            count++;
+        }
+        
+        try {
+            await this.app.vault.create(finalPath, markdown);
+            new Notice(`Exported to ${finalPath}`);
+        } catch (err) {
+            console.error('Colophon: Failed to export Markdown', err);
+            new Notice('Failed to export Markdown');
+        }
+    }
+
+    async convertToColophon(file) {
+        if (!(file instanceof TFile)) return;
+        
+        try {
+            const markdown = await this.app.vault.read(file);
+            const data = this.markdownBridge.hydrate(markdown);
+            
+            const colophonPath = file.path.replace(/\.md$/, '.colophon');
+            let finalPath = colophonPath;
+            let count = 1;
+            
+            while (await this.app.vault.adapter.exists(finalPath)) {
+                finalPath = colophonPath.replace(/\.colophon$/, ` ${count}.colophon`);
+                count++;
+            }
+            
+            await this.app.vault.create(finalPath, JSON.stringify(data, null, 2));
+            new Notice(`Converted to ${finalPath}`);
+            
+            // Open the new file
+            const newFile = this.app.vault.getAbstractFileByPath(finalPath);
+            if (newFile instanceof TFile) {
+                const leaf = this.app.workspace.getLeaf(true);
+                await leaf.openFile(newFile);
+            }
+        } catch (err) {
+            console.error('Colophon: Failed to convert to Colophon', err);
+            new Notice('Failed to convert to Colophon');
+        }
     }
 
     patchCommand(commandId, handler) {
