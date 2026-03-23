@@ -247,17 +247,34 @@ export default class ColophonPlugin extends Plugin {
         // 5. Context Menu (Editor)
         this.registerEvent(
             this.app.workspace.on('editor-menu', (menu, editor, view) => {
-                if (!(view instanceof ColophonView)) return;
-
-                if (editor.getSelection()) {
-                    menu.addItem((item) => {
-                        item
-                            .setTitle('Add comment')
-                            .setIcon('message-square-plus')
-                            .onClick(() => {
-                                view.insertComment();
+                if (view instanceof ColophonView) {
+                    if (editor.getSelection()) {
+                        menu.addItem((item) => {
+                            item
+                                .setTitle('Add comment')
+                                .setIcon('message-square-plus')
+                                .onClick(() => {
+                                    view.insertComment();
+                                });
+                        });
+                    }
+                } else {
+                    // Check if active file is legacy markdown
+                    const file = view.file;
+                    if (file && file.extension === 'md') {
+                        const cache = this.app.metadataCache.getFileCache(file);
+                        const isLegacy = cache?.frontmatter?.['colophon-plugin'] === 'manuscript';
+                        if (isLegacy) {
+                            menu.addItem((item) => {
+                                item
+                                    .setTitle('Convert legacy to standard Colophon')
+                                    .setIcon('zap')
+                                    .onClick(async () => {
+                                        await this.convertSingleLegacyFile(file);
+                                    });
                             });
-                    });
+                        }
+                    }
                 }
             })
         );
@@ -275,6 +292,20 @@ export default class ColophonPlugin extends Plugin {
                             });
                     });
                 } else if (file instanceof TFile && file.extension === 'md') {
+                    const cache = this.app.metadataCache.getFileCache(file);
+                    const isLegacy = cache?.frontmatter?.['colophon-plugin'] === 'manuscript';
+
+                    if (isLegacy) {
+                        menu.addItem((item) => {
+                            item
+                                .setTitle('Convert legacy to standard Colophon')
+                                .setIcon('zap')
+                                .onClick(async () => {
+                                    await this.convertSingleLegacyFile(file);
+                                });
+                        });
+                    }
+
                     menu.addItem((item) => {
                         item
                             .setTitle('Convert to Colophon manuscript format')
@@ -361,6 +392,58 @@ export default class ColophonPlugin extends Plugin {
         } catch (err) {
             console.error('Colophon: Failed to convert to Colophon', err);
             new Notice('Failed to convert to Colophon');
+        }
+    }
+
+    async convertSingleLegacyFile(file) {
+        try {
+            const content = await this.app.vault.read(file);
+            const parsed = this.parseLegacyFormat(content);
+
+            if (!parsed) {
+                new Notice('Failed to parse legacy data block');
+                return;
+            }
+
+            // 1. Legacy -> New JSON
+            const transformed = this.transformLegacyData(parsed);
+
+            // 2. New JSON -> Clean Markdown
+            const markdown = this.markdownBridge.dehydrate(
+                transformed.doc,
+                transformed.footnotes || {},
+                transformed.comments || {}
+            );
+
+            // 3. Markdown -> .colophon
+            // (We'll use hydrate here directly to avoid double-writing files)
+            const finalData = this.markdownBridge.hydrate(markdown);
+
+            const colophonPath = file.path.replace(/\.md$/, '.colophon');
+            let finalPath = colophonPath;
+            let count = 1;
+
+            while (await this.app.vault.adapter.exists(finalPath)) {
+                finalPath = colophonPath.replace(/\.colophon$/, ` ${count}.colophon`);
+                count++;
+            }
+
+            await this.app.vault.create(finalPath, JSON.stringify(finalData, null, 2));
+            
+            // Delete original legacy file
+            await this.app.vault.delete(file);
+            
+            new Notice(`Converted legacy file to ${finalPath}`);
+
+            // Open the new file
+            const newFile = this.app.vault.getAbstractFileByPath(finalPath);
+            if (newFile instanceof TFile) {
+                const leaf = this.app.workspace.getLeaf(true);
+                await leaf.openFile(newFile);
+            }
+        } catch (err) {
+            console.error(`Colophon: Error converting ${file.path}:`, err);
+            new Notice(`Error converting file: ${err.message}`);
         }
     }
 
