@@ -69,18 +69,23 @@ function createBlockExtension(blockId, definition, allSettings) {
         addKeyboardShortcuts() {
             return {
                 'Enter': () => {
-                    // Logic: If "following-entity" (or "following-block") is defined, switch to that block type on Enter
+                    const { state } = this.editor;
+                    const { selection } = state;
+                    const { $from, empty } = selection;
+
+                    if (!empty) return false;
+
+                    const isAtEnd = $from.parentOffset === $from.parent.content.size;
                     const nextBlockName = definition['following-entity'] || definition['following-block'];
 
-                    if (nextBlockName) {
+                    if (isAtEnd && nextBlockName) {
                         return this.editor.chain()
                             .splitBlock({ keepMarks: false })
                             .setNode(nextBlockName)
                             .run();
                     }
 
-                    // Explicitly split block for default case to prevent fall-through
-                    return this.editor.commands.splitBlock({ keepMarks: false });
+                    return false; // Let default splitBlock handle it
                 },
             };
         },

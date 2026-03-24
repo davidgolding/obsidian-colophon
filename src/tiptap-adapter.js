@@ -203,6 +203,12 @@ export class TiptapAdapter {
         return this.editor ? this.editor.getJSON() : null;
     }
 
+    getWordCount() {
+        if (!this.editor) return 0;
+        const text = this.editor.state.doc.textContent;
+        return text.split(/\s+/).filter(word => word.length > 0).length;
+    }
+
     focus() {
         if (this.editor) {
             this.editor.commands.focus();

@@ -61,7 +61,7 @@ export class ColophonToolbar {
         const iconContainer = this.blockSelectBtn.createSpan({ cls: 'colophon-select-icon' });
         setIcon(iconContainer, 'chevron-down');
 
-        this.blockSelectBtn.onmousedown = (e) => {
+        this.blockSelectBtn.onclick = (e) => {
             if (this.isBlockMenuDisabled) {
                 e.preventDefault();
                 return;
@@ -110,7 +110,7 @@ export class ColophonToolbar {
             attr: { 'aria-label': tooltip }
         });
         setIcon(btn, icon);
-        btn.onmousedown = (e) => {
+        btn.onclick = (e) => {
             e.preventDefault();
             onClick();
         };
