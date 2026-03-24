@@ -5,6 +5,11 @@
   "feedPadding": 0,
   "sidebarLocation": "global",
   "authorName": "",
+  "showWordCount": true,
+  "lastZAxisState": {
+    "visible": false,
+    "activeTab": "footnotes"
+  },
   "smartQuotes": true,
   "doubleQuoteStyle": "“|”",
   "singleQuoteStyle": "‘|’",
