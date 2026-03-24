@@ -12,6 +12,7 @@ export class ColophonView extends TextFileView {
         this.adapter = null;
         this.docType = 'manuscript'; // 'manuscript' | 'script'
         this.activeEditor = null;
+        this.wordCountIndicator = null;
     }
 
     updateActiveEditor(editor) {
@@ -51,6 +52,39 @@ export class ColophonView extends TextFileView {
                     this.app.commands.executeCommandById('colophon-writer:export-to-markdown');
                 });
         });
+
+        menu.addItem((item) => {
+            const isVisible = this.plugin.settings.showWordCount;
+            item
+                .setTitle(isVisible ? 'Hide word count' : 'Show word count')
+                .setIcon('hash')
+                .onClick(() => {
+                    this.toggleWordCount();
+                });
+        });
+    }
+
+    toggleWordCount() {
+        this.plugin.settings.showWordCount = !this.plugin.settings.showWordCount;
+        this.plugin.saveSettings();
+        this.updateWordCountIndicator();
+    }
+
+    updateWordCountIndicator() {
+        if (!this.plugin.settings.showWordCount) {
+            if (this.wordCountIndicator) {
+                this.wordCountIndicator.remove();
+                this.wordCountIndicator = null;
+            }
+            return;
+        }
+
+        if (!this.wordCountIndicator) {
+            this.wordCountIndicator = this.contentEl.createDiv({ cls: 'colophon-word-count-indicator' });
+        }
+
+        const count = this.adapter ? this.adapter.getWordCount() : 0;
+        this.wordCountIndicator.setText(`${count} words`);
     }
 
     async onOpen() {
@@ -100,7 +134,19 @@ export class ColophonView extends TextFileView {
             }
         }
 
+        this.updateWordCountIndicator();
         this.refreshSidebarVisibility();
+        
+        // Restore previous sidebar state if not global
+        if (this.plugin.settings.sidebarLocation !== 'global' && this.plugin.settings.lastZAxisState.visible) {
+            this.showZAxisTab(this.plugin.settings.lastZAxisState.activeTab);
+        }
+    }
+
+    showZAxisTab(tab) {
+        if (this.zAxisPanel) {
+            this.zAxisPanel.show(tab);
+        }
     }
 
     async onClose() {
@@ -140,6 +186,11 @@ export class ColophonView extends TextFileView {
         }
         if (this.zAxisPanel) {
             this.zAxisPanel.toggle('footnotes');
+            this.plugin.settings.lastZAxisState = {
+                visible: this.zAxisPanel.isVisible,
+                activeTab: this.zAxisPanel.activeTab
+            };
+            this.plugin.saveSettings();
         }
     }
 
@@ -150,6 +201,11 @@ export class ColophonView extends TextFileView {
         }
         if (this.zAxisPanel) {
             this.zAxisPanel.toggle('comments');
+            this.plugin.settings.lastZAxisState = {
+                visible: this.zAxisPanel.isVisible,
+                activeTab: this.zAxisPanel.activeTab
+            };
+            this.plugin.saveSettings();
         }
     }
 
@@ -233,6 +289,7 @@ export class ColophonView extends TextFileView {
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
+                    this.updateWordCountIndicator();
                     
                     // Update whichever panel is active
                     if (this.plugin.settings.sidebarLocation === 'global') {

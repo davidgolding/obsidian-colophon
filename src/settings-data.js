@@ -5,6 +5,11 @@ export const DEFAULT_SETTINGS = {
     feedPadding: 40,
     sidebarLocation: "local", // "local" | "global"
     authorName: "", // If empty, will use app.vault.getName()
+    showWordCount: true,
+    lastZAxisState: {
+        visible: false,
+        activeTab: "footnotes"
+    },
     smartQuotes: true,
     doubleQuoteStyle: "“|”",
     singleQuoteStyle: "‘|’",
