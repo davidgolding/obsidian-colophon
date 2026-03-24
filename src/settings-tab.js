@@ -5,6 +5,8 @@ export class ColophonSettingTab extends PluginSettingTab {
     constructor(app, plugin) {
         super(app, plugin);
         this.plugin = plugin;
+        this.id = 'colophon-writer';
+        this.icon = 'feather';
     }
 
     display() {
