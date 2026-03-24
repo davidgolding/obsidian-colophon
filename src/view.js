@@ -83,8 +83,8 @@ export class ColophonView extends TextFileView {
             this.wordCountIndicator = this.contentEl.createDiv({ cls: 'colophon-word-count-indicator' });
         }
 
-        const count = this.adapter ? this.adapter.getWordCount() : 0;
-        this.wordCountIndicator.setText(`${count} words`);
+        const counts = this.adapter ? this.adapter.getWordCount() : { doc: 0, total: 0 };
+        this.wordCountIndicator.setText(`${counts.doc} words / ${counts.total} with footnotes`);
     }
 
     async onOpen() {

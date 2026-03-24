@@ -204,9 +204,35 @@ export class TiptapAdapter {
     }
 
     getWordCount() {
-        if (!this.editor) return 0;
-        const text = this.editor.state.doc.textContent;
-        return text.split(/\s+/).filter(word => word.length > 0).length;
+        if (!this.editor) return { doc: 0, total: 0 };
+        const docText = this.editor.state.doc.textContent;
+        const docCount = docText.split(/\s+/).filter(word => word.length > 0).length;
+
+        let footnoteCount = 0;
+        if (this.footnotes) {
+            for (const content of Object.values(this.footnotes)) {
+                footnoteCount += this.countWordsInNode(content);
+            }
+        }
+
+        return {
+            doc: docCount,
+            total: docCount + footnoteCount
+        };
+    }
+
+    countWordsInNode(node) {
+        if (!node) return 0;
+        let count = 0;
+        if (node.text) {
+            count += node.text.split(/\s+/).filter(word => word.length > 0).length;
+        }
+        if (node.content && Array.isArray(node.content)) {
+            node.content.forEach(child => {
+                count += this.countWordsInNode(child);
+            });
+        }
+        return count;
     }
 
     focus() {
