@@ -53,6 +53,7 @@ export class TiptapAdapter {
         this.app = app;
         this.plugin = plugin;
         this.view = view;
+        if (this.view) this.view.adapter = this; // Ensure view has reference before mount()
         this.editor = null;
         this.footnotes = footnotes || {}; // fn-id -> content
         this.comments = comments || {}; // threadId -> [ { author, date, content, replies } ]
@@ -187,6 +188,11 @@ export class TiptapAdapter {
         // Initial scroll check after mount
         this.handleScroll();
         this.updateFootnoteSequence();
+        
+        // Ensure sidebar is in sync after mount
+        if (this.view && this.view.zAxisPanel && this.view.zAxisPanel.isVisible) {
+            this.view.zAxisPanel.debouncedUpdate();
+        }
     }
 
     setContent(content, footnotes, comments) {
@@ -196,6 +202,10 @@ export class TiptapAdapter {
             const repairedContent = this.repairDocument(content);
             this.editor.commands.setContent(repairedContent);
             this.updateFootnoteSequence();
+            
+            if (this.view && this.view.zAxisPanel && this.view.zAxisPanel.isVisible) {
+                this.view.zAxisPanel.debouncedUpdate();
+            }
         }
     }
 
@@ -439,6 +449,18 @@ export class TiptapAdapter {
             }
         });
 
+        // If no markers found yet (initial load or async lag) but we have footnotes metadata,
+        // provide a stable list to prevent sidebar from showing 'empty'
+        if (markers.length === 0 && this.footnotes && Object.keys(this.footnotes).length > 0) {
+            return Object.entries(this.footnotes)
+                .filter(([id, content]) => content !== null)
+                .map(([id, content], index) => ({
+                    id,
+                    number: index + 1,
+                    content
+                }));
+        }
+
         return markers.map(m => ({
             id: m.id,
             number: m.number,
@@ -545,6 +567,13 @@ export class TiptapAdapter {
 
         if (changed) {
             this.editor.view.dispatch(tr.setMeta('colophon-sync', true));
+        }
+
+        // Always notify the view/sidebar that the document structure is stable
+        if (this.view && this.view.zAxisPanel && this.view.zAxisPanel.isVisible) {
+            this.view.zAxisPanel.debouncedUpdate();
+        } else if (this.plugin && this.plugin.settings.sidebarLocation === 'global') {
+            this.plugin.sidebarManager.update();
         }
     }
 

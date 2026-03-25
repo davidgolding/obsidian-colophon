@@ -5,9 +5,9 @@
   "feedPadding": 0,
   "sidebarLocation": "global",
   "authorName": "",
-  "showWordCount": true,
+  "showWordCount": false,
   "lastZAxisState": {
-    "visible": false,
+    "visible": true,
     "activeTab": "footnotes"
   },
   "smartQuotes": true,

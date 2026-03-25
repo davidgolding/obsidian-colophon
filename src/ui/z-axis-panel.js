@@ -25,11 +25,12 @@ export class ZAxisPanel {
         this.extensions = null; // Memoized extensions
         
         this.lastFootnotesJSON = null;
+        this.lastCommentsJSON = null;
         this.focusTimer = null;
         this.blurTimers = new Map(); // id -> timer
 
-        // Debounce update to avoid excessive re-renders during typing
-        this.update = debounce(this.refresh.bind(this), 250);
+        // Debounce refresh to avoid excessive re-renders during typing
+        this.debouncedUpdate = debounce(this.refresh.bind(this), 250);
 
         this.render();
     }
@@ -77,6 +78,8 @@ export class ZAxisPanel {
 
     update() {
         // This is replaced by the debounced refresh in constructor
+        // but we can provide an immediate version if needed
+        this.refresh();
     }
 
     refresh() {
@@ -140,9 +143,10 @@ export class ZAxisPanel {
         
         const footnotes = adapter.getFootnotes();
         
-        // Performance optimization: Skip if data is unchanged
+        // Performance optimization: Skip if data is unchanged AND we actually have the list in DOM
         const currentJSON = JSON.stringify(footnotes);
-        if (this.lastFootnotesJSON === currentJSON) return;
+        const listExists = !!this.contentEl.querySelector('.colophon-footnote-list');
+        if (this.lastFootnotesJSON === currentJSON && listExists) return;
         this.lastFootnotesJSON = currentJSON;
         
         if (footnotes.length === 0) {
@@ -459,6 +463,12 @@ export class ZAxisPanel {
 
         const comments = adapter.comments || {};
 
+        // Performance optimization: skip if same content AND list already exists in DOM
+        const currentJSON = JSON.stringify(comments);
+        const listExists = !!this.contentEl.querySelector('.colophon-comment-list');
+        if (this.lastCommentsJSON === currentJSON && listExists) return;
+        this.lastCommentsJSON = currentJSON;
+
         // Filter and sort by appearance order in document
         const threads = [];
         adapter.editor.state.doc.descendants((node) => {
@@ -763,6 +773,10 @@ export class ZAxisPanel {
         this.activeTab = tab;
         this.isVisible = true;
         this.containerEl.addClass('is-visible');
+        
+        // Force a re-render by clearing the cache
+        this.lastFootnotesJSON = null;
+        this.lastCommentsJSON = null;
         
         // Immediate sync update instead of debounced
         this.refresh();
