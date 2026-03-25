@@ -136,11 +136,6 @@ export class ColophonView extends TextFileView {
 
         this.updateWordCountIndicator();
         this.refreshSidebarVisibility();
-        
-        // Restore previous sidebar state if not global
-        if (this.plugin.settings.sidebarLocation !== 'global' && this.plugin.settings.lastZAxisState.visible) {
-            this.showZAxisTab(this.plugin.settings.lastZAxisState.activeTab);
-        }
     }
 
     showZAxisTab(tab) {
@@ -295,10 +290,17 @@ export class ColophonView extends TextFileView {
                     if (this.plugin.settings.sidebarLocation === 'global') {
                         this.plugin.sidebarManager.update();
                     } else if (this.zAxisPanel) {
-                        this.zAxisPanel.update();
+                        this.zAxisPanel.debouncedUpdate();
                     }
                 }
             });
+            
+            // Restore sidebar state if needed
+            if (this.zAxisPanel && this.plugin.settings.sidebarLocation !== 'global' && this.plugin.settings.lastZAxisState.visible) {
+                this.zAxisPanel.show(this.plugin.settings.lastZAxisState.activeTab);
+            } else if (this.zAxisPanel && this.zAxisPanel.isVisible) {
+                this.zAxisPanel.update();
+            }
         } else {
             // If clear is true, it means we are reloading the file entirely
             if (clear) {
@@ -315,6 +317,11 @@ export class ColophonView extends TextFileView {
                             },
                         }
                     });
+                }
+                
+                // Ensure sidebar updates with new content
+                if (this.zAxisPanel && this.zAxisPanel.isVisible) {
+                    this.zAxisPanel.update();
                 }
             }
         }
