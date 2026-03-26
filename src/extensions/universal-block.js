@@ -1,5 +1,4 @@
-import { Node, mergeAttributes, textblockTypeInputRule } from '@tiptap/core';
-import { TextSelection } from '@tiptap/pm/state';
+import { Node, mergeAttributes, textblockTypeInputRule, Extension } from '@tiptap/core';
 
 // Helper to generate a random 6-character string for block IDs
 function generateBlockId() {
@@ -17,8 +16,63 @@ function getTagForBlock(blockId) {
     return 'p';
 }
 
+/**
+ * A central extension to handle Enter key behavior across all universal blocks.
+ * This prevents multiple extensions from fighting over the same shortcut.
+ */
+const UniversalBlockEnter = Extension.create({
+    name: 'universalBlockEnter',
+
+    addOptions() {
+        return {
+            blocks: {},
+        }
+    },
+
+    addKeyboardShortcuts() {
+        return {
+            'Enter': ({ editor }) => {
+                const { state } = editor;
+                const { selection } = state;
+                const { $from, empty } = selection;
+
+                if (!empty) return false;
+
+                const blockId = $from.parent.type.name;
+                const definition = this.options.blocks[blockId];
+
+                if (!definition) return false;
+
+                const isAtEnd = $from.parentOffset === $from.parent.content.size;
+                const nextBlockName = (definition['following-entity'] || definition['following-block'])?.toLowerCase();
+
+                // If we are at the end and a following block is defined, 
+                // we want to split and then set the new type.
+                if (isAtEnd && nextBlockName && state.schema.nodes[nextBlockName]) {
+                    const nodeType = state.schema.nodes[nextBlockName];
+                    return editor.chain()
+                        .command(({ tr, dispatch }) => {
+                            if (dispatch) {
+                                // Split the block and set the type of the second part in one go
+                                // pos: split position
+                                // depth: depth of split (1 for top level blocks)
+                                // typesAfter: the node type for the new block
+                                tr.split($from.pos, 1, [{ type: nodeType }]);
+                            }
+                            return true;
+                        })
+                        .scrollIntoView()
+                        .run();
+                }
+
+                return false; // Fall through to default Tiptap behavior
+            },
+        };
+    },
+});
+
 // Helper to create a specific node extension for a given block definition
-function createBlockExtension(blockId, definition, allSettings) {
+function createBlockExtension(blockId, definition) {
     return Node.create({
         name: blockId, // e.g., 'title', 'body'
         group: 'block',
@@ -32,6 +86,7 @@ function createBlockExtension(blockId, definition, allSettings) {
             return {
                 id: {
                     default: null,
+                    keepOnSplit: false,
                     parseHTML: element => element.getAttribute('data-block-id'),
                     renderHTML: attributes => {
                         if (!attributes.id) {
@@ -65,31 +120,6 @@ function createBlockExtension(blockId, definition, allSettings) {
             return [tag, mergeAttributes(HTMLAttributes, { class: blockId }), 0];
         },
 
-        // Keyboard Shortcuts (Enter key logic)
-        addKeyboardShortcuts() {
-            return {
-                'Enter': () => {
-                    const { state } = this.editor;
-                    const { selection } = state;
-                    const { $from, empty } = selection;
-
-                    if (!empty) return false;
-
-                    const isAtEnd = $from.parentOffset === $from.parent.content.size;
-                    const nextBlockName = definition['following-entity'] || definition['following-block'];
-
-                    if (isAtEnd && nextBlockName) {
-                        return this.editor.chain()
-                            .splitBlock({ keepMarks: false })
-                            .setNode(nextBlockName)
-                            .run();
-                    }
-
-                    return false; // Let default splitBlock handle it
-                },
-            };
-        },
-
         addInputRules() {
             if (definition['syntax-trigger']) {
                 // Escape regex special characters
@@ -112,9 +142,14 @@ export function generateExtensions(settings) {
 
     const extensions = [];
 
-    // Create an extension for each block definition
+    // 1. Add the central Enter handler
+    extensions.push(UniversalBlockEnter.configure({
+        blocks: settings.blocks,
+    }));
+
+    // 2. Create an extension for each block definition
     for (const [id, def] of Object.entries(settings.blocks)) {
-        extensions.push(createBlockExtension(id, def, settings));
+        extensions.push(createBlockExtension(id, def));
     }
 
     return extensions;

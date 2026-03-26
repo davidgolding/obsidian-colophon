@@ -43,6 +43,10 @@ const ColophonAgentCommands = Extension.create({
     }
 });
 
+function generateBlockId() {
+    return Math.random().toString(36).substring(2, 8);
+}
+
 export class TiptapAdapter {
     constructor(parentElement, { content, footnotes, comments, type, settings, isSpellcheckEnabled, onUpdate, app, plugin, view }) {
         this.parentElement = parentElement;
@@ -70,18 +74,37 @@ export class TiptapAdapter {
     repairDocument(content) {
         if (!content || !content.content) return content;
 
+        const seenIds = new Set();
+
         // 1. Remove leading horizontal rules which can block the cursor
         while (content.content.length > 0 && content.content[0].type === 'horizontalRule') {
             content.content.shift();
         }
 
-        // 2. Ensure at least one textblock exists if the document is empty
-        const hasTextblock = content.content.some(node => {
-            return node.type !== 'horizontalRule';
+        // 2. Ensure unique IDs and at least one textblock
+        let hasTextblock = false;
+        
+        content.content.forEach(node => {
+            if (node.type !== 'horizontalRule') {
+                hasTextblock = true;
+            }
+
+            // Ensure attributes exist
+            if (!node.attrs) node.attrs = {};
+
+            // Fix duplicate or missing IDs
+            if (!node.attrs.id || seenIds.has(node.attrs.id)) {
+                node.attrs.id = generateBlockId();
+            }
+            seenIds.add(node.attrs.id);
         });
 
         if (!hasTextblock) {
-            content.content.push({ type: 'body', content: [] });
+            content.content.push({ 
+                type: 'body', 
+                attrs: { id: generateBlockId() },
+                content: [] 
+            });
         }
 
         return content;
@@ -484,40 +507,35 @@ export class TiptapAdapter {
     checkIfResequenceNeeded(transaction) {
         if (!transaction || !transaction.docChanged) return false;
 
-        let markerChanged = false;
+        // Fast heuristic: if the number of markers changed, resequence
+        const getMarkerCount = (doc) => {
+            let count = 0;
+            doc.descendants(node => {
+                if (node.type.name === 'footnoteMarker') count++;
+            });
+            return count;
+        };
 
-        // Iterate through transaction steps to see if any footnoteMarker was affected
-        for (let i = 0; i < transaction.steps.length; i++) {
-            const step = transaction.steps[i];
-            
-            // Check for added markers in the new content
-            if (step.slice && step.slice.content) {
-                step.slice.content.descendants(node => {
-                    if (node.type.name === 'footnoteMarker') {
-                        markerChanged = true;
-                        return false; // Stop descendants iteration
-                    }
-                });
-            }
+        const beforeCount = getMarkerCount(transaction.before);
+        const currentCount = getMarkerCount(transaction.doc);
 
-            if (markerChanged) break;
+        if (beforeCount !== currentCount) return true;
 
-            // Check for removed/moved markers in the content before this step
-            // ProseMirror transactions keep track of the document state before each step
-            const beforeDoc = transaction.docs ? transaction.docs[i] : (transaction.before || null);
-            if (beforeDoc && step.from !== undefined && step.to !== undefined) {
-                beforeDoc.nodesBetween(step.from, step.to, node => {
-                    if (node.type.name === 'footnoteMarker') {
-                        markerChanged = true;
-                        return false; // Stop nodesBetween iteration
-                    }
-                });
-            }
+        // If counts are the same, check if their IDs or positions changed (simplified check)
+        // For performance in book-length docs, we could skip this or do a partial scan,
+        // but for now, checking IDs in order is reasonably safe.
+        const getMarkerIds = (doc) => {
+            const ids = [];
+            doc.descendants(node => {
+                if (node.type.name === 'footnoteMarker') ids.push(node.attrs.id);
+            });
+            return ids;
+        };
 
-            if (markerChanged) break;
-        }
+        const beforeIds = getMarkerIds(transaction.before);
+        const currentIds = getMarkerIds(transaction.doc);
 
-        return markerChanged;
+        return beforeIds.join(',') !== currentIds.join(',');
     }
 
     updateFootnoteSequence() {

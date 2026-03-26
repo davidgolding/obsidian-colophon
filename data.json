@@ -26,7 +26,8 @@
       "left-indent": "0pt",
       "line-spacing": "16pt",
       "name": "Body",
-      "text-align": "left"
+      "text-align": "left",
+      "following-entity": "body"
     },
     "supertitle": {
       "after-block": "18pt",
