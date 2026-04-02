@@ -107,8 +107,11 @@ export class ColophonView extends TextFileView {
         // Main Layout Container (Editor + Sidebar)
         this.mainLayout = this.contentEl.createDiv({ cls: 'colophon-main-layout' });
 
+        // Body container for horizontal split
+        this.layoutBody = this.mainLayout.createDiv({ cls: 'colophon-layout-body' });
+
         // Add scroll container which is the target for our FixedFeed logic and CSS
-        this.scrollContainer = this.mainLayout.createDiv({ cls: 'colophon-scroll-container colophon-editor-host' });
+        this.scrollContainer = this.layoutBody.createDiv({ cls: 'colophon-scroll-container colophon-editor-host' });
 
         // Add Z-Axis Panel (Sidebar)
         this.zAxisPanel = new ZAxisPanel(
@@ -120,7 +123,7 @@ export class ColophonView extends TextFileView {
                 getActiveEditor: () => this.activeEditor,
                 getToolbar: () => this.toolbar
             },
-            this.mainLayout
+            this.layoutBody
         );
 
         // Target the standard Obsidian header elements
@@ -138,15 +141,30 @@ export class ColophonView extends TextFileView {
         this.updateWordCountIndicator();
         this.refreshSidebarVisibility();
 
-        this.findReplaceBar = new FindReplaceBar(this, this.contentEl);
+        this.findReplaceBar = new FindReplaceBar(this, this.mainLayout);
+        this.mainLayout.prepend(this.findReplaceBar.containerEl);
 
-        // Shortcut listener
+        // Shortcut listener for when focus is in the view but not necessarily in the editor
+        // Use capture to supersede global Obsidian hotkeys for find navigation
         this.registerDomEvent(this.contentEl, 'keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
                 e.preventDefault();
-                this.findReplaceBar.toggle();
+                e.stopPropagation();
+                this.findReplaceBar.open();
+            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'f') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.findReplaceBar.openReplace();
+            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.shiftKey) {
+                    if (this.adapter && this.adapter.editor) this.adapter.editor.commands.previousSearchResult();
+                } else {
+                    if (this.adapter && this.adapter.editor) this.adapter.editor.commands.nextSearchResult();
+                }
             }
-        });
+        }, { capture: true });
     }
 
     showZAxisTab(tab) {
@@ -295,6 +313,7 @@ export class ColophonView extends TextFileView {
                 onUpdate: () => {
                     this.requestSave();
                     if (this.toolbar) this.toolbar.update();
+                    if (this.findReplaceBar) this.findReplaceBar.updateInfo();
                     this.updateWordCountIndicator();
                     
                     // Update whichever panel is active

@@ -8,54 +8,53 @@ export class FindReplaceBar {
         this.caseSensitive = false;
         this.useRegex = false;
         this.wholeWord = false;
-
         this.render();
     }
 
     render() {
-        this.containerEl = this.parentEl.createDiv({ cls: 'colophon-find-replace-bar' });
+        this.containerEl = document.createElement('div');
+        this.containerEl.className = 'colophon-find-replace-bar';
         this.containerEl.style.display = 'none';
 
-        const topRow = this.containerEl.createDiv({ cls: 'cfr-row' });
-        
-        // Find Input
-        this.findInput = topRow.createEl('input', {
+        // Single row horizontal layout
+        const mainRow = this.containerEl.createDiv({ cls: 'cfr-main-row' });
+
+        // Left Section: Find
+        const findSection = mainRow.createDiv({ cls: 'cfr-section cfr-find-section' });
+        this.findInput = findSection.createEl('input', {
             type: 'text',
             placeholder: 'Find...',
             cls: 'cfr-input'
         });
+        
+        this.searchInfo = findSection.createDiv({ cls: 'cfr-info', text: '0 of 0' });
 
-        // Search Info (e.g., 1 of 10)
-        this.searchInfo = topRow.createDiv({ cls: 'cfr-info', text: '0 of 0' });
-
-        // Navigation
-        const navGroup = topRow.createDiv({ cls: 'cfr-button-group' });
-        this.prevBtn = navGroup.createEl('button', { cls: 'cfr-button' });
+        const findControls = findSection.createDiv({ cls: 'cfr-button-group' });
+        this.prevBtn = findControls.createEl('button', { cls: 'cfr-button', attr: { 'tabindex': '-1' } });
         setIcon(this.prevBtn, 'chevron-up');
-        this.nextBtn = navGroup.createEl('button', { cls: 'cfr-button' });
+        this.nextBtn = findControls.createEl('button', { cls: 'cfr-button', attr: { 'tabindex': '-1' } });
         setIcon(this.nextBtn, 'chevron-down');
 
-        // Options
-        const optionsGroup = topRow.createDiv({ cls: 'cfr-button-group' });
-        this.caseBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: 'Aa', title: 'Match Case' });
-        this.regexBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: '.*', title: 'Use Regular Expression' });
-        this.wordBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: '""', title: 'Match Whole Word' });
+        const optionsGroup = findSection.createDiv({ cls: 'cfr-button-group' });
+        this.caseBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: 'Aa', title: 'Match Case', attr: { 'tabindex': '-1' } });
+        this.regexBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: '.*', title: 'Use Regular Expression', attr: { 'tabindex': '-1' } });
+        this.wordBtn = optionsGroup.createEl('button', { cls: 'cfr-button', text: '""', title: 'Match Whole Word', attr: { 'tabindex': '-1' } });
 
-        this.closeBtn = topRow.createEl('button', { cls: 'cfr-button cfr-close' });
-        setIcon(this.closeBtn, 'x');
-
-        const bottomRow = this.containerEl.createDiv({ cls: 'cfr-row' });
-
-        // Replace Input
-        this.replaceInput = bottomRow.createEl('input', {
+        // Middle Section: Replace
+        const replaceSection = mainRow.createDiv({ cls: 'cfr-section cfr-replace-section' });
+        this.replaceInput = replaceSection.createEl('input', {
             type: 'text',
             placeholder: 'Replace...',
             cls: 'cfr-input'
         });
 
-        const replaceGroup = bottomRow.createDiv({ cls: 'cfr-button-group' });
-        this.replaceBtn = replaceGroup.createEl('button', { cls: 'cfr-button', text: 'Replace' });
-        this.replaceAllBtn = replaceGroup.createEl('button', { cls: 'cfr-button', text: 'Replace All' });
+        const replaceActions = replaceSection.createDiv({ cls: 'cfr-button-group' });
+        this.replaceBtn = replaceActions.createEl('button', { cls: 'cfr-button', text: 'Replace', attr: { 'tabindex': '-1' } });
+        this.replaceAllBtn = replaceActions.createEl('button', { cls: 'cfr-button', text: 'Replace All', attr: { 'tabindex': '-1' } });
+
+        // Right Section: Close
+        this.closeBtn = mainRow.createEl('button', { cls: 'cfr-button cfr-close', attr: { 'tabindex': '-1' } });
+        setIcon(this.closeBtn, 'x');
 
         this.setupEvents();
     }
@@ -66,6 +65,14 @@ export class FindReplaceBar {
             if (e.key === 'Enter') {
                 if (e.shiftKey) this.prev();
                 else this.next();
+            } else if (e.key === 'Escape') {
+                this.close();
+            }
+        });
+
+        this.replaceInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.replace();
             } else if (e.key === 'Escape') {
                 this.close();
             }
@@ -112,9 +119,9 @@ export class FindReplaceBar {
 
     updateInfo() {
         if (!this.view.adapter || !this.view.adapter.editor) return;
-        const storage = this.view.adapter.editor.storage.search;
-        const count = storage.results.length;
-        const current = count > 0 ? storage.activeIndex + 1 : 0;
+        const searchStorage = this.view.adapter.editor.storage.search;
+        const count = searchStorage.results.length;
+        const current = count > 0 ? searchStorage.activeIndex + 1 : 0;
         this.searchInfo.setText(`${current} of ${count}`);
     }
 
@@ -153,6 +160,14 @@ export class FindReplaceBar {
         this.containerEl.style.display = 'flex';
         this.findInput.focus();
         this.findInput.select();
+        this.updateSearch();
+    }
+
+    openReplace() {
+        this.isVisible = true;
+        this.containerEl.style.display = 'flex';
+        this.replaceInput.focus();
+        this.replaceInput.select();
         this.updateSearch();
     }
 
