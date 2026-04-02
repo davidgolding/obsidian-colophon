@@ -78,6 +78,51 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'open-replace',
+            name: 'Open Replace',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view) {
+                    if (!checking) {
+                        if (view.findReplaceBar) view.findReplaceBar.openReplace();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'find-next',
+            name: 'Find Next',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
+                    if (!checking) {
+                        view.adapter.editor.commands.nextSearchResult();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'find-previous',
+            name: 'Find Previous',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
+                    if (!checking) {
+                        view.adapter.editor.commands.previousSearchResult();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'export-to-docx',
             name: 'Export to Word (.docx)',
             checkCallback: (checking) => {
@@ -339,6 +384,19 @@ export default class ColophonPlugin extends Plugin {
             this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
             this.patchCommand('editor:toggle-strikethrough', (view) => view.toggleStrike());
             this.patchCommand('editor:insert-footnote', (view) => view.insertFootnote());
+            this.patchCommand('editor:open-search', (view) => {
+                if (view.findReplaceBar) view.findReplaceBar.open();
+            });
+            this.patchCommand('editor:find-next', (view) => {
+                if (view.adapter && view.adapter.editor) {
+                    view.adapter.editor.commands.nextSearchResult();
+                }
+            });
+            this.patchCommand('editor:find-previous', (view) => {
+                if (view.adapter && view.adapter.editor) {
+                    view.adapter.editor.commands.previousSearchResult();
+                }
+            });
 
             // Initial cleanup: if local sidebar is selected, ensure no global leaf exists
             if (this.settings.sidebarLocation !== 'global') {

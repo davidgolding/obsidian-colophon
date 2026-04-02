@@ -541,6 +541,16 @@
 /* 9. MAIN LAYOUT (Flex) */
 .colophon-main-layout {
     display: flex;
+    flex-direction: column;
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.colophon-layout-body {
+    display: flex;
+    flex-direction: row;
     flex: 1;
     width: 100%;
     height: 100%;
@@ -1163,38 +1173,63 @@
 
 /* Find/Replace Bar */
 .colophon-find-replace-bar {
-    position: absolute;
-    top: 0;
-    right: 20px;
-    z-index: 100;
-    background-color: var(--background-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 8px;
+    width: 100%;
+    background-color: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+    padding: 6px 12px;
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    align-items: center;
+    z-index: 10;
+    flex-shrink: 0;
 }
 
-.cfr-row {
+.cfr-main-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+}
+
+.cfr-section {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+.cfr-find-section {
+    flex: 1;
+    min-width: 0;
+}
+
+.cfr-replace-section {
+    flex: 1;
+    min-width: 0;
+    border-left: 1px solid var(--background-modifier-border);
+    padding-left: 16px;
+}
+
 .cfr-input {
-    flex-grow: 1;
-    height: 30px;
-    font-size: 14px;
-    padding: 4px 8px;
+    background: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-normal);
+    height: 28px;
+    font-size: 13px;
+    padding: 0 8px;
+    width: 100%;
+    max-width: 200px;
+}
+
+.cfr-input:focus {
+    border-color: var(--interactive-accent);
+    outline: none;
 }
 
 .cfr-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--text-muted);
-    min-width: 50px;
-    text-align: right;
+    white-space: nowrap;
+    min-width: 60px;
 }
 
 .cfr-button-group {
@@ -1203,15 +1238,19 @@
 }
 
 .cfr-button {
-    padding: 4px 8px;
-    height: 30px;
+    padding: 0 6px;
+    height: 28px;
+    min-width: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    background: none;
+    background: transparent;
     border: none;
     color: var(--text-muted);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
 }
 
 .cfr-button:hover {
@@ -1220,8 +1259,12 @@
 }
 
 .cfr-button.is-active {
-    color: var(--interactive-accent);
-    background-color: var(--background-modifier-active-hover);
+    color: var(--text-on-accent);
+    background-color: var(--interactive-accent);
+}
+
+.cfr-close {
+    margin-left: auto;
 }
 
 .cfr-close:hover {

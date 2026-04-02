@@ -2,6 +2,68 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
+export const performSearch = (state, extension) => {
+    const { query } = extension.storage;
+    const { caseSensitive, disableRegex, wholeWord } = extension.options;
+    const results = [];
+
+    if (!query) {
+        extension.storage.results = [];
+        extension.storage.activeIndex = -1;
+        return results;
+    }
+
+    let regex;
+    try {
+        if (disableRegex) {
+            let escaped = query.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+            if (wholeWord) escaped = `\\b${escaped}\\b`;
+            regex = new RegExp(escaped, caseSensitive ? 'g' : 'gi');
+        } else {
+            regex = new RegExp(query, caseSensitive ? 'g' : 'gi');
+        }
+    } catch (e) {
+        extension.storage.results = [];
+        extension.storage.activeIndex = -1;
+        return results;
+    }
+
+    state.doc.descendants((node, pos) => {
+        if (node.isText) {
+            const text = node.text;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                results.push({
+                    from: pos + match.index,
+                    to: pos + match.index + match[0].length,
+                });
+            }
+        }
+    });
+
+    extension.storage.results = results;
+    
+    if (results.length === 0) {
+        extension.storage.activeIndex = -1;
+    } else if (extension.storage.activeIndex === -1) {
+        extension.storage.activeIndex = 0;
+    } else if (extension.storage.activeIndex >= results.length) {
+        extension.storage.activeIndex = 0;
+    }
+
+    return results;
+};
+
+const focusActiveResult = (editor, extension) => {
+    if (editor.isDestroyed) return;
+    const { activeIndex, results } = extension.storage;
+    if (activeIndex === -1 || results.length === 0) return;
+
+    const { from, to } = results[activeIndex];
+    editor.commands.setTextSelection({ from, to });
+    editor.commands.scrollIntoView();
+};
+
 export const Search = Extension.create({
     name: 'search',
 
@@ -25,119 +87,107 @@ export const Search = Extension.create({
 
     addCommands() {
         return {
-            setSearchQuery: (query) => ({ editor, storage }) => {
-                storage.query = query;
-                this.updateSearch(editor);
+            setSearchQuery: (query) => ({ state, dispatch }) => {
+                this.storage.query = query;
+                performSearch(state, this);
+                if (dispatch) {
+                    dispatch(state.tr.setMeta('search-update', true));
+                }
                 return true;
             },
-            setSearchOptions: (options) => ({ editor, options: currentOptions }) => {
-                Object.assign(currentOptions, options);
-                this.updateSearch(editor);
+            setSearchOptions: (options) => ({ state, dispatch }) => {
+                Object.assign(this.options, options);
+                performSearch(state, this);
+                if (dispatch) {
+                    dispatch(state.tr.setMeta('search-update', true));
+                }
                 return true;
             },
-            nextSearchResult: () => ({ editor, storage }) => {
-                if (storage.results.length === 0) return false;
-                storage.activeIndex = (storage.activeIndex + 1) % storage.results.length;
-                this.focusActiveResult(editor);
+            nextSearchResult: () => ({ editor, state, dispatch }) => {
+                if (this.storage.results.length === 0) return false;
+                this.storage.activeIndex = (this.storage.activeIndex + 1) % this.storage.results.length;
+                
+                if (dispatch) {
+                    dispatch(state.tr.setMeta('search-update', true));
+                    setTimeout(() => focusActiveResult(editor, this), 0);
+                }
                 return true;
             },
-            previousSearchResult: () => ({ editor, storage }) => {
-                if (storage.results.length === 0) return false;
-                storage.activeIndex = (storage.activeIndex - 1 + storage.results.length) % storage.results.length;
-                this.focusActiveResult(editor);
+            previousSearchResult: () => ({ editor, state, dispatch }) => {
+                if (this.storage.results.length === 0) return false;
+                this.storage.activeIndex = (this.storage.activeIndex - 1 + this.storage.results.length) % this.storage.results.length;
+                
+                if (dispatch) {
+                    dispatch(state.tr.setMeta('search-update', true));
+                    setTimeout(() => focusActiveResult(editor, this), 0);
+                }
                 return true;
             },
-            replace: (replaceWith) => ({ editor, storage }) => {
-                const { activeIndex, results } = storage;
+            replace: (replaceWith) => ({ state, dispatch }) => {
+                const { activeIndex, results } = this.storage;
                 if (activeIndex === -1 || results.length === 0) return false;
 
                 const { from, to } = results[activeIndex];
-                editor.chain().focus().insertContentAt({ from, to }, replaceWith).run();
                 
-                // Re-search to update positions
-                this.updateSearch(editor);
+                if (dispatch) {
+                    dispatch(state.tr.replaceWith(from, to, state.schema.text(replaceWith)));
+                }
                 return true;
             },
-            replaceAll: (replaceWith) => ({ editor, storage }) => {
-                const { results } = storage;
+            replaceAll: (replaceWith) => ({ state, dispatch }) => {
+                const { results } = this.storage;
                 if (results.length === 0) return false;
 
-                let chain = editor.chain().focus();
-                // Replace from end to beginning to keep positions stable
-                [...results].reverse().forEach(({ from, to }) => {
-                    chain = chain.insertContentAt({ from, to }, replaceWith);
-                });
-                
-                chain.run();
-                this.updateSearch(editor);
+                if (dispatch) {
+                    let tr = state.tr;
+                    [...results].reverse().forEach(({ from, to }) => {
+                        tr = tr.replaceWith(from, to, state.schema.text(replaceWith));
+                    });
+                    dispatch(tr);
+                }
                 return true;
             },
         };
     },
 
-    updateSearch(editor) {
-        const { query } = this.storage;
-        const { caseSensitive, disableRegex, wholeWord } = this.options;
-        const results = [];
-
-        if (!query) {
-            this.storage.results = [];
-            this.storage.activeIndex = -1;
-            editor.view.dispatch(editor.state.tr);
+    onUpdate({ editor, transaction }) {
+        if (transaction && transaction.getMeta('search-update')) {
             return;
         }
-
-        let regex;
-        try {
-            if (disableRegex) {
-                let escaped = query.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-                if (wholeWord) escaped = `\\b${escaped}\\b`;
-                regex = new RegExp(escaped, caseSensitive ? 'g' : 'gi');
-            } else {
-                regex = new RegExp(query, caseSensitive ? 'g' : 'gi');
-            }
-        } catch (e) {
-            // Invalid regex, clear results
-            this.storage.results = [];
-            this.storage.activeIndex = -1;
-            editor.view.dispatch(editor.state.tr);
-            return;
+        if (transaction && (transaction.docChanged || transaction.getMeta('search-options-changed'))) {
+            setTimeout(() => {
+                if (editor.isDestroyed) return;
+                performSearch(editor.state, this);
+                editor.view.dispatch(editor.state.tr.setMeta('search-update', true));
+            }, 0);
         }
-
-        const { doc } = editor.state;
-        doc.descendants((node, pos) => {
-            if (node.isText) {
-                const text = node.text;
-                let match;
-                while ((match = regex.exec(text)) !== null) {
-                    results.push({
-                        from: pos + match.index,
-                        to: pos + match.index + match[0].length,
-                    });
-                }
-            }
-        });
-
-        this.storage.results = results;
-        if (results.length > 0 && this.storage.activeIndex === -1) {
-            this.storage.activeIndex = 0;
-        } else if (results.length === 0) {
-            this.storage.activeIndex = -1;
-        } else if (this.storage.activeIndex >= results.length) {
-            this.storage.activeIndex = results.length - 1;
-        }
-
-        editor.view.dispatch(editor.state.tr);
     },
 
-    focusActiveResult(editor) {
-        const { activeIndex, results } = this.storage;
-        if (activeIndex === -1 || results.length === 0) return;
-
-        const { from } = results[activeIndex];
-        editor.commands.setTextSelection(from);
-        editor.commands.scrollIntoView();
-        editor.view.dispatch(editor.state.tr);
+    addKeyboardShortcuts() {
+        return {
+            'Mod-f': () => {
+                const view = this.editor.options.adapter?.view;
+                if (view && view.findReplaceBar) {
+                    view.findReplaceBar.open();
+                    return true;
+                }
+                return false;
+            },
+            'Mod-Alt-f': () => {
+                const view = this.editor.options.adapter?.view;
+                if (view && view.findReplaceBar) {
+                    view.findReplaceBar.openReplace();
+                    return true;
+                }
+                return false;
+            },
+            'Mod-g': () => {
+                return this.editor.commands.nextSearchResult();
+            },
+            'Mod-Shift-g': () => {
+                return this.editor.commands.previousSearchResult();
+            },
+        };
     },
 
     addProseMirrorPlugins() {
