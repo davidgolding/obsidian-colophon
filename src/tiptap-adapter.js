@@ -21,6 +21,7 @@ import { CommentHighlight } from './extensions/comment-highlight';
 import { SmallCaps } from './extensions/small-caps';
 import { TrailingNode } from './extensions/trailing-node';
 import { DocxSerializer } from './extensions/docx-serializer';
+import { Search } from './extensions/search';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 
 const ColophonAgentCommands = Extension.create({
@@ -137,6 +138,7 @@ export class TiptapAdapter {
                 CommentHighlight,
                 TrailingNode,
                 DocxSerializer,
+                Search,
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(("
                 }),
