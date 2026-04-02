@@ -2,6 +2,7 @@ import { TextFileView } from 'obsidian';
 import { TiptapAdapter } from './tiptap-adapter';
 import { ColophonToolbar } from './ui/toolbar';
 import { ZAxisPanel } from './ui/z-axis-panel';
+import { FindReplaceBar } from './ui/find-replace-bar';
 
 export const VIEW_TYPE_COLOPHON = 'colophon-view';
 
@@ -136,6 +137,16 @@ export class ColophonView extends TextFileView {
 
         this.updateWordCountIndicator();
         this.refreshSidebarVisibility();
+
+        this.findReplaceBar = new FindReplaceBar(this, this.contentEl);
+
+        // Shortcut listener
+        this.registerDomEvent(this.contentEl, 'keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                this.findReplaceBar.toggle();
+            }
+        });
     }
 
     showZAxisTab(tab) {

@@ -63,6 +63,21 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'open-find-replace',
+            name: 'Open Find/Replace',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view) {
+                    if (!checking) {
+                        if (view.findReplaceBar) view.findReplaceBar.open();
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'export-to-docx',
             name: 'Export to Word (.docx)',
             checkCallback: (checking) => {
