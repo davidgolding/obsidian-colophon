@@ -529,7 +529,16 @@ export default class ColophonPlugin extends Plugin {
 
         // We replace checkCallback to handle both checking and execution
         command.checkCallback = (checking) => {
-            const view = this.app.workspace.getActiveViewOfType(ColophonView);
+            let view = this.app.workspace.getActiveViewOfType(ColophonView);
+            
+            // If the active leaf is the global sidebar, find the main ColophonView it supports via SidebarManager
+            if (!view) {
+                const sidebar = this.app.workspace.getLeavesOfType('colophon-sidebar').find(l => l.isActive() || l.view?.containerEl?.contains(document.activeElement));
+                if (sidebar && this.sidebarManager && this.sidebarManager.activeView) {
+                    view = this.sidebarManager.activeView;
+                }
+            }
+
             if (view && view.adapter) {
                 if (!checking) {
                     handler(view);
