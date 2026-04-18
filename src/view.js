@@ -1,4 +1,4 @@
-import { TextFileView } from 'obsidian';
+import { TextFileView, setIcon } from 'obsidian';
 import { TiptapAdapter } from './tiptap-adapter';
 import { ColophonToolbar } from './ui/toolbar';
 import { ZAxisPanel } from './ui/z-axis-panel';
@@ -63,6 +63,61 @@ export class ColophonView extends TextFileView {
                     this.toggleWordCount();
                 });
         });
+
+        menu.addItem((item) => {
+            const isScript = this.docType === 'script';
+            item
+                .setTitle(isScript ? 'Switch to Manuscript mode' : 'Switch to Script mode')
+                .setIcon(isScript ? 'feather' : 'clapperboard')
+                .onClick(() => {
+                    this.toggleMode();
+                });
+        });
+    }
+
+    toggleMode() {
+        this.docType = this.docType === 'script' ? 'manuscript' : 'script';
+        
+        // Initial block migration if changing mode on empty-ish file
+        const { state } = this.adapter.editor;
+        if (state.doc.content.size <= 2) { // Just one empty block
+            const newType = this.docType === 'script' ? 'script-action' : 'body';
+            this.adapter.editor.chain().setNode(newType).run();
+        }
+
+        this.updateViewMode();
+        this.requestSave();
+    }
+
+    updateViewMode() {
+        this.contentEl.removeClass('type-manuscript', 'type-script', 'is-manuscript-mode', 'is-script-mode');
+        this.contentEl.addClass(`type-${this.docType}`);
+        this.contentEl.addClass(`is-${this.docType}-mode`);
+
+        if (this.scrollContainer) {
+            this.scrollContainer.removeClass('is-manuscript-mode', 'is-script-mode');
+            this.scrollContainer.addClass(`is-${this.docType}-mode`);
+        }
+
+        if (this.adapter) {
+            this.adapter.type = this.docType;
+            if (this.adapter.editor) {
+                const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');
+                this.adapter.editor.setOptions({
+                    editorProps: {
+                        attributes: {
+                            class: `colophon-editor colophon-main-editor type-${this.docType} is-${this.docType}-mode`,
+                            spellcheck: isSpellcheckEnabled ? 'true' : 'false',
+                        },
+                    }
+                });
+            }
+        }
+
+        if (this.leaf && this.leaf.tabHeaderInnerIconEl) {
+            setIcon(this.leaf.tabHeaderInnerIconEl, this.getIcon());
+            this.icon = this.getIcon();
+        }
     }
 
     toggleWordCount() {
@@ -285,16 +340,7 @@ export class ColophonView extends TextFileView {
 
         this.docType = parsedData.type || 'manuscript';
 
-        // Apply classes for specific styling
-        this.contentEl.removeClass('type-manuscript', 'type-script', 'is-manuscript-mode', 'is-script-mode');
-        this.contentEl.addClass(`type-${this.docType}`);
-        this.contentEl.addClass(`is-${this.docType}-mode`);
-
-        if (this.scrollContainer) {
-            this.scrollContainer.removeClass('is-manuscript-mode', 'is-script-mode');
-            this.scrollContainer.addClass(`is-${this.docType}-mode`);
-        }
-
+        this.updateViewMode();
         this.updateSettings(); // Apply initial settings like fixedFeed class
 
         const isSpellcheckEnabled = this.app.vault.getConfig('spellcheck');

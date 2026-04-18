@@ -12,7 +12,13 @@ import MarkdownBridge from './markdown-bridge';
 export default class ColophonPlugin extends Plugin {
     async onload() {
         // ... Load Settings ...
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+        const savedData = await this.loadData() || {};
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, savedData);
+
+        // Enforce a deeper merge on nested objects to ensure new defaults (like script mode blocks) aren't swallowed
+        if (savedData.blocks) {
+            this.settings.blocks = Object.assign({}, DEFAULT_SETTINGS.blocks, savedData.blocks);
+        }
 
         // Initialize Bridge
         this.markdownBridge = new MarkdownBridge();
@@ -49,11 +55,21 @@ export default class ColophonPlugin extends Plugin {
             this.createNewColophonFile('manuscript');
         });
 
+        this.addRibbonIcon('clapperboard', 'New Colophon Script', () => {
+            this.createNewColophonFile('script');
+        });
+
         // 4. Commands
         this.addCommand({
             id: 'new-manuscript',
             name: 'New Manuscript',
             callback: () => this.createNewColophonFile('manuscript')
+        });
+
+        this.addCommand({
+            id: 'new-script',
+            name: 'New Script',
+            callback: () => this.createNewColophonFile('script')
         });
 
         this.addCommand({
@@ -351,6 +367,14 @@ export default class ColophonPlugin extends Plugin {
                                 await this.createNewColophonFile('manuscript', file.path);
                             });
                     });
+                    menu.addItem((item) => {
+                        item
+                            .setTitle('New script')
+                            .setIcon('clapperboard')
+                            .onClick(async () => {
+                                await this.createNewColophonFile('script', file.path);
+                            });
+                    });
                 } else if (file instanceof TFile && file.extension === 'md') {
                     const cache = this.app.metadataCache.getFileCache(file);
                     const isLegacy = cache?.frontmatter?.['colophon-plugin'] === 'manuscript';
@@ -603,7 +627,7 @@ export default class ColophonPlugin extends Plugin {
                 type: 'doc',
                 content: [
                     {
-                        type: 'body',
+                        type: type === 'script' ? 'script-action' : 'body',
                         content: []
                     }
                 ]

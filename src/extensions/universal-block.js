@@ -26,6 +26,7 @@ const UniversalBlockEnter = Extension.create({
     addOptions() {
         return {
             blocks: {},
+            type: 'manuscript'
         }
     },
 
@@ -54,9 +55,6 @@ const UniversalBlockEnter = Extension.create({
                         .command(({ tr, dispatch }) => {
                             if (dispatch) {
                                 // Split the block and set the type of the second part in one go
-                                // pos: split position
-                                // depth: depth of split (1 for top level blocks)
-                                // typesAfter: the node type for the new block
                                 tr.split($from.pos, 1, [{ type: nodeType }]);
                             }
                             return true;
@@ -67,6 +65,35 @@ const UniversalBlockEnter = Extension.create({
 
                 return false; // Fall through to default Tiptap behavior
             },
+            'Tab': ({ editor }) => {
+                const { state } = editor;
+                const { selection } = state;
+                const { $from, empty } = selection;
+
+                if (!empty) return false;
+
+                const blockId = $from.parent.type.name;
+                const isScriptMode = this.options.type === 'script';
+
+                if (!isScriptMode) return false;
+
+                // Tab behavior in Script Mode:
+                // If in an empty Action block, turn into Character
+                if (blockId === 'script-action' && $from.parent.content.size === 0) {
+                    return editor.chain()
+                        .setNode('script-character')
+                        .run();
+                }
+
+                // If in an empty Character block, turn into Parenthetical (or just cycle)
+                if (blockId === 'script-character' && $from.parent.content.size === 0) {
+                    return editor.chain()
+                        .setNode('script-parenthetical')
+                        .run();
+                }
+
+                return false;
+            }
         };
     },
 });
@@ -137,7 +164,7 @@ function createBlockExtension(blockId, definition) {
 }
 
 // Main generator function
-export function generateExtensions(settings) {
+export function generateExtensions(settings, type = 'manuscript') {
     if (!settings || !settings.blocks) return [];
 
     const extensions = [];
@@ -145,6 +172,7 @@ export function generateExtensions(settings) {
     // 1. Add the central Enter handler
     extensions.push(UniversalBlockEnter.configure({
         blocks: settings.blocks,
+        type: type
     }));
 
     // 2. Create an extension for each block definition

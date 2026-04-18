@@ -155,6 +155,76 @@ export const DEFAULT_SETTINGS = {
             "right-indent": "0in",
             "text-align": "center",
             "syntax-trigger": "### "
+        },
+        "script-scene": {
+            "after-block": "12pt",
+            "before-block": "24pt",
+            "capitalization": "uppercase",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "name": "Scene Heading",
+            "text-align": "left",
+            "following-block": "script-action",
+            "syntax-trigger": "INT."
+        },
+        "script-action": {
+            "after-block": "12pt",
+            "before-block": "0pt",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "name": "Action",
+            "text-align": "left",
+            "following-block": "script-action"
+        },
+        "script-character": {
+            "after-block": "0pt",
+            "before-block": "12pt",
+            "capitalization": "uppercase",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "left-indent": "2.0in",
+            "name": "Character",
+            "text-align": "left",
+            "following-block": "script-dialogue"
+        },
+        "script-parenthetical": {
+            "after-block": "0pt",
+            "before-block": "0pt",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "left-indent": "1.5in",
+            "name": "Parenthetical",
+            "text-align": "left",
+            "following-block": "script-dialogue",
+            "syntax-trigger": "("
+        },
+        "script-dialogue": {
+            "after-block": "12pt",
+            "before-block": "0pt",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "left-indent": "1.0in",
+            "right-indent": "1.5in",
+            "name": "Dialogue",
+            "text-align": "left",
+            "following-block": "script-character"
+        },
+        "script-transition": {
+            "after-block": "12pt",
+            "before-block": "12pt",
+            "capitalization": "uppercase",
+            "font-family": "Courier, 'Courier New', monospace",
+            "font-size": "12pt",
+            "line-spacing": "12pt",
+            "name": "Transition",
+            "text-align": "right",
+            "following-block": "script-scene",
+            "syntax-trigger": ">"
         }
     }
 };

@@ -123,8 +123,12 @@ export class StyleManager {
 
         // Special handling / conversions
         if (properties['capitalization']) {
-            if (properties['capitalization'] === 'all-caps') blockCss += `  text-transform: uppercase;\n`;
-            if (properties['capitalization'] === 'small-caps') blockCss += `  font-variant: small-caps;\n`;
+            if (properties['capitalization'] === 'all-caps' || properties['capitalization'] === 'uppercase') {
+                blockCss += `  text-transform: uppercase;\n`;
+            }
+            if (properties['capitalization'] === 'small-caps') {
+                blockCss += `  font-variant: small-caps;\n`;
+            }
         }
 
         // Handle font-variant / font-style overlap (Legacy support)

@@ -117,7 +117,7 @@ export class TiptapAdapter {
 
         // Cache extensions at the adapter level to prevent re-parsing and duplicate warnings
         if (!this.sharedExtensions) {
-            const dynamicExtensions = this.settings ? generateExtensions(this.settings) : [];
+            const dynamicExtensions = this.settings ? generateExtensions(this.settings, this.type) : [];
             this.sharedExtensions = [
                 Document,
                 Text,
