@@ -1,7 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { Notice } from 'obsidian';
 
-const electron = window.electron;
+const electron = typeof window !== 'undefined' ? window.electron : null;
 const fs = require('fs').promises;
 
 export const FountainSerializer = Extension.create({
@@ -48,7 +48,7 @@ export const FountainSerializer = Extension.create({
     }
 });
 
-function processDocument(doc) {
+export function processDocument(doc) {
     let fountainOutput = "";
 
     doc.descendants((node, pos) => {
