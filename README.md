@@ -21,10 +21,12 @@ You can create a new Colophon document in several ways:
 2. **Ribbon Icon**: Click the feather icon in the left ribbon to create a new manuscript.
 3. **Command Palette**: Use the command `Colophon: New Manuscript`.
 
-### Manuscript Mode
+### Two Specialized Writing Modes
 
-- **Manuscript**: Optimized for essays, chapters, and long-form prose. Features a customizable block-based system with rich typographic control and layout parity for export.
-- **Script Mode**: *(Currently Paused)* A dedicated screenwriting environment with industry-standard formatting.
+Colophon seamlessly toggles between two highly structured aesthetic paradigms via the document's header menu (the `...` pane menu) or the `Colophon: Switch Mode` command:
+
+- **Manuscript Mode**: Optimized for essays, chapters, and long-form prose. Features a customizable block-based system with rich typographic control and layout parity for export.
+- **Script Mode**: A dedicated screenwriting environment with industry-standard formatting. It aggressively limits available formats to screenplay-specific semantic blocks (Scene, Action, Character, Parenthetical, Dialogue, Transition) and re-routes line breaks to match natural screenplay momentum.
 
 ## Key Features (v2.0)
 
@@ -50,11 +52,16 @@ Colophon offers two ways to manage your Z-Axis content, configurable in the plug
 - **Document Sidebar (Local)**: The annotations panel is embedded directly within the manuscript view. This is ideal for ultra-focused writing on a single document where you want your notes immediately adjacent to your prose.
 - **Global Sidebar**: The annotations panel lives in a standard Obsidian sidebar leaf (typically on the right). This mode is designed for "transversal" workflows—the global sidebar follows you as you switch between multiple Colophon tabs, automatically syncing its content to the active document.
 
-### High-Fidelity DOCX Export
-When your manuscript is ready, export it to a production-ready `.docx` file with layout parity:
+### High-Fidelity DOCX Export (Manuscripts)
+When your manuscript is ready, export it to a production-ready `.docx` file with layout parity using the `Download` icon on your top bar:
 - **Visual Consistency**: The export engine maps your custom block definitions directly to Word styles, ensuring the geometry and typography of your export match your writing environment.
 - **Native Annotations**: Colophon footnotes and comments are exported as native Word footnotes and comment bubbles.
 - **Configurable Output**: Choose page sizes (Letter, A4, Legal), adjust margins in inches, and apply a global font scale for the final document.
+
+### Fountain Export Engine (Scripts)
+If you evaluate your document into `Script` mode, your primary export button seamlessly swaps functionality to build raw `.fountain` screenplay files.
+- **Parser Architecture**: Colophon traverses your semantic script blocks and injects standard Fountain syntax (such as forced `.` scenes, forced `@` characters, forced `>` transitions, and bracketed parentheticals) strictly under the hood without cluttering your digital canvas.
+- **System Native**: The export prompts a native OS dialog to place the raw file wherever your production pipelines require it.
 
 ## Migrating from v1.x
 
