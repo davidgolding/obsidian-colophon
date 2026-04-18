@@ -77,8 +77,15 @@ export class ColophonToolbar {
 
         // Get available blocks from settings
         const blocks = this.view.plugin.settings.blocks;
+        const isScriptMode = this.view.docType === 'script';
 
         for (const [id, def] of Object.entries(blocks)) {
+            const isScriptBlock = def['script-mode'] === true;
+            if (isScriptMode !== isScriptBlock) continue;
+
+            // Hide margin-specific semantic blocks from the main formatting menu
+            if (['footnote', 'footnote-number', 'footnote-symbol'].includes(id)) continue;
+
             menu.addItem((item) => {
                 item
                     .setTitle(def.name)

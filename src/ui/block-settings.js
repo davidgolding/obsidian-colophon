@@ -103,12 +103,39 @@ export class BlockSettingsUI {
         this.blockSettingsContainer.empty();
         const blocks = this.plugin.settings.blocks;
 
-        // Sort: Defaults first (in order of default keys if possible, or alphabetical), then custom
-        // For simplicity, let's just sort alphabetically for now, or maybe group them.
-        // Let's stick to the order in the settings object for now.
+        const manuscriptBlocks = [];
+        const scriptBlocks = [];
 
         for (const [blockId, blockData] of Object.entries(blocks)) {
+            if (blockData['script-mode'] === true) {
+                scriptBlocks.push([blockId, blockData]);
+            } else {
+                manuscriptBlocks.push([blockId, blockData]);
+            }
+        }
+
+        const sortFn = (a, b) => {
+            const nameA = String(a[1].name || a[0]).toLowerCase();
+            const nameB = String(b[1].name || b[0]).toLowerCase();
+            return nameA.localeCompare(nameB);
+        };
+
+        manuscriptBlocks.sort(sortFn);
+        scriptBlocks.sort(sortFn);
+
+        // Render Manuscript Mode Blocks
+        this.blockSettingsContainer.createEl('h3', { text: 'Manuscript Mode', cls: 'colophon-settings-subhead' });
+        for (const [blockId, blockData] of manuscriptBlocks) {
             this.renderBlockRow(blockId, blockData);
+        }
+
+        // Render Script Mode Blocks
+        if (scriptBlocks.length > 0) {
+            this.blockSettingsContainer.createEl('br');
+            this.blockSettingsContainer.createEl('h3', { text: 'Script Mode', cls: 'colophon-settings-subhead' });
+            for (const [blockId, blockData] of scriptBlocks) {
+                this.renderBlockRow(blockId, blockData);
+            }
         }
     }
 
@@ -121,7 +148,7 @@ export class BlockSettingsUI {
         // Block Header (Summary)
         const headerSetting = new Setting(summaryEl)
             .setName(blockData.name || blockId)
-            .setDesc(isDefault ? 'Default Block' : 'Custom Block');
+            .setDesc(isDefault ? 'Standard Block' : 'Custom Block');
 
         // Delete Button (only for custom blocks)
         if (!isDefault) {

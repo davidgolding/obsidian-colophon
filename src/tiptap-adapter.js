@@ -102,7 +102,7 @@ export class TiptapAdapter {
 
         if (!hasTextblock) {
             content.content.push({ 
-                type: 'body', 
+                type: this.type === 'script' ? 'script-action' : 'body', 
                 attrs: { id: generateBlockId() },
                 content: [] 
             });
@@ -136,7 +136,12 @@ export class TiptapAdapter {
                 SmallCaps,
                 InternalLink,
                 CommentHighlight,
-                TrailingNode,
+                TrailingNode.configure({
+                    node: this.type === 'script' ? 'script-action' : 'body',
+                    notAfter: this.type === 'script' ? 
+                        ['script-action', 'script-scene', 'script-character', 'script-parenthetical', 'script-dialogue', 'script-transition'] :
+                        ['body', 'supertitle', 'title', 'subtitle', 'epigraph', 'body-first', 'heading-1', 'heading-2', 'heading-3', 'heading-4'],
+                }),
                 DocxSerializer,
                 Search,
                 FootnoteMarker.configure({
@@ -158,7 +163,7 @@ export class TiptapAdapter {
             plugin: this.plugin,
             adapter: this,
             extensions: this.sharedExtensions,
-            content: repairedContent || { type: 'doc', content: [{ type: 'body' }] },
+            content: repairedContent || { type: 'doc', content: [{ type: this.type === 'script' ? 'script-action' : 'body' }] },
             onUpdate: ({ editor, transaction }) => {
                 if (this.onUpdate) {
                     this.onUpdate();

@@ -159,6 +159,7 @@ export const DEFAULT_SETTINGS = {
         "script-scene": {
             "after-block": "12pt",
             "before-block": "24pt",
+            "script-mode": true,
             "capitalization": "uppercase",
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
@@ -171,6 +172,7 @@ export const DEFAULT_SETTINGS = {
         "script-action": {
             "after-block": "12pt",
             "before-block": "0pt",
+            "script-mode": true,
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
             "line-spacing": "12pt",
@@ -181,6 +183,7 @@ export const DEFAULT_SETTINGS = {
         "script-character": {
             "after-block": "0pt",
             "before-block": "12pt",
+            "script-mode": true,
             "capitalization": "uppercase",
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
@@ -193,6 +196,7 @@ export const DEFAULT_SETTINGS = {
         "script-parenthetical": {
             "after-block": "0pt",
             "before-block": "0pt",
+            "script-mode": true,
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
             "line-spacing": "12pt",
@@ -205,6 +209,7 @@ export const DEFAULT_SETTINGS = {
         "script-dialogue": {
             "after-block": "12pt",
             "before-block": "0pt",
+            "script-mode": true,
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
             "line-spacing": "12pt",
@@ -217,6 +222,7 @@ export const DEFAULT_SETTINGS = {
         "script-transition": {
             "after-block": "12pt",
             "before-block": "12pt",
+            "script-mode": true,
             "capitalization": "uppercase",
             "font-family": "Courier, 'Courier New', monospace",
             "font-size": "12pt",
