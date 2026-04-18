@@ -21,6 +21,7 @@ import { CommentHighlight } from './extensions/comment-highlight';
 import { SmallCaps } from './extensions/small-caps';
 import { TrailingNode } from './extensions/trailing-node';
 import { DocxSerializer } from './extensions/docx-serializer';
+import { FountainSerializer } from './extensions/fountain-serializer';
 import { Search } from './extensions/search';
 import { TiptapLinkSuggest } from './ui/tiptap-link-suggest';
 
@@ -143,6 +144,7 @@ export class TiptapAdapter {
                         ['body', 'supertitle', 'title', 'subtitle', 'epigraph', 'body-first', 'heading-1', 'heading-2', 'heading-3', 'heading-4'],
                 }),
                 DocxSerializer,
+                FountainSerializer,
                 Search,
                 FootnoteMarker.configure({
                     trigger: this.settings?.footnoteTrigger ?? "(("

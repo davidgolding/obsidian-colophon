@@ -176,6 +176,22 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'export-to-fountain',
+            name: 'Export to Fountain (.fountain)',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                // Fountain export is only available in script mode
+                if (view && view.adapter && view.docType === 'script') {
+                    if (!checking) {
+                        view.adapter.editor.commands.exportToFountain({});
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'insert-internal-link',
             name: 'Insert Internal Link',
             checkCallback: (checking) => {

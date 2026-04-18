@@ -45,8 +45,12 @@ export class ColophonToolbar {
             this.view.toggleComments();
         });
 
-        this.exportBtn = this.createButton(this.zAxisGroup, 'download', 'Export to DOCX', () => {
+        this.docxExportBtn = this.createButton(this.zAxisGroup, 'download', 'Export to DOCX', () => {
             this.view.plugin.app.commands.executeCommandById('colophon-writer:export-to-docx');
+        });
+
+        this.fountainExportBtn = this.createButton(this.zAxisGroup, 'file-output', 'Export to Fountain', () => {
+            this.view.plugin.app.commands.executeCommandById('colophon-writer:export-to-fountain');
         });
     }
 
@@ -203,6 +207,15 @@ export class ColophonToolbar {
                 this.toggleBtnState(this.footnoteBtn, panel.isVisible && panel.activeTab === 'footnotes');
                 this.toggleBtnState(this.commentBtn, panel.isVisible && panel.activeTab === 'comments');
             }
+        }
+
+        // Toggle Export buttons based on mode
+        if (this.view.docType === 'script') {
+            this.docxExportBtn.style.display = 'none';
+            this.fountainExportBtn.style.display = '';
+        } else {
+            this.docxExportBtn.style.display = '';
+            this.fountainExportBtn.style.display = 'none';
         }
     }
 

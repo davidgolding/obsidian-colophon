@@ -54,6 +54,17 @@ export class ColophonView extends TextFileView {
                 });
         });
 
+        if (this.docType === 'script') {
+            menu.addItem((item) => {
+                item
+                    .setTitle('Export to Fountain format')
+                    .setIcon('file-output')
+                    .onClick(() => {
+                        this.app.commands.executeCommandById('colophon-writer:export-to-fountain');
+                    });
+            });
+        }
+
         menu.addItem((item) => {
             const isVisible = this.plugin.settings.showWordCount;
             item
@@ -77,7 +88,7 @@ export class ColophonView extends TextFileView {
 
     toggleMode() {
         this.docType = this.docType === 'script' ? 'manuscript' : 'script';
-        
+
         // Initial block migration if changing mode on empty-ish file
         const { state } = this.adapter.editor;
         if (state.doc.content.size <= 2) { // Just one empty block
@@ -145,7 +156,7 @@ export class ColophonView extends TextFileView {
 
     async onOpen() {
         await super.onOpen();
-        
+
         this.contentEl.addClass('colophon-view');
         this.contentEl.addClass('colophon-workspace');
 
@@ -170,8 +181,8 @@ export class ColophonView extends TextFileView {
 
         // Add Z-Axis Panel (Sidebar)
         this.zAxisPanel = new ZAxisPanel(
-            this.app, 
-            this.plugin, 
+            this.app,
+            this.plugin,
             {
                 getAdapter: () => this.adapter,
                 updateActiveEditor: (editor) => this.updateActiveEditor(editor),
@@ -245,7 +256,7 @@ export class ColophonView extends TextFileView {
 
     refreshSidebarVisibility() {
         const isGlobal = this.plugin.settings.sidebarLocation === 'global';
-        
+
         if (isGlobal) {
             this.mainLayout.addClass('is-global-sidebar');
             if (this.zAxisPanel) {
@@ -361,7 +372,7 @@ export class ColophonView extends TextFileView {
                     if (this.toolbar) this.toolbar.update();
                     if (this.findReplaceBar) this.findReplaceBar.updateInfo();
                     this.updateWordCountIndicator();
-                    
+
                     // Update whichever panel is active
                     if (this.plugin.settings.sidebarLocation === 'global') {
                         this.plugin.sidebarManager.update();
@@ -370,7 +381,7 @@ export class ColophonView extends TextFileView {
                     }
                 }
             });
-            
+
             // Restore sidebar state if needed
             if (this.zAxisPanel && this.plugin.settings.sidebarLocation !== 'global' && this.plugin.settings.lastZAxisState.visible) {
                 this.zAxisPanel.show(this.plugin.settings.lastZAxisState.activeTab);
@@ -394,7 +405,7 @@ export class ColophonView extends TextFileView {
                         }
                     });
                 }
-                
+
                 // Ensure sidebar updates with new content
                 if (this.zAxisPanel && this.zAxisPanel.isVisible) {
                     this.zAxisPanel.update();
@@ -412,7 +423,7 @@ export class ColophonView extends TextFileView {
         // Garbage collection: Only keep comments that are still referenced in the document
         const activeThreadIds = this.adapter.getActiveCommentThreadIds();
         const cleanedComments = {};
-        
+
         if (this.adapter.comments) {
             for (const threadId in this.adapter.comments) {
                 if (activeThreadIds.has(threadId)) {
@@ -487,7 +498,7 @@ export class ColophonView extends TextFileView {
 
     insertComment() {
         if (!this.adapter) return;
-        
+
         const editor = this.activeEditor || this.adapter.editor;
         if (!editor || editor.state.selection.empty) return;
 
@@ -524,7 +535,7 @@ export class ColophonView extends TextFileView {
         if (this.adapter) {
             this.adapter.updateSettings(settings);
         }
-        
+
         this.refreshSidebarVisibility();
     }
 
@@ -542,7 +553,7 @@ export class ColophonView extends TextFileView {
 
     migrateComments(data) {
         if (!data.comments) data.comments = {};
-        
+
         for (const key in data.footnotes) {
             if (key.startsWith('comment-')) {
                 // Key format: "comment-UUID:index"
