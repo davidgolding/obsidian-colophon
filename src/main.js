@@ -566,9 +566,10 @@ export default class ColophonPlugin extends Plugin {
 
         const originalCallback = command.callback;
         const originalCheckCallback = command.checkCallback;
+        const originalEditorCallback = command.editorCallback;
+        const originalEditorCheckCallback = command.editorCheckCallback;
 
-        // We replace checkCallback to handle both checking and execution
-        command.checkCallback = (checking) => {
+        const checkColophon = (checking) => {
             let view = this.app.workspace.getActiveViewOfType(ColophonView);
             
             // If the active leaf is the global sidebar, find the main ColophonView it supports via SidebarManager
@@ -585,19 +586,44 @@ export default class ColophonPlugin extends Plugin {
                 }
                 return true;
             }
-
-            // Fallback to original
-            if (originalCheckCallback) {
-                return originalCheckCallback(checking);
-            }
-            if (originalCallback && !checking) {
-                originalCallback();
-                return true; // assumed
-            }
             return false;
         };
 
-        // Clear simple callback to ensure checkCallback is used
+        // Elevate everything to checkCallback so it processes globally
+        command.checkCallback = (checking) => {
+            if (checkColophon(checking)) return true;
+
+            if (originalCheckCallback) {
+                return originalCheckCallback(checking);
+            }
+            if (originalCallback) {
+                if (!checking) originalCallback();
+                return true;
+            }
+
+            if (originalEditorCallback || originalEditorCheckCallback) {
+                const activeEditorInfo = this.app.workspace.activeEditor;
+                if (!activeEditorInfo || !activeEditorInfo.editor) {
+                    return false;
+                }
+
+                const mdEditor = activeEditorInfo.editor;
+                const mdView = this.app.workspace.getLeavesOfType('markdown').find(leaf => leaf.isActive() || (activeEditorInfo.file && leaf.view?.file === activeEditorInfo.file))?.view || activeEditorInfo;
+
+                if (originalEditorCheckCallback) {
+                    return originalEditorCheckCallback(checking, mdEditor, mdView);
+                }
+                if (originalEditorCallback) {
+                    if (!checking) originalEditorCallback(mdEditor, mdView);
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        // Clear simple callback to ensure checkCallback takes priority,
+        // but leave editor callbacks intact natively so Obsidian's registry doesn't crash.
         if (command.callback) command.callback = null;
     }
 
