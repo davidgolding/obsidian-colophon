@@ -594,10 +594,10 @@ export default class ColophonPlugin extends Plugin {
             if (checkColophon(checking)) return true;
 
             if (originalCheckCallback) {
-                return originalCheckCallback(checking);
+                return originalCheckCallback.call(command, checking);
             }
             if (originalCallback) {
-                if (!checking) originalCallback();
+                if (!checking) originalCallback.call(command);
                 return true;
             }
 
@@ -611,10 +611,10 @@ export default class ColophonPlugin extends Plugin {
                 const mdView = this.app.workspace.getLeavesOfType('markdown').find(leaf => leaf.isActive() || (activeEditorInfo.file && leaf.view?.file === activeEditorInfo.file))?.view || activeEditorInfo;
 
                 if (originalEditorCheckCallback) {
-                    return originalEditorCheckCallback(checking, mdEditor, mdView);
+                    return originalEditorCheckCallback.call(command, checking, mdEditor, mdView);
                 }
                 if (originalEditorCallback) {
-                    if (!checking) originalEditorCallback(mdEditor, mdView);
+                    if (!checking) originalEditorCallback.call(command, mdEditor, mdView);
                     return true;
                 }
             }
