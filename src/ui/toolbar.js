@@ -130,15 +130,12 @@ export class ColophonToolbar {
 
     createSeparator() {
         const sep = this.containerEl.createDiv({ cls: 'colophon-toolbar-separator' });
-        sep.style.width = '1px';
-        sep.style.height = '16px';
-        sep.style.backgroundColor = 'var(--background-modifier-border)';
-        sep.style.margin = '0 8px';
+        sep.setAttribute('style', 'width: 1px; height: 16px; background-color: var(--background-modifier-border); margin: 0 8px;');
     }
 
     createSpacer() {
         const spacer = this.containerEl.createDiv({ cls: 'colophon-toolbar-spacer' });
-        spacer.style.flex = '1';
+        spacer.setAttribute('style', 'flex: 1;');
     }
 
     update() {
@@ -211,11 +208,11 @@ export class ColophonToolbar {
 
         // Toggle Export buttons based on mode
         if (this.view.docType === 'script') {
-            this.docxExportBtn.style.display = 'none';
-            this.fountainExportBtn.style.display = '';
+            this.docxExportBtn.hide();
+            this.fountainExportBtn.show();
         } else {
-            this.docxExportBtn.style.display = '';
-            this.fountainExportBtn.style.display = 'none';
+            this.docxExportBtn.show();
+            this.fountainExportBtn.hide();
         }
     }
 

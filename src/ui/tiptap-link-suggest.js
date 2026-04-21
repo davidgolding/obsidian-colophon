@@ -163,11 +163,7 @@ export class TiptapLinkSuggest {
         const margin = 10;
         
         // Initial setup for measurement
-        this.suggestionEl.style.position = 'fixed';
-        this.suggestionEl.style.display = 'flex';
-        this.suggestionEl.style.visibility = 'hidden';
-        this.suggestionEl.style.top = '0px';
-        this.suggestionEl.style.left = '0px';
+        this.suggestionEl.setAttribute('style', 'position: fixed; display: flex; visibility: hidden; top: 0px; left: 0px;');
 
         this.suggestionEl.empty();
         
@@ -193,13 +189,16 @@ export class TiptapLinkSuggest {
         const footerEl = this.suggestionEl.createDiv({ cls: 'prompt-instructions' });
         
         const leftIns = footerEl.createDiv({ cls: 'prompt-instruction' });
-        leftIns.innerHTML = '<span class="prompt-instruction-command">Type #</span> to link heading';
+        leftIns.createSpan({ cls: 'prompt-instruction-command', text: 'Type #' });
+        leftIns.appendText(' to link heading');
         
         const centerIns = footerEl.createDiv({ cls: 'prompt-instruction' });
-        centerIns.innerHTML = '<span class="prompt-instruction-command">Type ^</span> to link blocks';
+        centerIns.createSpan({ cls: 'prompt-instruction-command', text: 'Type ^' });
+        centerIns.appendText(' to link blocks');
         
         const rightIns = footerEl.createDiv({ cls: 'prompt-instruction' });
-        rightIns.innerHTML = '<span class="prompt-instruction-command">Type |</span> to change display text';
+        rightIns.createSpan({ cls: 'prompt-instruction-command', text: 'Type |' });
+        rightIns.appendText(' to change display text');
 
         // Viewport awareness: flip/adjust position to stay on screen and anchored to cursor
         const rect = this.suggestionEl.getBoundingClientRect();

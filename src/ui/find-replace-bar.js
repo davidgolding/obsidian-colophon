@@ -14,7 +14,7 @@ export class FindReplaceBar {
     render() {
         this.containerEl = document.createElement('div');
         this.containerEl.className = 'colophon-find-replace-bar';
-        this.containerEl.style.display = 'none';
+        this.containerEl.setAttribute('style', 'display: none;');
 
         // Single row horizontal layout
         const mainRow = this.containerEl.createDiv({ cls: 'cfr-main-row' });
@@ -157,7 +157,7 @@ export class FindReplaceBar {
 
     open() {
         this.isVisible = true;
-        this.containerEl.style.display = 'flex';
+        this.containerEl.setAttribute('style', 'display: flex;');
         this.findInput.focus();
         this.findInput.select();
         this.updateSearch();
@@ -165,7 +165,7 @@ export class FindReplaceBar {
 
     openReplace() {
         this.isVisible = true;
-        this.containerEl.style.display = 'flex';
+        this.containerEl.setAttribute('style', 'display: flex;');
         this.replaceInput.focus();
         this.replaceInput.select();
         this.updateSearch();
@@ -173,7 +173,7 @@ export class FindReplaceBar {
 
     close() {
         this.isVisible = false;
-        this.containerEl.style.display = 'none';
+        this.containerEl.setAttribute('style', 'display: none;');
         if (this.view.adapter && this.view.adapter.editor) {
             this.view.adapter.editor.commands.setSearchQuery('');
             this.view.adapter.editor.commands.focus();

@@ -1,4 +1,4 @@
-import { TFile, TFolder } from 'obsidian';
+import { TFile, TFolder, normalizePath } from 'obsidian';
 
 export class MetadataManager {
     constructor(plugin) {
@@ -168,7 +168,7 @@ export class MetadataManager {
         // Use a reversible but filesystem-safe encoding for the path.
         // Base64 is good but can contain '/', so we replace it.
         const safeName = btoa(colophonPath).replace(/\//g, '_').replace(/=/g, '');
-        return `${this.cacheFolderName}/${safeName}.md`;
+        return normalizePath(`${this.cacheFolderName}/${safeName}.md`);
     }
 
     getColophonPathFromShadow(shadowPath) {

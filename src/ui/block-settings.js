@@ -10,7 +10,7 @@ class BlockIdModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl('h2', { text: 'New Block ID' });
+        new Setting(contentEl).setName('New Block ID').setHeading();
 
         new Setting(contentEl)
             .setName('Enter a unique ID for the new block (e.g., "quote", "sidebar-note"):')
@@ -46,7 +46,7 @@ class ConfirmationModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.createEl('h2', { text: this.title });
+        new Setting(contentEl).setName(this.title).setHeading();
         contentEl.createEl('p', { text: this.message });
 
         new Setting(contentEl)
@@ -124,7 +124,7 @@ export class BlockSettingsUI {
         scriptBlocks.sort(sortFn);
 
         // Render Manuscript Mode Blocks
-        this.blockSettingsContainer.createEl('h3', { text: 'Manuscript Mode', cls: 'colophon-settings-subhead' });
+        new Setting(this.blockSettingsContainer).setName('Manuscript Mode').setHeading();
         for (const [blockId, blockData] of manuscriptBlocks) {
             this.renderBlockRow(blockId, blockData);
         }
@@ -132,7 +132,7 @@ export class BlockSettingsUI {
         // Render Script Mode Blocks
         if (scriptBlocks.length > 0) {
             this.blockSettingsContainer.createEl('br');
-            this.blockSettingsContainer.createEl('h3', { text: 'Script Mode', cls: 'colophon-settings-subhead' });
+            new Setting(this.blockSettingsContainer).setName('Script Mode').setHeading();
             for (const [blockId, blockData] of scriptBlocks) {
                 this.renderBlockRow(blockId, blockData);
             }

@@ -13,8 +13,6 @@ export class ColophonSettingTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        containerEl.createEl('h2', { text: 'Colophon Settings' });
-
         // --- Plugin Settings Group ---
         const pluginSettingsGroup = containerEl.createDiv({ cls: 'setting-group' });
         const pluginSettingsItems = pluginSettingsGroup.createDiv({ cls: 'setting-items' });

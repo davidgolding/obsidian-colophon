@@ -21,10 +21,16 @@ export class SidebarManager {
             })
         );
 
-        // Also track layout changes to catch edge cases
+        // Also track layout changes to catch edge cases (like view closures)
         this.plugin.registerEvent(
             this.app.workspace.on('layout-change', () => {
-                this.handleActiveLeafChange(this.app.workspace.activeLeaf);
+                if (this.activeView) {
+                    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON);
+                    const stillExists = leaves.some(l => l.view === this.activeView);
+                    if (!stillExists) {
+                        this.setActiveView(null);
+                    }
+                }
             })
         );
 
@@ -46,7 +52,10 @@ export class SidebarManager {
 
         // Initial check
         this.app.workspace.onLayoutReady(() => {
-            this.handleActiveLeafChange(this.app.workspace.activeLeaf);
+            const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON);
+            if (leaves.length > 0 && !this.activeView) {
+                this.setActiveView(leaves[0].view);
+            }
         });
     }
 

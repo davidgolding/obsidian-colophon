@@ -200,7 +200,7 @@ export class ColophonView extends TextFileView {
             const titleContainer = viewHeader.querySelector('.view-header-title-container');
             if (titleContainer) {
                 // Ensure it's not hidden (it might be by our CSS)
-                titleContainer.style.display = 'flex';
+                titleContainer.setAttribute('style', 'display: flex;');
                 this.toolbar = new ColophonToolbar(this, titleContainer);
             }
         }

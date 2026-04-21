@@ -1,4 +1,4 @@
-import { Plugin, TFolder, TFile, Modal, Notice } from 'obsidian';
+import { Plugin, TFolder, TFile, Modal, Notice, normalizePath } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 import { ColophonSidebarView, VIEW_TYPE_COLOPHON_SIDEBAR } from './sidebar-view';
 import { DEFAULT_SETTINGS } from './settings-data';
@@ -450,7 +450,7 @@ export default class ColophonPlugin extends Plugin {
         let finalPath = mdPath;
         let count = 1;
         
-        while (await this.app.vault.adapter.exists(finalPath)) {
+        while (this.app.vault.getAbstractFileByPath(finalPath) !== null) {
             finalPath = mdPath.replace(/\.md$/, ` ${count}.md`);
             count++;
         }
@@ -475,7 +475,7 @@ export default class ColophonPlugin extends Plugin {
             let finalPath = colophonPath;
             let count = 1;
             
-            while (await this.app.vault.adapter.exists(finalPath)) {
+            while (this.app.vault.getAbstractFileByPath(finalPath) !== null) {
                 finalPath = colophonPath.replace(/\.colophon$/, ` ${count}.colophon`);
                 count++;
             }
@@ -523,7 +523,7 @@ export default class ColophonPlugin extends Plugin {
             let finalPath = colophonPath;
             let count = 1;
 
-            while (await this.app.vault.adapter.exists(finalPath)) {
+            while (this.app.vault.getAbstractFileByPath(finalPath) !== null) {
                 finalPath = colophonPath.replace(/\.colophon$/, ` ${count}.colophon`);
                 count++;
             }
@@ -638,14 +638,14 @@ export default class ColophonPlugin extends Plugin {
     async createNewColophonFile(type, folderPath = '') {
         // Determine filename
         let baseName = 'Untitled';
-        let path = folderPath ? `${folderPath}/${baseName}.colophon` : `${baseName}.colophon`;
+        let path = normalizePath(folderPath ? `${folderPath}/${baseName}.colophon` : `${baseName}.colophon`);
         let count = 1;
 
         // Simple duplicate check
-        while (await this.app.vault.adapter.exists(path)) {
-            path = folderPath
+        while (this.app.vault.getAbstractFileByPath(path) !== null) {
+            path = normalizePath(folderPath
                 ? `${folderPath}/${baseName} ${count}.colophon`
-                : `${baseName} ${count}.colophon`;
+                : `${baseName} ${count}.colophon`);
             count++;
         }
 
@@ -765,10 +765,10 @@ export default class ColophonPlugin extends Plugin {
 
                 const newPath = file.path.replace(/\.md$/, '.colophon');
 
-                if (await this.app.vault.adapter.exists(newPath)) {
+                if (this.app.vault.getAbstractFileByPath(newPath) !== null) {
                     let counter = 1;
                     let basePath = newPath.replace('.colophon', '');
-                    while (await this.app.vault.adapter.exists(`${basePath} ${counter}.colophon`)) {
+                    while (this.app.vault.getAbstractFileByPath(`${basePath} ${counter}.colophon`) !== null) {
                         counter++;
                     }
                     await this.app.vault.create(`${basePath} ${counter}.colophon`, JSON.stringify(transformed, null, 2));
@@ -1014,16 +1014,12 @@ class FileNameModal extends Modal {
             value: this.basename
         });
 
-        input.style.width = '100%';
-        input.style.marginBottom = '1rem';
+        input.setAttribute('style', 'width: 100%; margin-bottom: 1rem;');
 
         // Select all text on open for easy overwrite, matching standard behavior
         input.select();
 
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
-        buttonContainer.style.display = 'flex';
-        buttonContainer.style.justifyContent = 'flex-end';
-        buttonContainer.style.gap = '10px';
 
         const cancelButton = buttonContainer.createEl('button', { text: 'Cancel' });
         const saveButton = buttonContainer.createEl('button', { cls: 'mod-cta', text: 'Save' });
