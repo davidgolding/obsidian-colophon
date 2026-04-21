@@ -1,4 +1,4 @@
-import { Plugin, TFolder, TFile, Modal, Notice, normalizePath } from 'obsidian';
+import { Plugin, TFolder, TFile, Modal, Notice, normalizePath, MarkdownView } from 'obsidian';
 import { ColophonView, VIEW_TYPE_COLOPHON } from './view';
 import { ColophonSidebarView, VIEW_TYPE_COLOPHON_SIDEBAR } from './sidebar-view';
 import { DEFAULT_SETTINGS } from './settings-data';
@@ -241,6 +241,45 @@ export default class ColophonPlugin extends Plugin {
         });
 
         this.addCommand({
+            id: 'toggle-bold',
+            name: 'Toggle Bold',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleBold();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'toggle-italic',
+            name: 'Toggle Italic',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleItalic();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
+            id: 'toggle-strikethrough',
+            name: 'Toggle Strikethrough',
+            checkCallback: (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) view.toggleStrike();
+                    return true;
+                }
+                return false;
+            }
+        });
+
+        this.addCommand({
             id: 'toggle-underline',
             name: 'Toggle Underline',
             checkCallback: (checking) => {
@@ -418,14 +457,8 @@ export default class ColophonPlugin extends Plugin {
             })
         );
 
-        // 7. Patch Native Commands
+        // 7. Initial cleanup: if local sidebar is selected, ensure no global leaf exists
         this.app.workspace.onLayoutReady(() => {
-            this.patchCommand('editor:toggle-bold', (view) => view.toggleBold());
-            this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
-            this.patchCommand('editor:toggle-strikethrough', (view) => view.toggleStrike());
-            this.patchCommand('editor:insert-footnote', (view) => view.insertFootnote());
-
-            // Initial cleanup: if local sidebar is selected, ensure no global leaf exists
             if (this.settings.sidebarLocation !== 'global') {
                 this.app.workspace.getLeavesOfType(VIEW_TYPE_COLOPHON_SIDEBAR).forEach(leaf => {
                     leaf.detach();
@@ -547,72 +580,7 @@ export default class ColophonPlugin extends Plugin {
         }
     }
 
-    patchCommand(commandId, handler) {
-        const command = this.app.commands.commands[commandId];
-        if (!command) return;
 
-        const originalCallback = command.callback;
-        const originalCheckCallback = command.checkCallback;
-        const originalEditorCallback = command.editorCallback;
-        const originalEditorCheckCallback = command.editorCheckCallback;
-
-        const checkColophon = (checking) => {
-            let view = this.app.workspace.getActiveViewOfType(ColophonView);
-            
-            // If the active leaf is the global sidebar, find the main ColophonView it supports via SidebarManager
-            if (!view) {
-                const sidebar = this.app.workspace.getLeavesOfType('colophon-sidebar').find(l => l.isActive() || l.view?.containerEl?.contains(document.activeElement));
-                if (sidebar && this.sidebarManager && this.sidebarManager.activeView) {
-                    view = this.sidebarManager.activeView;
-                }
-            }
-
-            if (view && view.adapter) {
-                if (!checking) {
-                    handler(view);
-                }
-                return true;
-            }
-            return false;
-        };
-
-        // Elevate everything to checkCallback so it processes globally
-        command.checkCallback = (checking) => {
-            if (checkColophon(checking)) return true;
-
-            if (originalCheckCallback) {
-                return originalCheckCallback.call(command, checking);
-            }
-            if (originalCallback) {
-                if (!checking) originalCallback.call(command);
-                return true;
-            }
-
-            if (originalEditorCallback || originalEditorCheckCallback) {
-                const activeEditorInfo = this.app.workspace.activeEditor;
-                if (!activeEditorInfo || !activeEditorInfo.editor) {
-                    return false;
-                }
-
-                const mdEditor = activeEditorInfo.editor;
-                const mdView = this.app.workspace.getLeavesOfType('markdown').find(leaf => leaf.isActive() || (activeEditorInfo.file && leaf.view?.file === activeEditorInfo.file))?.view || activeEditorInfo;
-
-                if (originalEditorCheckCallback) {
-                    return originalEditorCheckCallback.call(command, checking, mdEditor, mdView);
-                }
-                if (originalEditorCallback) {
-                    if (!checking) originalEditorCallback.call(command, mdEditor, mdView);
-                    return true;
-                }
-            }
-
-            return false;
-        };
-
-        // Clear simple callback to ensure checkCallback takes priority,
-        // but leave editor callbacks intact natively so Obsidian's registry doesn't crash.
-        if (command.callback) command.callback = null;
-    }
 
     async saveSettings() {
         await this.saveData(this.settings);

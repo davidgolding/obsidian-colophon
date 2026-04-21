@@ -212,27 +212,57 @@ export class ColophonView extends TextFileView {
         this.mainLayout.prepend(this.findReplaceBar.containerEl);
 
         // Use Obsidian's native scope (Keymap) to securely override global hotkeys when this view is active
-        this.scope.register(['Mod'], 'f', (evt) => {
-            evt.preventDefault();
-            this.findReplaceBar.open();
-            return true;
+        // 1. Formatting - Mirror Native Hotkeys
+        this.registerHotkeyFromCommand('editor:toggle-bold', () => this.toggleBold());
+        this.registerHotkeyFromCommand('editor:toggle-italics', () => this.toggleItalic());
+        this.registerHotkeyFromCommand('editor:toggle-strikethrough', () => this.toggleStrike());
+        this.registerHotkeyFromCommand('editor:toggle-underline', () => this.toggleUnderline());
+        this.registerHotkeyFromCommand('editor:insert-footnote', () => this.insertFootnote());
+
+        // 2. Search/Replace - Mirror Native Hotkeys
+        this.registerHotkeyFromCommand('editor:open-search', () => this.findReplaceBar.open());
+        this.registerHotkeyFromCommand('editor:open-replace', () => this.findReplaceBar.openReplace());
+
+        // 3. Navigation - Mirror Native Hotkeys
+        this.registerHotkeyFromCommand('editor:find-next', () => {
+            if (this.adapter && this.adapter.editor) this.adapter.editor.commands.nextSearchResult();
+        });
+        this.registerHotkeyFromCommand('editor:find-previous', () => {
+            if (this.adapter && this.adapter.editor) this.adapter.editor.commands.previousSearchResult();
         });
 
-        this.scope.register(['Mod', 'Alt'], 'f', (evt) => {
-            evt.preventDefault();
-            this.findReplaceBar.openReplace();
-            return true;
-        });
+        // 4. Scoped Colophon Commands - Also check if user has custom hotkeys set for our specific commands
+        this.registerHotkeyFromCommand('colophon-writer:insert-comment', () => this.insertComment());
+        this.registerHotkeyFromCommand('colophon-writer:toggle-small-caps', () => this.toggleSmallCaps());
 
-        this.scope.register(['Mod'], 'g', (evt) => {
-            evt.preventDefault();
-            if (evt.shiftKey) {
-                if (this.adapter && this.adapter.editor) this.adapter.editor.commands.previousSearchResult();
-            } else {
-                if (this.adapter && this.adapter.editor) this.adapter.editor.commands.nextSearchResult();
-            }
-            return true;
-        });
+        // Fallback defaults for core features if no hotkeys are found (safety)
+        this.scope.register(['Mod'], 'b', (evt) => { evt.preventDefault(); this.toggleBold(); return true; });
+        this.scope.register(['Mod'], 'i', (evt) => { evt.preventDefault(); this.toggleItalic(); return true; });
+    }
+
+    /**
+     * Dynamically registers hotkeys for a given command by querying Obsidian's hotkey manager.
+     */
+    registerHotkeyFromCommand(commandId, handler) {
+        const hotkeyManager = this.app.hotkeyManager;
+        if (!hotkeyManager) return;
+
+        // Custom hotkeys take precedence
+        const custom = hotkeyManager.getHotkeys(commandId);
+        const defaults = hotkeyManager.getDefaultHotkeys(commandId);
+        const hotkeys = (custom && custom.length > 0) ? custom : defaults;
+
+        if (hotkeys && Array.isArray(hotkeys)) {
+            hotkeys.forEach(hk => {
+                // Obsidian key strings are sometimes capitalized or symbolic
+                const key = hk.key.toLowerCase();
+                this.scope.register(hk.modifiers, key, (evt) => {
+                    evt.preventDefault();
+                    handler();
+                    return true;
+                });
+            });
+        }
     }
 
     showZAxisTab(tab) {
@@ -422,10 +452,19 @@ export class ColophonView extends TextFileView {
     getViewData() {
         if (!this.adapter) return '';
 
-        // Garbage collection: Only keep comments that are still referenced in the document
+        // Garbage collection: Only keep footnotes and comments that are still referenced
+        const activeFootnoteIds = this.adapter.getActiveFootnoteIds();
+        const cleanedFootnotes = {};
+        if (this.adapter.footnotes) {
+            for (const id in this.adapter.footnotes) {
+                if (activeFootnoteIds.has(id)) {
+                    cleanedFootnotes[id] = this.adapter.footnotes[id];
+                }
+            }
+        }
+
         const activeThreadIds = this.adapter.getActiveCommentThreadIds();
         const cleanedComments = {};
-
         if (this.adapter.comments) {
             for (const threadId in this.adapter.comments) {
                 if (activeThreadIds.has(threadId)) {
@@ -437,7 +476,7 @@ export class ColophonView extends TextFileView {
         const data = {
             type: this.docType,
             doc: this.adapter.getJSON(),
-            footnotes: this.adapter.footnotes,
+            footnotes: cleanedFootnotes,
             comments: cleanedComments
         };
         return JSON.stringify(data, null, 2);

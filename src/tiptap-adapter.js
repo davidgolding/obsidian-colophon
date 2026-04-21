@@ -428,6 +428,19 @@ export class TiptapAdapter {
 
     // --- Footnote Management ---
 
+    getActiveFootnoteIds() {
+        const ids = new Set();
+        if (!this.editor) return ids;
+
+        this.editor.state.doc.descendants((node) => {
+            if (node.type.name === 'footnoteMarker') {
+                ids.add(node.attrs.id);
+            }
+        });
+
+        return ids;
+    }
+
     getActiveCommentThreadIds() {
         const ids = new Set();
         if (!this.editor) return ids;
@@ -480,18 +493,6 @@ export class TiptapAdapter {
                 });
             }
         });
-
-        // If no markers found yet (initial load or async lag) but we have footnotes metadata,
-        // provide a stable list to prevent sidebar from showing 'empty'
-        if (markers.length === 0 && this.footnotes && Object.keys(this.footnotes).length > 0) {
-            return Object.entries(this.footnotes)
-                .filter(([id, content]) => content !== null)
-                .map(([id, content], index) => ({
-                    id,
-                    number: index + 1,
-                    content
-                }));
-        }
 
         return markers.map(m => ({
             id: m.id,
