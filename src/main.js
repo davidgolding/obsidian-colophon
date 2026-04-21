@@ -424,19 +424,6 @@ export default class ColophonPlugin extends Plugin {
             this.patchCommand('editor:toggle-italics', (view) => view.toggleItalic());
             this.patchCommand('editor:toggle-strikethrough', (view) => view.toggleStrike());
             this.patchCommand('editor:insert-footnote', (view) => view.insertFootnote());
-            this.patchCommand('editor:open-search', (view) => {
-                if (view.findReplaceBar) view.findReplaceBar.open();
-            });
-            this.patchCommand('editor:find-next', (view) => {
-                if (view.adapter && view.adapter.editor) {
-                    view.adapter.editor.commands.nextSearchResult();
-                }
-            });
-            this.patchCommand('editor:find-previous', (view) => {
-                if (view.adapter && view.adapter.editor) {
-                    view.adapter.editor.commands.previousSearchResult();
-                }
-            });
 
             // Initial cleanup: if local sidebar is selected, ensure no global leaf exists
             if (this.settings.sidebarLocation !== 'global') {

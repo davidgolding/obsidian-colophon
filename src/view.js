@@ -1,4 +1,4 @@
-import { TextFileView, setIcon } from 'obsidian';
+import { TextFileView, Scope, setIcon } from 'obsidian';
 import { TiptapAdapter } from './tiptap-adapter';
 import { ColophonToolbar } from './ui/toolbar';
 import { ZAxisPanel } from './ui/z-axis-panel';
@@ -10,6 +10,7 @@ export class ColophonView extends TextFileView {
     constructor(leaf, plugin) {
         super(leaf);
         this.plugin = plugin;
+        this.scope = new Scope(this.app.scope);
         this.adapter = null;
         this.docType = 'manuscript'; // 'manuscript' | 'script'
         this.activeEditor = null;
@@ -210,27 +211,28 @@ export class ColophonView extends TextFileView {
         this.findReplaceBar = new FindReplaceBar(this, this.mainLayout);
         this.mainLayout.prepend(this.findReplaceBar.containerEl);
 
-        // Shortcut listener for when focus is in the view but not necessarily in the editor
-        // Use capture to supersede global Obsidian hotkeys for find navigation
-        this.registerDomEvent(this.contentEl, 'keydown', (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-                e.preventDefault();
-                e.stopPropagation();
-                this.findReplaceBar.open();
-            } else if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'f') {
-                e.preventDefault();
-                e.stopPropagation();
-                this.findReplaceBar.openReplace();
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.shiftKey) {
-                    if (this.adapter && this.adapter.editor) this.adapter.editor.commands.previousSearchResult();
-                } else {
-                    if (this.adapter && this.adapter.editor) this.adapter.editor.commands.nextSearchResult();
-                }
+        // Use Obsidian's native scope (Keymap) to securely override global hotkeys when this view is active
+        this.scope.register(['Mod'], 'f', (evt) => {
+            evt.preventDefault();
+            this.findReplaceBar.open();
+            return true;
+        });
+
+        this.scope.register(['Mod', 'Alt'], 'f', (evt) => {
+            evt.preventDefault();
+            this.findReplaceBar.openReplace();
+            return true;
+        });
+
+        this.scope.register(['Mod'], 'g', (evt) => {
+            evt.preventDefault();
+            if (evt.shiftKey) {
+                if (this.adapter && this.adapter.editor) this.adapter.editor.commands.previousSearchResult();
+            } else {
+                if (this.adapter && this.adapter.editor) this.adapter.editor.commands.nextSearchResult();
             }
-        }, { capture: true });
+            return true;
+        });
     }
 
     showZAxisTab(tab) {
