@@ -360,6 +360,9 @@ export class ZAxisPanel {
                     this.blurTimers.delete(id);
                 }
                 this.provider.updateActiveEditor(editor);
+                if (this.plugin) {
+                    this.plugin.setActiveEditor(editor);
+                }
             },
             onBlur: ({ editor }) => {
                 // Save current content one last time
@@ -376,6 +379,9 @@ export class ZAxisPanel {
                         const activeEditor = this.provider.getActiveEditor ? this.provider.getActiveEditor() : (adapter ? adapter.view.activeEditor : null);
                         if (activeEditor === editor) {
                             this.provider.updateActiveEditor(null);
+                        }
+                        if (this.plugin && this.plugin.activeTiptapEditor === editor) {
+                            this.plugin.setActiveEditor(null);
                         }
                         
                         editor.destroy();
@@ -409,6 +415,20 @@ export class ZAxisPanel {
 
         // Focus immediately
         editor.commands.focus('end');
+
+        // Intercept native OS format menu events (e.g. macOS Format menu)
+        editor.view.dom.addEventListener('beforeinput', (e) => {
+            const methods = {
+                formatBold: 'toggleBold',
+                formatItalic: 'toggleItalic',
+                formatUnderline: 'toggleUnderline',
+                formatStrikeThrough: 'toggleStrike'
+            };
+            if (methods[e.inputType]) {
+                e.preventDefault();
+                editor.chain().focus()[methods[e.inputType]]().run();
+            }
+        });
 
         // Add internal link suggestions to footnote editor
         if (this.app && this.plugin) {
@@ -720,6 +740,9 @@ export class ZAxisPanel {
                     this.blurTimers.delete(editorId);
                 }
                 this.provider.updateActiveEditor(editor);
+                if (this.plugin) {
+                    this.plugin.setActiveEditor(editor);
+                }
             },
             onBlur: ({ editor }) => {
                 const finalContent = editor.getJSON();
@@ -736,6 +759,9 @@ export class ZAxisPanel {
                         const activeEditor = this.provider.getActiveEditor ? this.provider.getActiveEditor() : (adapter ? adapter.view.activeEditor : null);
                         if (activeEditor === editor) {
                             this.provider.updateActiveEditor(null);
+                        }
+                        if (this.plugin && this.plugin.activeTiptapEditor === editor) {
+                            this.plugin.setActiveEditor(null);
                         }
 
                         editor.destroy();
@@ -757,6 +783,20 @@ export class ZAxisPanel {
 
         this.editors.set(editorId, editor);
         editor.commands.focus('end');
+
+        // Intercept native OS format menu events (e.g. macOS Format menu)
+        editor.view.dom.addEventListener('beforeinput', (e) => {
+            const methods = {
+                formatBold: 'toggleBold',
+                formatItalic: 'toggleItalic',
+                formatUnderline: 'toggleUnderline',
+                formatStrikeThrough: 'toggleStrike'
+            };
+            if (methods[e.inputType]) {
+                e.preventDefault();
+                editor.chain().focus()[methods[e.inputType]]().run();
+            }
+        });
 
         // Add internal link suggestions to comment editor
         if (this.app && this.plugin) {

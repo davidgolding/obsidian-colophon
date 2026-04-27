@@ -10,6 +10,48 @@ import { ExportModal } from './ui/export-modal';
 import MarkdownBridge from './markdown-bridge';
 
 export default class ColophonPlugin extends Plugin {
+    activeTiptapEditor = null;
+
+    setActiveEditor(editor) {
+        this.activeTiptapEditor = editor;
+    }
+
+    interceptCoreCommands() {
+        // We intercept native Obsidian formatting commands so the OS 'Format' menu 
+        // and default hotkeys (like Cmd+B) work natively in any Colophon Tiptap editor.
+        const commands = [
+            { id: 'editor:toggle-bold', method: 'toggleBold' },
+            { id: 'editor:toggle-italics', method: 'toggleItalic' },
+            { id: 'editor:toggle-strikethrough', method: 'toggleStrike' },
+            { id: 'editor:toggle-highlight', method: 'toggleUnderline' }
+        ];
+
+        commands.forEach(cmd => {
+            const coreCommand = this.app.commands.commands[cmd.id];
+            if (coreCommand) {
+                // Save original to allow fallback when not in a Colophon editor
+                if (!coreCommand.originalCheckCallback) {
+                    coreCommand.originalCheckCallback = coreCommand.checkCallback || coreCommand.callback;
+                }
+
+                // Override
+                coreCommand.checkCallback = (checking) => {
+                    if (this.activeTiptapEditor) {
+                        if (!checking) {
+                            this.activeTiptapEditor.chain().focus()[cmd.method]().run();
+                        }
+                        return true;
+                    }
+                    // Fallback to original
+                    if (coreCommand.originalCheckCallback) {
+                        return coreCommand.originalCheckCallback(checking);
+                    }
+                    return false;
+                };
+            }
+        });
+    }
+
     async onload() {
         // ... Load Settings ...
         const savedData = await this.loadData() || {};
@@ -244,9 +286,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-bold',
             name: 'Toggle Bold',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleBold();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleBold().run();
+                    }
                     return true;
                 }
                 return false;
@@ -257,9 +300,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-italic',
             name: 'Toggle Italic',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleItalic();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleItalic().run();
+                    }
                     return true;
                 }
                 return false;
@@ -270,9 +314,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-strikethrough',
             name: 'Toggle Strikethrough',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleStrike();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleStrike().run();
+                    }
                     return true;
                 }
                 return false;
@@ -283,9 +328,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-underline',
             name: 'Toggle Underline',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleUnderline();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleUnderline().run();
+                    }
                     return true;
                 }
                 return false;
@@ -296,9 +342,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-superscript',
             name: 'Toggle Superscript',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleSuperscript();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleSuperscript().unsetSubscript().run();
+                    }
                     return true;
                 }
                 return false;
@@ -309,9 +356,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-subscript',
             name: 'Toggle Subscript',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleSubscript();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleSubscript().unsetSuperscript().run();
+                    }
                     return true;
                 }
                 return false;
@@ -322,9 +370,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-small-caps',
             name: 'Toggle Small Caps',
             checkCallback: (checking) => {
-                const view = this.app.workspace.getActiveViewOfType(ColophonView);
-                if (view && view.adapter) {
-                    if (!checking) view.toggleSmallCaps();
+                if (this.activeTiptapEditor) {
+                    if (!checking) {
+                        this.activeTiptapEditor.chain().focus().toggleSmallCaps().run();
+                    }
                     return true;
                 }
                 return false;
@@ -465,29 +514,50 @@ export default class ColophonPlugin extends Plugin {
                 });
             }
         });
+
+        // 8. Intercept core format commands
+        this.app.workspace.onLayoutReady(() => {
+            this.interceptCoreCommands();
+        });
+    }
+
+    onunload() {
+        // Restore core commands to prevent breaking standard Markdown views after plugin disable
+        const commands = ['editor:toggle-bold', 'editor:toggle-italics', 'editor:toggle-strikethrough', 'editor:toggle-highlight'];
+        commands.forEach(id => {
+            const coreCommand = this.app.commands.commands[id];
+            if (coreCommand && coreCommand.originalCheckCallback) {
+                coreCommand.checkCallback = coreCommand.originalCheckCallback;
+                delete coreCommand.originalCheckCallback;
+            }
+        });
+
+        if (this.sidebarManager) {
+            this.sidebarManager.destroy();
+        }
     }
 
     async exportToMarkdown(view) {
         if (!view || !view.adapter) return;
-        
+
         const file = view.file;
         const data = JSON.parse(view.getViewData());
-        
+
         const markdown = this.markdownBridge.dehydrate(
-            data.doc, 
-            data.footnotes || {}, 
+            data.doc,
+            data.footnotes || {},
             data.comments || {}
         );
-        
+
         const mdPath = file.path.replace(/\.colophon$/, '.md');
         let finalPath = mdPath;
         let count = 1;
-        
+
         while (this.app.vault.getAbstractFileByPath(finalPath) !== null) {
             finalPath = mdPath.replace(/\.md$/, ` ${count}.md`);
             count++;
         }
-        
+
         try {
             await this.app.vault.create(finalPath, markdown);
             new Notice(`Exported to ${finalPath}`);
@@ -499,23 +569,23 @@ export default class ColophonPlugin extends Plugin {
 
     async convertToColophon(file) {
         if (!(file instanceof TFile)) return;
-        
+
         try {
             const markdown = await this.app.vault.read(file);
             const data = this.markdownBridge.hydrate(markdown);
-            
+
             const colophonPath = file.path.replace(/\.md$/, '.colophon');
             let finalPath = colophonPath;
             let count = 1;
-            
+
             while (this.app.vault.getAbstractFileByPath(finalPath) !== null) {
                 finalPath = colophonPath.replace(/\.colophon$/, ` ${count}.colophon`);
                 count++;
             }
-            
+
             await this.app.vault.create(finalPath, JSON.stringify(data, null, 2));
             new Notice(`Converted to ${finalPath}`);
-            
+
             // Open the new file
             const newFile = this.app.vault.getAbstractFileByPath(finalPath);
             if (newFile instanceof TFile) {
@@ -562,10 +632,10 @@ export default class ColophonPlugin extends Plugin {
             }
 
             await this.app.vault.create(finalPath, JSON.stringify(finalData, null, 2));
-            
+
             // Delete original legacy file
             await this.app.vault.delete(file);
-            
+
             new Notice(`Converted legacy file to ${finalPath}`);
 
             // Open the new file
@@ -597,11 +667,7 @@ export default class ColophonPlugin extends Plugin {
         });
     }
 
-    onunload() {
-        if (this.sidebarManager) {
-            this.sidebarManager.destroy();
-        }
-    }
+
 
     async createNewColophonFile(type, folderPath = '') {
         // Determine filename
@@ -841,7 +907,7 @@ export default class ColophonPlugin extends Plugin {
             } else {
                 node.type = 'body';
             }
-            
+
             // Ensure every block has a unique ID for v2.0
             if (!node.attrs) node.attrs = {};
             node.attrs.id = generateId();
@@ -906,14 +972,14 @@ export default class ColophonPlugin extends Plugin {
         if (!node || !node.content || !Array.isArray(node.content)) return;
 
         const newContent = [];
-        
+
         for (const child of node.content) {
             // 1. Handle legacy 'internallink' marks or 'link' marks with 'internal-link' class
-            const linkMark = child.marks?.find(m => 
-                m.type === 'internallink' || 
+            const linkMark = child.marks?.find(m =>
+                m.type === 'internallink' ||
                 (m.type === 'link' && m.attrs?.class === 'internal-link')
             );
-            
+
             if (linkMark && child.type === 'text') {
                 newContent.push({
                     type: 'internalLink',
@@ -940,22 +1006,22 @@ export default class ColophonPlugin extends Plugin {
                 });
 
                 // Filter out link marks converted to nodes
-                child.marks = child.marks.filter(m => 
-                    m.type !== 'internallink' && 
+                child.marks = child.marks.filter(m =>
+                    m.type !== 'internallink' &&
                     !(m.type === 'link' && m.attrs?.class === 'internal-link')
                 );
-                
+
                 if (child.marks.length === 0) {
                     delete child.marks;
                 }
             }
-            
+
             // NOTE: We REMOVED the recursive call to migrateMarks here, 
             // because migrateContentNodes now handles the full tree walking properly.
-            
+
             newContent.push(child);
         }
-        
+
         node.content = newContent;
     }
 }

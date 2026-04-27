@@ -188,6 +188,9 @@ export class TiptapAdapter {
                 if (this.view) {
                     this.view.updateActiveEditor(editor);
                 }
+                if (this.plugin) {
+                    this.plugin.setActiveEditor(editor);
+                }
                 this.handleScroll();
             },
             editorProps: {
@@ -216,6 +219,20 @@ export class TiptapAdapter {
         if (this.app && this.plugin) {
             this.linkSuggest = new TiptapLinkSuggest(this.app, this.plugin, this.editor);
         }
+
+        // Intercept native OS format menu events (e.g. macOS Format menu)
+        this.editor.view.dom.addEventListener('beforeinput', (e) => {
+            const methods = {
+                formatBold: 'toggleBold',
+                formatItalic: 'toggleItalic',
+                formatUnderline: 'toggleUnderline',
+                formatStrikeThrough: 'toggleStrike'
+            };
+            if (methods[e.inputType]) {
+                e.preventDefault();
+                this.editor.chain().focus()[methods[e.inputType]]().run();
+            }
+        });
 
         // Initial scroll check after mount
         this.handleScroll();
@@ -421,6 +438,9 @@ export class TiptapAdapter {
             this.linkSuggest = null;
         }
         if (this.editor) {
+            if (this.plugin && this.plugin.activeTiptapEditor === this.editor) {
+                this.plugin.setActiveEditor(null);
+            }
             this.editor.destroy();
             this.editor = null;
         }

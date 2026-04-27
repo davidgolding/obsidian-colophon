@@ -1,6 +1,6 @@
 {
     "name": "obsidian-colophon",
-    "version": "2.2.3",
+    "version": "2.2.4",
     "description": "A dedicated, typographically refined writing canvas for structuring long-form manuscripts and screenplays.",
     "main": "main.js",
     "scripts": {
