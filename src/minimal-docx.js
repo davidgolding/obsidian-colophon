@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { strToU8, zipSync } from 'fflate';
 
 export class MinimalDocxGenerator {
     constructor(options = {}) {
@@ -23,8 +23,6 @@ export class MinimalDocxGenerator {
     }
 
     async generate() {
-        const zip = new JSZip();
-
         // 0. Map IDs to Integers (1-based)
         let fnIndex = 1;
         Object.keys(this.footnotes).forEach(id => {
@@ -36,20 +34,19 @@ export class MinimalDocxGenerator {
             this.commentIdMap.set(id, cmIndex++);
         });
 
-        zip.file('[Content_Types].xml', this.createContentTypesXml());
-        zip.folder('_rels').file('.rels', this.createRelsXml());
+        const zipObj = {
+            '[Content_Types].xml': strToU8(this.createContentTypesXml()),
+            '_rels/.rels': strToU8(this.createRelsXml()),
+            'word/document.xml': strToU8(this.createDocumentXml()),
+            'word/styles.xml': strToU8(this.createStylesXml()),
+            'word/fontTable.xml': strToU8(this.createFontTableXml()),
+            'word/footnotes.xml': strToU8(this.createFootnotesXml()),
+            'word/settings.xml': strToU8(this.createSettingsXml()),
+            'word/comments.xml': strToU8(this.createCommentsXml()),
+            'word/_rels/document.xml.rels': strToU8(this.createDocumentRelsXml())
+        };
 
-        const word = zip.folder('word');
-        word.file('document.xml', this.createDocumentXml());
-        word.file('styles.xml', this.createStylesXml());
-        word.file('fontTable.xml', this.createFontTableXml());
-        word.file('footnotes.xml', this.createFootnotesXml());
-        word.file('settings.xml', this.createSettingsXml());
-        word.file('comments.xml', this.createCommentsXml());
-
-        word.folder('_rels').file('document.xml.rels', this.createDocumentRelsXml());
-
-        return zip.generateAsync({ type: 'nodebuffer' });
+        return Buffer.from(zipSync(zipObj));
     }
 
     // --- XML Generators ---

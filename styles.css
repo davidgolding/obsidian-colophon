@@ -13,7 +13,7 @@
 }
 
 /* 1. WORKSPACE CONTAINER */
-.colophon-workspace {
+.workspace-leaf .colophon-workspace {
     background-color: var(--background-primary);
     position: relative;
     width: 100%;
@@ -21,7 +21,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 0 !important;
+    padding: 0;
 }
 
 .colophon-scroll-container {
@@ -37,14 +37,14 @@
 
 
 /* 2. THE EDITOR CANVAS (Main) */
-.colophon-main-editor {
+.workspace-leaf .colophon-main-editor {
     /* Layout */
     width: 100%;
     /* Use the variable set by JS, or fallback to 1080px (new default) */
     max-width: var(--colophon-editor-width, 1080px);
     min-height: 100%;
     margin: 0 auto;
-    padding: 0 2rem 75vh 2rem !important;
+    padding: 0 2rem 75vh;
     /* Top padding 0, Bottom 75vh, Sides 2rem */
 
     /* Appearance */
@@ -74,8 +74,8 @@
 }
 
 /* Ensure first element is flush with top */
-.colophon-main-editor > *:first-child {
-    margin-top: 0 !important;
+.workspace-leaf .colophon-main-editor > *:first-child {
+    margin-top: 0;
 }
 
 /* Selection Styling - Applies to all editors in workspace */
@@ -458,28 +458,26 @@
     width: 100%;
 }
 
-.colophon-comment-editor {
+.workspace-leaf .colophon-comment-editor {
     font-size: 0.9rem;
     line-height: 1.4;
     min-height: 1.2em;
     outline: none;
     /* Revert to theme defaults for comments */
-    font-family: var(--font-interface) !important;
-    font-variant: normal !important;
-    text-indent: 0 !important;
+    font-family: var(--font-interface);
+    font-variant: normal;
 }
 
 /* Comment Preview Overrides */
-.colophon-comment-preview,
-.colophon-comment-preview p {
-    font-family: var(--font-text-interface) !important;
-    font-size: 0.9rem !important;
-    font-variant: normal !important;
-    font-style: normal !important;
-    text-indent: 0 !important;
-    padding: 0 !important;
-    color: var(--text-normal) !important;
-    line-height: 1.4 !important;
+.workspace-leaf .colophon-comment-preview,
+.workspace-leaf .colophon-comment-preview p {
+    font-family: var(--font-text-interface);
+    font-size: 0.9rem;
+    font-variant: normal;
+    font-style: normal;
+    padding: 0;
+    color: var(--text-normal);
+    line-height: 1.4;
     cursor: pointer;
     min-height: 1.2em;
     white-space: pre-wrap;
@@ -625,10 +623,10 @@
 }
 
 /* 12. GLOBAL SIDEBAR OVERRIDES */
-.colophon-main-layout.is-global-sidebar .colophon-z-axis-panel {
+.workspace-leaf .colophon-main-layout.is-global-sidebar .colophon-z-axis-panel {
     display: none;
-    width: 0 !important;
-    border-left: none !important;
+    width: 0;
+    border-left: none;
 }
 
 .colophon-sidebar-view .colophon-z-axis-panel {
@@ -721,13 +719,13 @@
     width: 100%;
 }
 
-.colophon-footnote-editor {
+.workspace-leaf .colophon-footnote-editor {
     outline: none;
     min-height: auto;
     cursor: text;
     width: 100%;
-    background-color: transparent !important;
-    border: 0 !important;
+    background-color: transparent;
+    border: 0;
 }
 
 .colophon-footnote-preview {
@@ -755,20 +753,20 @@
     box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
-.colophon-footnote-editor .ProseMirror {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    min-height: auto !important;
-    background-color: transparent !important;
-    box-shadow: none !important;
-    border: 0 !important;
+.workspace-leaf .colophon-footnote-editor .ProseMirror {
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    min-height: auto;
+    background-color: transparent;
+    box-shadow: none;
+    border: 0;
 }
 
 /* Base reset for paragraphs in mini-editors */
-.colophon-footnote-editor p {
-    margin: 0 !important;
-    padding: 0 !important;
+.workspace-leaf .colophon-footnote-editor p {
+    margin: 0;
+    padding: 0;
 }
 
 /* Footnote Marker in Canvas */
@@ -999,26 +997,7 @@
     margin-top: 10px;
 }
 
-.colophon-export-margins__label {
-    font-size: 11px;
-    line-height: 1.2;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-}
 
-.colophon-export-margins__input {
-    width: 100%;
-    padding: 6px 8px;
-    border-radius: var(--radius-s);
-    border: 1px solid var(--background-modifier-border);
-    background: var(--background-modifier-form-field);
-    color: var(--text-normal);
-}
-
-.colophon-export-margins__input:focus {
-    outline: none;
-    border-color: var(--interactive-accent);
-}
 /* BLOCK SETTINGS UI */
 .colophon-block-settings {
     margin-top: 20px;

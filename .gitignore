@@ -1,6 +1,5 @@
 .hotreload
 node_modules/
-pnpm-lock.yaml
 pnpm-workspace.yaml
 .DS_Store
 .vscode
@@ -9,3 +8,4 @@ pnpm-workspace.yaml
 /docs
 skills-lock.json
 /.agent
+/.agents

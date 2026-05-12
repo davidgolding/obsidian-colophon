@@ -1,4 +1,4 @@
-<h1 align="center">Colophon 2.0</h1>
+<h1 align="center">Colophon</h1>
 <p align="center">Long-form writing canvas for Obsidian</p>
 
 Colophon provides a dedicated, typographically refined environment for writing manuscripts and screenplays. Unlike standard Markdown editors, Colophon uses a custom editor engine (Tiptap/ProseMirror) and a dedicated file format to ensure your formatting, footnotes, and script standards are preserved exactly as you intended.
