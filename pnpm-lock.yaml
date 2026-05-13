@@ -5,9 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  picomatch: '>=4.0.4'
-  vite: '>=8.0.5'
-  postcss: '>=8.5.10'
+  picomatch: ^4.0.4
+  vite: ^8.0.12
+  postcss: ^8.5.14
 
 importers:
 
@@ -543,7 +543,7 @@ packages:
     resolution: {integrity: sha512-MCFc63czMjEInOlcY2cpQCvCN+KgbAn+60xu9cMgP4sKaLC5JNAKw7JH8QdAnoAC88hW1IiSNZ+GgVXlN1UcMQ==}
     peerDependencies:
       msw: ^2.4.9
-      vite: '>=8.0.5'
+      vite: ^8.0.12
     peerDependenciesMeta:
       msw:
         optional: true
@@ -616,7 +616,7 @@ packages:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
     peerDependencies:
-      picomatch: '>=4.0.4'
+      picomatch: ^4.0.4
     peerDependenciesMeta:
       picomatch:
         optional: true
@@ -903,7 +903,7 @@ packages:
       '@vitest/ui': 4.1.6
       happy-dom: '*'
       jsdom: '*'
-      vite: '>=8.0.5'
+      vite: ^8.0.12
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
