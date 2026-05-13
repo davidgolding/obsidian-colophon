@@ -92,7 +92,7 @@ Colophon is built with Vanilla JavaScript and Tiptap.
 
 ---
 
-# For Die-Hard Users: Our UX Theory
+## For Die-Hard Users: Our UX Theory
 
 For most writers (and not technicians), their digital text environment will follow one of two UX design paradigms: word processing or Markdown. I’m interested in a third paradigm, a way to leverage the benefits of both for an improved writing experience.
 
