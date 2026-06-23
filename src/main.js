@@ -50,6 +50,28 @@ export default class ColophonPlugin extends Plugin {
                 };
             }
         });
+
+        // Intercept native Obsidian insert-footnote command
+        const footnoteCommand = this.app.commands.commands['editor:insert-footnote'];
+        if (footnoteCommand) {
+            if (!footnoteCommand.originalCheckCallback) {
+                footnoteCommand.originalCheckCallback = footnoteCommand.checkCallback || footnoteCommand.callback;
+            }
+
+            footnoteCommand.checkCallback = (checking) => {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter) {
+                    if (!checking) {
+                        view.insertFootnote();
+                    }
+                    return true;
+                }
+                if (footnoteCommand.originalCheckCallback) {
+                    return footnoteCommand.originalCheckCallback(checking);
+                }
+                return false;
+            };
+        }
     }
 
     async onload() {
@@ -523,7 +545,7 @@ export default class ColophonPlugin extends Plugin {
 
     onunload() {
         // Restore core commands to prevent breaking standard Markdown views after plugin disable
-        const commands = ['editor:toggle-bold', 'editor:toggle-italics', 'editor:toggle-strikethrough', 'editor:toggle-highlight'];
+        const commands = ['editor:toggle-bold', 'editor:toggle-italics', 'editor:toggle-strikethrough', 'editor:toggle-highlight', 'editor:insert-footnote'];
         commands.forEach(id => {
             const coreCommand = this.app.commands.commands[id];
             if (coreCommand && coreCommand.originalCheckCallback) {
