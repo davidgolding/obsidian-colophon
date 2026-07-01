@@ -74,7 +74,17 @@ describe('Formatting Tracking', () => {
             },
             workspace: {
                 on: vi.fn(),
-                onLayoutReady: vi.fn()
+                onLayoutReady: vi.fn(),
+                getActiveViewOfType: vi.fn().mockImplementation((cls) => {
+                    if (plugin.activeTiptapEditor) {
+                        return {
+                            adapter: {
+                                editor: plugin.activeTiptapEditor
+                            }
+                        };
+                    }
+                    return null;
+                })
             }
         };
 

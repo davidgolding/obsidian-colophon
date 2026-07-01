@@ -36,9 +36,10 @@ export default class ColophonPlugin extends Plugin {
 
                 // Override
                 coreCommand.checkCallback = (checking) => {
-                    if (this.activeTiptapEditor) {
+                    const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                    if (view && view.adapter && view.adapter.editor) {
                         if (!checking) {
-                            this.activeTiptapEditor.chain().focus()[cmd.method]().run();
+                            view.adapter.editor.chain().focus()[cmd.method]().run();
                         }
                         return true;
                     }
@@ -308,9 +309,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-bold',
             name: 'Toggle Bold',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleBold().run();
+                        view.adapter.editor.chain().focus().toggleBold().run();
                     }
                     return true;
                 }
@@ -322,9 +324,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-italic',
             name: 'Toggle Italic',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleItalic().run();
+                        view.adapter.editor.chain().focus().toggleItalic().run();
                     }
                     return true;
                 }
@@ -336,9 +339,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-strikethrough',
             name: 'Toggle Strikethrough',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleStrike().run();
+                        view.adapter.editor.chain().focus().toggleStrike().run();
                     }
                     return true;
                 }
@@ -350,9 +354,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-underline',
             name: 'Toggle Underline',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleUnderline().run();
+                        view.adapter.editor.chain().focus().toggleUnderline().run();
                     }
                     return true;
                 }
@@ -364,9 +369,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-superscript',
             name: 'Toggle Superscript',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleSuperscript().unsetSubscript().run();
+                        view.adapter.editor.chain().focus().toggleSuperscript().unsetSubscript().run();
                     }
                     return true;
                 }
@@ -378,9 +384,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-subscript',
             name: 'Toggle Subscript',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleSubscript().unsetSuperscript().run();
+                        view.adapter.editor.chain().focus().toggleSubscript().unsetSuperscript().run();
                     }
                     return true;
                 }
@@ -392,9 +399,10 @@ export default class ColophonPlugin extends Plugin {
             id: 'toggle-small-caps',
             name: 'Toggle Small Caps',
             checkCallback: (checking) => {
-                if (this.activeTiptapEditor) {
+                const view = this.app.workspace.getActiveViewOfType(ColophonView);
+                if (view && view.adapter && view.adapter.editor) {
                     if (!checking) {
-                        this.activeTiptapEditor.chain().focus().toggleSmallCaps().run();
+                        view.adapter.editor.chain().focus().toggleSmallCaps().run();
                     }
                     return true;
                 }
